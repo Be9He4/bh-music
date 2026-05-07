@@ -27,7 +27,7 @@ import { PlayerQueuePopover } from "./PlayerQueuePopover";
 import { MusicTrackMobileMenu } from "./MusicTrackMobileMenu";
 import { AddToPlaylistDrawer } from "./AddToPlaylistDrawer";
 import { downloadMusicTrack } from "@/lib/utils/download";
-import { useMusicStore } from "@/store/music-store";
+import { useMusicStore, type FullScreenBackgroundMode } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
 import { ColorExtractor } from "react-color-extractor";
@@ -45,9 +45,19 @@ function ModeIcon({ isRepeat, isShuffle }: ModeIconProps) {
 }
 
 const BackgroundLayer = memo(
-  ({ hslColor }: { hslColor: [number, number, number] | null }) => {
+  ({
+    hslColor,
+    coverUrl,
+    mode,
+  }: {
+    hslColor: [number, number, number] | null;
+    coverUrl: string | null;
+    mode: FullScreenBackgroundMode;
+  }) => {
+    const showThemeColor = mode === "theme" && hslColor;
+    const showCoverMask = mode === "cover" && coverUrl;
     const dynamicStyle = useMemo(() => {
-      if (!hslColor) return undefined;
+      if (!showThemeColor) return undefined;
       const [h, s, l] = hslColor;
       return {
         "--bg-h": h,
@@ -57,7 +67,7 @@ const BackgroundLayer = memo(
         hsl(var(--bg-h), var(--bg-s), var(--bg-l)),
         hsl(var(--bg-h), var(--bg-s), calc(var(--bg-l) - 8%)))`,
       } as React.CSSProperties;
-    }, [hslColor]);
+    }, [hslColor, showThemeColor]);
 
     return (
       <div className="absolute inset-0 z-[-1] overflow-hidden bg-zinc-950">
@@ -65,16 +75,35 @@ const BackgroundLayer = memo(
         <div
           className={cn(
             "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-            hslColor ? "opacity-100" : "opacity-0",
+            showThemeColor ? "opacity-100" : "opacity-0",
           )}
           style={dynamicStyle}
         />
+
+        {/* 封面遮罩层 */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-1000",
+            showCoverMask ? "opacity-100" : "opacity-0",
+          )}
+        >
+          {coverUrl && (
+            <img
+              src={coverUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-[-32px] h-[calc(100%+64px)] w-[calc(100%+64px)] object-cover blur-3xl scale-110"
+            />
+          )}
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="absolute inset-0 bg-linear-to-b from-black/10 via-zinc-950/20 to-black/60" />
+        </div>
 
         {/* 兜底背景层 */}
         <div
           className={cn(
             "absolute inset-0 transition-opacity duration-1000",
-            hslColor ? "opacity-0" : "opacity-100",
+            showThemeColor || showCoverMask ? "opacity-0" : "opacity-100",
           )}
         >
           <div className="absolute inset-0 bg-linear-to-b from-zinc-900 via-zinc-950 to-black" />
@@ -160,6 +189,7 @@ export function FullScreenPlayer({
     clearQueue,
     reshuffle,
     currentAudioUrl,
+    fullScreenBackgroundMode,
   } = useMusicStore(
     useShallow((state) => ({
       queue: state.queue,
@@ -169,6 +199,7 @@ export function FullScreenPlayer({
       reshuffle: state.reshuffle,
       currentAudioUrl: state.currentAudioUrl,
       quality: state.quality,
+      fullScreenBackgroundMode: state.fullScreenBackgroundMode,
     })),
   );
 
@@ -214,7 +245,7 @@ export function FullScreenPlayer({
         isFullScreen ? "translate-y-0" : "translate-y-full",
       )}
     >
-      {coverUrl && (
+      {coverUrl && fullScreenBackgroundMode === "theme" && (
         <div className="hidden">
           <ColorExtractor
             src={coverUrl}
@@ -226,7 +257,11 @@ export function FullScreenPlayer({
       )}
 
       {/* 背景渲染层 */}
-      <BackgroundLayer hslColor={hslColor} />
+      <BackgroundLayer
+        hslColor={hslColor}
+        coverUrl={coverUrl}
+        mode={fullScreenBackgroundMode}
+      />
 
       <header className="shrink-0 flex items-center justify-between px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-6 relative z-10">
         <Button
@@ -271,7 +306,7 @@ export function FullScreenPlayer({
               isPlaying ? "scale-100" : "scale-[0.95]",
             )}
             style={{
-              boxShadow: hslColor
+              boxShadow: fullScreenBackgroundMode === "theme" && hslColor
                 ? `0 30px 60px -12px hsla(${hslColor[0]}, ${
                     hslColor[1]
                   }%, ${Math.max(0, hslColor[2] - 20)}%, 0.4)`

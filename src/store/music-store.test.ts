@@ -43,8 +43,23 @@ describe('MusicStore', () => {
       isShuffle: false,
       isPlaying: false,
       currentAudioTime: 0,
+      fullScreenBackgroundMode: 'theme',
     });
     vi.clearAllMocks();
+  });
+
+  describe('Settings', () => {
+    it('should use theme color background by default', () => {
+      expect(useMusicStore.getState().fullScreenBackgroundMode).toBe('theme');
+    });
+
+    it('should update full screen background mode', () => {
+      useMusicStore.getState().setFullScreenBackgroundMode('cover');
+      expect(useMusicStore.getState().fullScreenBackgroundMode).toBe('cover');
+
+      useMusicStore.getState().setFullScreenBackgroundMode('texture');
+      expect(useMusicStore.getState().fullScreenBackgroundMode).toBe('texture');
+    });
   });
 
   describe('Favorites', () => {

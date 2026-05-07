@@ -7,10 +7,20 @@ import { QualitySelect } from "./settings/QualitySelect";
 import { AggregatedSourceSelect } from "./settings/AggregatedSourceSelect";
 import { SyncConfig } from "./settings/SyncConfig";
 import { NeteaseLogin } from "./settings/NeteaseLogin";
-import { useMusicStore } from "@/store/music-store";
+import {
+  useMusicStore,
+  type FullScreenBackgroundMode,
+} from "@/store/music-store";
 import { Slider } from "./ui/slider";
-import { Palette, Volume2, Wand2, Trash2 } from "lucide-react";
+import { Image, Palette, Volume2, Wand2, Trash2 } from "lucide-react";
 import { Switch } from "./ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { PlaylistImport } from "./settings/PlaylistImport";
 import { SettingItem } from "./settings/SettingItem";
 import { UpdateCheck } from "./settings/UpdateCheck";
@@ -33,7 +43,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const navigate = useNavigate();
-  const { volume, setVolume, enableAutoMatch, setEnableAutoMatch } = useMusicStore();
+  const {
+    volume,
+    setVolume,
+    enableAutoMatch,
+    setEnableAutoMatch,
+    fullScreenBackgroundMode,
+    setFullScreenBackgroundMode,
+  } = useMusicStore();
 
   return (
     <PageLayout title="系统设置" onBack={onBack}>
@@ -54,6 +71,27 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             icon={Palette}
             title="主题切换"
             action={<ThemeToggle />}
+          />
+          <SettingItem
+            icon={Image}
+            title="全屏背景"
+            action={
+              <Select
+                value={fullScreenBackgroundMode}
+                onValueChange={(value) =>
+                  setFullScreenBackgroundMode(value as FullScreenBackgroundMode)
+                }
+              >
+                <SelectTrigger className="h-7 px-2 bg-transparent border-muted hover:bg-muted/20 w-36">
+                  <SelectValue placeholder="背景" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="theme">动态主题色</SelectItem>
+                  <SelectItem value="cover">模糊封面</SelectItem>
+                  <SelectItem value="texture">深色质感</SelectItem>
+                </SelectContent>
+              </Select>
+            }
           />
           <QualitySelect />
           <AggregatedSourceSelect />

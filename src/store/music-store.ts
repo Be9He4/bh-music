@@ -23,6 +23,8 @@ const replaceActiveWithTombstones = (current: MusicTrack[], active: MusicTrack[]
 const updateList = <T extends { id: string }>(list: T[], id: string, updater: Partial<T> | ((item: T) => Partial<T>)) =>
   list.map(item => item.id === id ? { ...item, update_time: Date.now(), ...(typeof updater === 'function' ? updater(item) : updater) } : item);
 
+export type FullScreenBackgroundMode = "theme" | "cover" | "texture";
+
 export interface MusicState {
   favorites: MusicTrack[];
   playlists: Playlist[];
@@ -56,6 +58,7 @@ export interface MusicState {
   lastMineTab: "recommend" | "created" | "subscribed" | "albums";
   lastFeaturedTab: string;
   enableAutoMatch: boolean;
+  fullScreenBackgroundMode: FullScreenBackgroundMode;
   setQuality: (quality: string) => void;
   setSearchSource: (source: MusicSource) => void;
   setAggregatedSources: (sources: MusicSource[]) => void;
@@ -63,6 +66,7 @@ export interface MusicState {
   setLastMineTab: (tab: "recommend" | "created" | "subscribed" | "albums") => void;
   setLastFeaturedTab: (tab: string) => void;
   setEnableAutoMatch: (enable: boolean) => void;
+  setFullScreenBackgroundMode: (mode: FullScreenBackgroundMode) => void;
 
   searchQuery: string;
   searchIntent: SearchIntent | null;
@@ -205,10 +209,11 @@ export const useMusicStore = create<MusicState>()(
 
       // --- Settings ---
       quality: "192", searchSource: "all", aggregatedSources: ['joox', 'netease'],
-      lastPlaylistCategory: "全部", lastMineTab: "recommend", lastFeaturedTab: "", enableAutoMatch: true,
+      lastPlaylistCategory: "全部", lastMineTab: "recommend", lastFeaturedTab: "", enableAutoMatch: true, fullScreenBackgroundMode: "theme",
       setQuality: (quality) => set({ quality }), setSearchSource: (searchSource) => set({ searchSource }),
       setAggregatedSources: (aggregatedSources) => set({ aggregatedSources }), setLastPlaylistCategory: (lastPlaylistCategory) => set({ lastPlaylistCategory }),
       setLastMineTab: (lastMineTab) => set({ lastMineTab }), setLastFeaturedTab: (lastFeaturedTab) => set({ lastFeaturedTab }), setEnableAutoMatch: (enableAutoMatch) => set({ enableAutoMatch }),
+      setFullScreenBackgroundMode: (fullScreenBackgroundMode) => set({ fullScreenBackgroundMode }),
 
       // --- Search State ---
       searchQuery: "", searchIntent: null, searchResults: [], searchLoading: false, searchHasMore: false, searchPage: 0,
@@ -340,6 +345,7 @@ export const useMusicStore = create<MusicState>()(
         duration: state.duration, quality: state.quality, searchSource: state.searchSource,
         aggregatedSources: state.aggregatedSources, lastPlaylistCategory: state.lastPlaylistCategory,
         lastMineTab: state.lastMineTab, lastFeaturedTab: state.lastFeaturedTab, enableAutoMatch: state.enableAutoMatch,
+        fullScreenBackgroundMode: state.fullScreenBackgroundMode,
       }),
     }
   )
