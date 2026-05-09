@@ -102,9 +102,9 @@ export function PlayerQueuePopover({
                 >
                   {i === currentIndex && isPlaying ? (
                     <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
-                      <span className="relative flex h-3 w-3">
+                      <span className="relative flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
                       </span>
                     </div>
                   ) : (
