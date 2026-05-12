@@ -50,7 +50,7 @@ export function pickBestColor(candidates: (string | { hex: string })[]): HSL | n
       bestHsl = [
         Math.round(finalH),
         Math.round(Math.max(24, Math.min(limitS, 68))),
-        Math.round(Math.max(18, Math.min(28, l)))
+        Math.round(Math.max(18, Math.min(33, l)))
       ];
     }
   }
