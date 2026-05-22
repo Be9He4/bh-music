@@ -2,7 +2,7 @@ import type {
   PodcastFeed,
   SearchPodcastItem,
 } from "@/types/podcast";
-import { API_URL } from ".";
+import { getApiUrl } from ".";
 
 const parseJson = async (res: Response) => {
   if (!res.ok) {
@@ -15,7 +15,7 @@ const parseJson = async (res: Response) => {
   }
 };
 
-const PODCAST_API_URL = `${API_URL}/podcast-api`;
+const podcastUrl = () => `${getApiUrl()}/podcast-api`;
 
 export const searchPodcast = async (keyword: string): Promise<SearchPodcastItem[]> => {
   const normalizedKeyword = keyword.trim();
@@ -24,7 +24,7 @@ export const searchPodcast = async (keyword: string): Promise<SearchPodcastItem[
   }
 
   const res = await parseJson(
-    await fetch(`${PODCAST_API_URL}/search?q=${encodeURIComponent(normalizedKeyword)}`)
+    await fetch(`${podcastUrl()}/search?q=${encodeURIComponent(normalizedKeyword)}`)
   );
   return res.data;
 };
@@ -36,7 +36,7 @@ export const parsePodcastRss = async (rssUrl: string): Promise<PodcastFeed> => {
   }
 
   const res = await parseJson(
-    await fetch(`${PODCAST_API_URL}/rss?url=${encodeURIComponent(normalizedUrl)}`)
+    await fetch(`${podcastUrl()}/rss?url=${encodeURIComponent(normalizedUrl)}`)
   );
   return res.data;
 };

@@ -4,12 +4,32 @@ import type { ApiResponse } from "@otter-music/shared";
 export const IS_NATIVE = Capacitor.isNativePlatform();
 export const IS_WEB_PROD = import.meta.env.PROD && !IS_NATIVE;
 
-export const API_URL = IS_WEB_PROD ? window.location.origin : "https://otter-music.pages.dev";
+const getDefaultApiUrl = () =>
+  IS_WEB_PROD ? window.location.origin : "https://otter-music.pages.dev";
+
+const STORAGE_KEY_CUSTOM_API_URL = "otter_custom_api_url";
+
+export function getApiUrl(): string {
+  const custom = getStorage<string | null>(STORAGE_KEY_CUSTOM_API_URL, null);
+  return custom || getDefaultApiUrl();
+}
+
+export function getCustomApiUrl(): string | null {
+  return getStorage<string | null>(STORAGE_KEY_CUSTOM_API_URL, null);
+}
+
+export function setCustomApiUrl(url: string) {
+  setStorage(STORAGE_KEY_CUSTOM_API_URL, url);
+}
+
+export function clearCustomApiUrl() {
+  localStorage.removeItem(STORAGE_KEY_CUSTOM_API_URL);
+}
+
 export const API_TIMEOUT_MS = 10000;
 export const MUSIC_API_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
 
 export const DEFAULT_MUSIC_API_URL = "https://music-api.gdstudio.xyz/api.php";
-export const MY_PROXY_MUSIC_API_URL = `${API_URL}/music-api`;
 
 const STORAGE_KEY_MUSIC_URLS = "otter_music_api_urls";
 const STORAGE_KEY_MUSIC_URL_FAILURES = "otter_music_api_url_failures";
@@ -53,8 +73,10 @@ const setStorage = (key: string, val: unknown) => localStorage.setItem(key, JSON
 /**
  * API 地址管理
  */
-export const getMusicApiUrls = () => 
-  getStorage<string[]>(STORAGE_KEY_MUSIC_URLS, [MY_PROXY_MUSIC_API_URL, DEFAULT_MUSIC_API_URL]);
+export const getMusicApiUrls = () => {
+  const stored = getStorage<string[] | null>(STORAGE_KEY_MUSIC_URLS, null);
+  return stored ?? [`${getApiUrl()}/music-api`, DEFAULT_MUSIC_API_URL];
+};
 
 export const setMusicApiUrls = (urls: string[]) => setStorage(STORAGE_KEY_MUSIC_URLS, urls);
 
@@ -106,7 +128,7 @@ export function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {
 }
 
 export function getProxyUrl(url: string) {
-  return `${API_URL}/proxy?url=${encodeURIComponent(url)}`;
+  return `${getApiUrl()}/proxy?url=${encodeURIComponent(url)}`;
 }
 
 /**

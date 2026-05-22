@@ -7,6 +7,7 @@ import { QualitySelect } from "./settings/QualitySelect";
 import { AggregatedSourceSelect } from "./settings/AggregatedSourceSelect";
 import { SyncConfig } from "./settings/SyncConfig";
 import { NeteaseLogin } from "./settings/NeteaseLogin";
+import { ApiUrlConfig } from "./settings/ApiUrlConfig";
 import {
   useMusicStore,
   type FullScreenBackgroundMode,
@@ -116,6 +117,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <Section title="账号数据">
           <NeteaseLogin />
+          <ApiUrlConfig />
           <SyncConfig />
           <PlaylistImport />
           <SettingItem

@@ -33,7 +33,7 @@ import {
 } from "./netease-normalize";
 import { MusicTrack } from '@/types/music';
 import { cachedFetch } from "@/lib/utils/cache";
-import { API_URL, IS_NATIVE, IS_WEB_PROD } from "@/lib/api/config";
+import { getApiUrl, IS_NATIVE, IS_WEB_PROD } from "@/lib/api/config";
 import { CapacitorHttp } from '@capacitor/core';
 import { useNeteaseStore } from '@/store/netease-store';
 import { logger } from '@/lib/logger';
@@ -198,7 +198,7 @@ async function requestEapi<T = unknown>(url: string, path: string, data: Record<
 }
 
 async function fetchLocalApi<T>(endpoint: string, body?: Record<string, unknown>): Promise<T> {
-    const localApiBase = IS_WEB_PROD ? '' : API_URL;
+    const localApiBase = IS_WEB_PROD ? '' : getApiUrl();
     const url = endpoint.startsWith('http') ? endpoint : `${localApiBase}${endpoint}`;
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);

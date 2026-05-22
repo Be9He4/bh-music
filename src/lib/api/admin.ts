@@ -1,7 +1,7 @@
-import { API_URL, fetchWithTimeout, unwrap } from "./config";
+import { getApiUrl, fetchWithTimeout, unwrap } from "./config";
 
-const ADMIN_AUTH_URL = `${API_URL}/auth`;
-const ADMIN_SYNC_URL = `${API_URL}/sync/v2`;
+const authUrl = () => `${getApiUrl()}/auth`;
+const syncUrl = () => `${getApiUrl()}/sync/v2`;
 
 /** 带 credentials: include 的 fetch，用于管理端 Cookie 认证 */
 const adminFetch = (input: RequestInfo | URL, init: RequestInit = {}) =>
@@ -15,7 +15,7 @@ export interface SyncKeyItem {
 /** 登录，成功后后端 Set-Cookie */
 export const adminLogin = (password: string) =>
   unwrap<{ token: string }>(
-    adminFetch(`${ADMIN_AUTH_URL}/login`, {
+    adminFetch(`${authUrl()}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
@@ -25,17 +25,17 @@ export const adminLogin = (password: string) =>
 /** 登出，后端清除 Cookie */
 export const adminLogout = () =>
   unwrap<null>(
-    adminFetch(`${ADMIN_AUTH_URL}/logout`, { method: "POST" }),
+    adminFetch(`${authUrl()}/logout`, { method: "POST" }),
   );
 
 /** 列出所有 Sync Key */
 export const adminListKeys = () =>
-  unwrap<{ keys: SyncKeyItem[] }>(adminFetch(`${ADMIN_SYNC_URL}/keys`));
+  unwrap<{ keys: SyncKeyItem[] }>(adminFetch(`${syncUrl()}/keys`));
 
 /** 创建新 Sync Key，prefix 可选 */
 export const adminCreateKey = (prefix?: string) =>
   unwrap<{ syncKey: string }>(
-    adminFetch(`${ADMIN_SYNC_URL}/create-key`, {
+    adminFetch(`${syncUrl()}/create-key`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prefix: prefix || undefined }),
@@ -45,7 +45,7 @@ export const adminCreateKey = (prefix?: string) =>
 /** 删除指定 Sync Key */
 export const adminDeleteKey = (key: string) =>
   unwrap<null>(
-    adminFetch(`${ADMIN_SYNC_URL}/keys/${encodeURIComponent(key)}`, {
+    adminFetch(`${syncUrl()}/keys/${encodeURIComponent(key)}`, {
       method: "DELETE",
     }),
   );

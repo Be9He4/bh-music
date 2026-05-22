@@ -126,6 +126,8 @@ shared/                     # 跨端共享类型
    - 在 Pages 设置中绑定该 KV，变量名设为 `oh_file_url`
 
 > 你可以将 [src/lib/api/config.ts](/src/lib/api/config.ts) 中的 `API_URL` 替换为你自己的 Pages 域名。例如：`https://otter-music.pages.dev`。
+> 
+> 管理员页面可通过 `/admin` 路径访问，用于创建和管理 SYNC_KEY。
 
 
 ## TODO

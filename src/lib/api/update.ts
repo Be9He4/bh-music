@@ -1,6 +1,6 @@
-import { API_URL, fetchWithTimeout, unwrap } from "./config";
+import { getApiUrl, fetchWithTimeout, unwrap } from "./config";
 
-const UPDATE_API_URL = `${API_URL}/update`;
+const updateUrl = () => `${getApiUrl()}/update`;
 
 export interface UpdateInfo {
   latestVersion: string;
@@ -16,7 +16,7 @@ export interface UpdateInfo {
  */
 export async function checkUpdate(): Promise<UpdateInfo> {
   return unwrap<UpdateInfo>(
-    fetchWithTimeout(`${UPDATE_API_URL}/check`, {
+    fetchWithTimeout(`${updateUrl()}/check`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
