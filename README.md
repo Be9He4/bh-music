@@ -125,9 +125,9 @@ shared/                     # 跨端共享类型
    - 创建 KV Namespace 命名为 `oh_file_url`
    - 在 Pages 设置中绑定该 KV，变量名设为 `oh_file_url`
 
-> 你可以将 [src/lib/api/config.ts](/src/lib/api/config.ts) 中的 `API_URL` 替换为你自己的 Pages 域名。例如：`https://otter-music.pages.dev`。
+> 自建后端可在前端页面「设置 → API 地址」中填入自定义域名。
 > 
-> 管理员页面可通过 `/admin` 路径访问，用于创建和管理 SYNC_KEY。
+> `https://<你的域名>/admin` 路径用于管理 SYNC_KEY。
 
 
 ## TODO
