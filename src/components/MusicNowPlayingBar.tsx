@@ -9,6 +9,7 @@ import { MusicCover } from "./MusicCover";
 import { useCallback } from "react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import type { MusicTrack } from "@/types/music";
 
 interface MusicNowPlayingBarProps {
   onOpenFullScreen?: () => void;
@@ -27,6 +28,7 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
     setCurrentIndexAndPlay,
     clearQueue,
     reshuffle,
+    removeFromQueue,
   } = useMusicStore(
     useShallow((state) => ({
       isPlaying: state.isPlaying,
@@ -39,6 +41,7 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
       setCurrentIndexAndPlay: state.setCurrentIndexAndPlay,
       clearQueue: state.clearQueue,
       reshuffle: state.reshuffle,
+      removeFromQueue: state.removeFromQueue,
     }))
   );
 
@@ -58,6 +61,13 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
       toast.success("播放列表已清空");
     }
   };
+
+  const handleRemoveFromQueue = useCallback(
+    (track: MusicTrack) => {
+      removeFromQueue(track.id);
+    },
+    [removeFromQueue]
+  );
 
   const progress = duration > 0 ? (currentAudioTime / duration) * 100 : 0;
   const radius = 16;
@@ -178,6 +188,7 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
           onPlay={playTrack}
           onClear={handleClearQueue}
           onReshuffle={reshuffle}
+          onRemove={handleRemoveFromQueue}
           trigger={
             <button
               className={cn(

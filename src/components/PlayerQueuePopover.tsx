@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Shuffle } from "lucide-react";
+import { Trash2, Shuffle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { MusicTrack } from "@/types/music";
@@ -16,6 +16,7 @@ interface PlayerQueuePopoverProps {
   onPlay: (index: number) => void;
   onClear: () => void;
   onReshuffle: () => void;
+  onRemove: (track: MusicTrack) => void;
   trigger: React.ReactNode;
 }
 
@@ -27,19 +28,26 @@ export function PlayerQueuePopover({
   onPlay,
   onClear,
   onReshuffle,
+  onRemove,
   trigger,
 }: PlayerQueuePopoverProps) {
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 仅在 popover 打开时滚动到当前歌曲，后续切歌不再自动滚动
+  const hasScrolledOnOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    hasScrolledOnOpen.current = false;
+  }, [open]);
 
-    // 等待 Radix 定位 + ScrollArea 计算高度
+  useEffect(() => {
+    if (!open || hasScrolledOnOpen.current) return;
+    hasScrolledOnOpen.current = true;
+
     const id = requestAnimationFrame(() => {
       scrollRef.current?.scrollIntoView({
         block: "center",
-        behavior: "instant", // 打开时不要 smooth，否则会抖
+        behavior: "instant",
       });
     });
 
@@ -124,6 +132,21 @@ export function PlayerQueuePopover({
                       - {track.artist.join("/")}
                     </span>
                   </div>
+                  <button
+                    className="shrink-0 p-0.5 text-muted-foreground hover:text-destructive rounded hover:bg-muted"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (
+                        i === currentIndex &&
+                        !confirm(`确定删除正在播放的《${track.name}》吗？`)
+                      )
+                        return;
+                      onRemove(track);
+                    }}
+                    aria-label={`删除 ${track.name}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ))}
             </div>

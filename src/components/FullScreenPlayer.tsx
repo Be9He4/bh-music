@@ -188,6 +188,7 @@ export function FullScreenPlayer({
     setCurrentIndexAndPlay,
     clearQueue,
     reshuffle,
+    removeFromQueue,
     currentAudioUrl,
     fullScreenBackgroundMode,
   } = useMusicStore(
@@ -197,6 +198,7 @@ export function FullScreenPlayer({
       setCurrentIndexAndPlay: state.setCurrentIndexAndPlay,
       clearQueue: state.clearQueue,
       reshuffle: state.reshuffle,
+      removeFromQueue: state.removeFromQueue,
       currentAudioUrl: state.currentAudioUrl,
       quality: state.quality,
       fullScreenBackgroundMode: state.fullScreenBackgroundMode,
@@ -210,6 +212,10 @@ export function FullScreenPlayer({
       clearQueue();
       toast.success("播放列表已清空");
     }
+  };
+
+  const handleRemoveFromQueue = (track: MusicTrack) => {
+    removeFromQueue(track.id);
   };
 
   const handleShare = async () => {
@@ -444,6 +450,7 @@ export function FullScreenPlayer({
           onPlay={playTrack}
           onClear={handleClearQueue}
           onReshuffle={reshuffle}
+          onRemove={handleRemoveFromQueue}
           trigger={
             <Button
               variant="ghost"
