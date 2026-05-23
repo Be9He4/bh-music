@@ -1,6 +1,8 @@
 /** QQ音乐 API 返回的歌单响应 (JSONP 包装去除后) */
 export interface QqPlaylistResponse {
   code: number;
+  subcode?: number;
+  msg?: string;
   cdlist: QqCdItem[];
 }
 

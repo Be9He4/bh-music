@@ -1,10 +1,11 @@
 import type { MusicTrack } from '@/types/music';
-import type { QqPlaylistDetail, QqSongRaw } from './qqmusic-types';
+import type { QqPlaylistDetail, QqPlaylistResponse, QqSongRaw } from './qqmusic-types';
 import { QQ_BASE_URL } from './qqmusic-types';
 import { IS_NATIVE, IS_WEB_PROD, getApiUrl } from '@/lib/api/config';
 
 const QQ_PROXY_PREFIX = '/music-api/qqmusic';
 const NETWORK_TIMEOUT = 12000;
+const QQ_REFERER = 'https://y.qq.com/';
 
 /**
  * 从 QQ 音乐分享链接中提取歌单数字 ID。
@@ -50,7 +51,15 @@ export function convertQqSongToMusicTrack(song: QqSongRaw): MusicTrack {
   };
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeout = NETWORK_TIMEOUT) {
+/**
+ * 构建 QQ 音乐歌单 API 请求路径（不含域名/代理前缀）。
+ * 抽离为纯函数以便测试。
+ */
+export function buildQqPlaylistApiPath(playlistId: string): string {
+  return `/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&json=1&utf8=1&nosign=1&disstid=${encodeURIComponent(playlistId)}&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=GB2312&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = NETWORK_TIMEOUT) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeout);
   try {
@@ -84,17 +93,17 @@ export async function getQqPlaylistDetail(playlistId: string): Promise<QqPlaylis
 
   if (IS_NATIVE) {
     // 原生环境直接请求
-    const url = `${QQ_BASE_URL}/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?format=json&type=1&utf8=1&categoryID=${encodeURIComponent(playlistId)}`;
+    const url = `${QQ_BASE_URL}${buildQqPlaylistApiPath(playlistId)}`;
     const { CapacitorHttp } = await import('@capacitor/core');
     const res = await CapacitorHttp.request({
       method: 'GET',
       url,
-      headers: { 'Referer': 'https://y.qq.com' },
+      headers: { 'Referer': QQ_REFERER },
     });
     if (res.status >= 400) throw new Error(`QQ Music API error: ${res.status}`);
     const rawText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-    const jsonText = stripJsonp(rawText);
-    const data = JSON.parse(jsonText);
+    const data = parseQqPlaylistResponse(rawText);
+    if (data.subcode && data.subcode !== 0) throw new Error(data.msg || `QQ Music API returned subcode ${data.subcode}`);
     if (!data.cdlist?.length) throw new Error('歌单不存在或已被删除');
     return {
       name: data.cdlist[0].dissname,
@@ -105,16 +114,16 @@ export async function getQqPlaylistDetail(playlistId: string): Promise<QqPlaylis
   }
 
   // 开发环境 (Web): 通过 Vite 代理
-  const url = `/api/qqmusic/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?format=json&type=1&utf8=1&categoryID=${encodeURIComponent(playlistId)}`;
-  const res = await fetchWithTimeout(url, {
-    headers: { 'Referer': 'https://y.qq.com' },
-  });
+  // 注意: 不能在 headers 中设置 Referer，浏览器会静默丢弃（forbidden header）。
+  // Referer 由 Vite 代理的 configure 钩子在服务端注入。
+  const url = `/api/qqmusic${buildQqPlaylistApiPath(playlistId)}`;
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`QQ Music API error: ${res.status}`);
 
   const rawText = await res.text();
-  const jsonText = stripJsonp(rawText);
-  const data = JSON.parse(jsonText);
+  const data = parseQqPlaylistResponse(rawText);
 
+  if (data.subcode && data.subcode !== 0) throw new Error(data.msg || `QQ Music API returned subcode ${data.subcode}`);
   if (!data.cdlist?.length) throw new Error('歌单不存在或已被删除');
 
   return {
@@ -125,10 +134,15 @@ export async function getQqPlaylistDetail(playlistId: string): Promise<QqPlaylis
   };
 }
 
-/** 去除 QQ 音乐 JSONP 包装: jsonCallback({...}) → {...} */
-function stripJsonp(text: string): string {
-  const start = text.indexOf('(');
-  const end = text.lastIndexOf(')');
-  if (start !== -1 && end !== -1) return text.slice(start + 1, end);
-  return text;
+/**
+ * 解析 QQ 音乐接口响应，优先按纯 JSON 处理，失败后兼容 JSONP 包装。
+ */
+export function parseQqPlaylistResponse(text: string): QqPlaylistResponse {
+  try {
+    return JSON.parse(text) as QqPlaylistResponse;
+  } catch (jsonError) {
+    const jsonpMatch = text.trim().match(/^[\w$.]+\s*\(([\s\S]*)\)\s*;?$/);
+    if (!jsonpMatch) throw jsonError;
+    return JSON.parse(jsonpMatch[1]) as QqPlaylistResponse;
+  }
 }

@@ -124,8 +124,15 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/api\/qqmusic/, ''),
         headers: {
-          'Referer': 'https://y.qq.com',
+          'Referer': 'https://y.qq.com/',
           'Origin': 'https://y.qq.com'
+        },
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Referer', 'https://y.qq.com/');
+            proxyReq.setHeader('Origin', 'https://y.qq.com');
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          });
         }
       }
     }
