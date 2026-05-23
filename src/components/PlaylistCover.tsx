@@ -47,6 +47,7 @@ export function PlaylistCover({ playlist, className, iconClassName, fallbackIcon
       className={className}
       iconClassName={iconClassName}
       fallbackIcon={fallbackIcon || <ListMusic className={cn("h-5 w-5 text-muted-foreground/70", iconClassName)} />}
+      previewable
     />
   );
 }

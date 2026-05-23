@@ -199,7 +199,7 @@ async function downloadWeb(
 
 /* ================= 工具函数 ================= */
 
-async function ensurePermission() {
+export async function ensurePermission() {
   const { publicStorage } = await Filesystem.checkPermissions();
 
   if (publicStorage === "granted") return;
@@ -225,7 +225,7 @@ async function ensureDir(path: string) {
   }
 }
 
-function triggerBlobDownload(blob: Blob, filename: string, toastId?: string) {
+export function triggerBlobDownload(blob: Blob, filename: string, toastId?: string) {
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");

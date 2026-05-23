@@ -271,7 +271,8 @@ export function ArtistDetailView({
                   <div className="aspect-square overflow-hidden rounded-xl shadow-sm relative">
                     <MusicCover 
                       src={album.picUrl} 
-                      alt={album.name} 
+                      alt={album.name}
+                      previewable={true}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />

@@ -54,6 +54,7 @@ export const CommonDetailHeader = memo(function CommonDetailHeader({
       <MusicCover
         src={coverUrl}
         alt={title}
+        previewable={true}
         className="shrink-0 size-24 rounded-xl shadow-md ring-1 ring-white/10 object-cover"
         fallbackIcon={fallbackIcon}
       />
