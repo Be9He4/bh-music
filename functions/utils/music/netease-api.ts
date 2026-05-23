@@ -224,7 +224,8 @@ export async function getUserPlaylists(userId: string, cookie: string) {
 }
 
 export async function getPlaylistDetail(playlistId: string, cookie: string): Promise<PlaylistDetail> {
-    const data = { id: playlistId, offset: 0, total: true, limit: 1000, n: 1000, csrf_token: '' };
+    const realId = playlistId.replace(/^(neplaylist_|ne_playlist_)/, '');
+    const data = { id: realId, offset: 0, total: true, limit: 1000, n: 1000, csrf_token: '' };
     const res = await requestWeapi<{ playlist: any }>(`${BASE_URL}/weapi/v3/playlist/detail`, data, cookie);
     
     const playlist = res.data.playlist;

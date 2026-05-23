@@ -71,11 +71,18 @@ const getStorage = <T>(key: string, fallback: T): T => {
 const setStorage = (key: string, val: unknown) => localStorage.setItem(key, JSON.stringify(val));
 
 /**
- * API 地址管理
+ * 获取 GD 音乐台 API 默认访问顺序
  */
+function getDefaultMusicApiUrls(isNative = IS_NATIVE): string[] {
+  const proxiedApiUrl = `${getApiUrl()}/music-api`;
+  return isNative
+    ? [DEFAULT_MUSIC_API_URL, proxiedApiUrl]
+    : [proxiedApiUrl, DEFAULT_MUSIC_API_URL];
+}
+
 export const getMusicApiUrls = () => {
   const stored = getStorage<string[] | null>(STORAGE_KEY_MUSIC_URLS, null);
-  return stored ?? [`${getApiUrl()}/music-api`, DEFAULT_MUSIC_API_URL];
+  return stored ?? getDefaultMusicApiUrls();
 };
 
 export const setMusicApiUrls = (urls: string[]) => setStorage(STORAGE_KEY_MUSIC_URLS, urls);
@@ -100,8 +107,6 @@ export function getOrderedMusicApiUrls(now = Date.now()): string[] {
     ...urls.filter(url => fails[url])   // 冷却中的垫底
   ];
 }
-
-export const getMusicApiUrl = () => getOrderedMusicApiUrls()[0] || DEFAULT_MUSIC_API_URL;
 
 export const markMusicApiUrlFailure = (url: string, now = Date.now()) => 
   setStorage(STORAGE_KEY_MUSIC_URL_FAILURES, { 

@@ -20,6 +20,16 @@ import { convertSongToMusicTrack } from "@/lib/netease/netease-api";
 import { parseQqMusicUrl, getQqPlaylistDetail, convertQqSongToMusicTrack } from "@/lib/qqmusic/qqmusic-api";
 import type { MusicTrack } from "@/types/music";
 
+/** 参考 AddByUrlDrawer：从混合文本中提取 URL 和标题 */
+function parseInput(text: string) {
+  const raw = text.trim();
+  const urlMatch = raw.match(/https?:\/\/[^\s]+/i);
+  if (!urlMatch) return { url: "", title: "" };
+  const url = urlMatch[0];
+  const title = raw.replace(url, "").replace(/^[【\[](.*?)[】\]]\s*/, "").trim();
+  return { url, title };
+}
+
 const PLATFORM_LABELS: Record<Platform, string> = {
   netease: "网易云音乐",
   qq: "QQ音乐",
@@ -54,15 +64,16 @@ export function PlaylistUrlImport() {
     reset();
   };
 
-  // 自动读取剪贴板
+  // 自动读取剪贴板（参考 AddByUrlDrawer：从混合文本中提取 URL）
   useEffect(() => {
     if (!open) return;
     navigator.clipboard
       ?.readText?.()
       .then((text) => {
-        const trimmed = text.trim();
-        if (detectPlatform(trimmed) && !url) {
-          setUrl(trimmed);
+        const { url: extracted, title } = parseInput(text);
+        if (extracted && detectPlatform(extracted) && !url) {
+          setUrl(extracted);
+          toastUtils.success("已自动填充链接", { id: "clipboard-import" });
         }
       })
       .catch(() => {});
@@ -191,7 +202,10 @@ export function PlaylistUrlImport() {
                     className="pl-9 h-11 bg-muted/40 border-none rounded-xl focus-visible:ring-1 font-mono text-sm"
                     placeholder="粘贴网易云或QQ音乐歌单分享链接"
                     value={url}
-                    onChange={(e) => setUrl(e.target.value)}
+                    onChange={(e) => {
+                      const { url: extracted } = parseInput(e.target.value);
+                      setUrl(extracted || e.target.value);
+                    }}
                     onKeyDown={(e) => e.key === "Enter" && handleFetch()}
                     autoFocus
                   />

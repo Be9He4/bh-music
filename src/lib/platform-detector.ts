@@ -13,7 +13,7 @@ export function detectPlatform(urlStr: string): Platform | null {
     if (url.hostname === 'music.163.com' || url.hostname === 'y.music.163.com') {
       return 'netease';
     }
-    if (url.hostname === 'y.qq.com' || url.hostname === 'i.y.qq.com') {
+    if (url.hostname === 'y.qq.com' || url.hostname.endsWith('.y.qq.com')) {
       return 'qq';
     }
     return null;

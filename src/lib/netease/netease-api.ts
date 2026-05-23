@@ -310,18 +310,19 @@ export const getRecommendPlaylists = async (cookie: string = ''): Promise<Market
     return res ?? [];
 };
 
-export const getPlaylistDetail = (playlistId: string, cookie: string = '') => 
-    cachedFetch<PlaylistDetail>(
+export const getPlaylistDetail = (playlistId: string, cookie: string = '') => {
+    const realId = playlistId.replace(/^(neplaylist_|ne_playlist_)/, '');
+    return cachedFetch<PlaylistDetail>(
         `netease:playlist:${playlistId}`,
         async () => {
             const finalCookie = resolveRequestCookie(cookie);
             if (IS_WEB_PROD) {
-                return fetchNeteaseProxy<PlaylistDetail>('/playlist', { playlistId, cookie: finalCookie });
+                return fetchNeteaseProxy<PlaylistDetail>('/playlist', { playlistId: realId, cookie: finalCookie });
             }
 
-            const res = await requestWeapi<{ playlist: PlaylistDetail & { trackIds: { id: number }[] } }>( 
-                `${BASE_URL}/weapi/v3/playlist/detail`, 
-                { id: playlistId, offset: 0, total: true, limit: 1000, n: 1000, csrf_token: '' }, 
+            const res = await requestWeapi<{ playlist: PlaylistDetail & { trackIds: { id: number }[] } }>(
+                `${BASE_URL}/weapi/v3/playlist/detail`,
+                { id: realId, offset: 0, total: true, limit: 1000, n: 1000, csrf_token: '' },
                 finalCookie
             ); 
             const tracks = await getTracksDetail(res.data.playlist.trackIds.map((t: { id: number }) => t.id), finalCookie);
@@ -329,6 +330,7 @@ export const getPlaylistDetail = (playlistId: string, cookie: string = '') =>
         }, 
         TTL_SHORT
     );
+};
 
 export const getPlaylistDynamicDetail = async (id: string, cookie: string = ''): Promise<PlaylistDynamicDetail | null> => {
     try {

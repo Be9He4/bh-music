@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  DEFAULT_MUSIC_API_URL,
+  getApiUrl,
+  getMusicApiUrls,
   getOrderedMusicApiUrls,
   markMusicApiUrlFailure,
   markMusicApiUrlSuccess,
@@ -45,5 +48,29 @@ describe("music api route policy", () => {
       message: "missing",
       status: 404,
     });
+  });
+});
+
+describe("music api default route policy", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("returns proxied GD API first when no custom URLs are configured", () => {
+    const proxiedUrl = `${getApiUrl()}/music-api`;
+
+    expect(getMusicApiUrls()).toEqual([
+      proxiedUrl,
+      DEFAULT_MUSIC_API_URL,
+    ]);
+  });
+
+  it("keeps custom endpoint order when configured", () => {
+    setMusicApiUrls(["https://custom-primary.test/api.php", DEFAULT_MUSIC_API_URL]);
+
+    expect(getMusicApiUrls()).toEqual([
+      "https://custom-primary.test/api.php",
+      DEFAULT_MUSIC_API_URL,
+    ]);
   });
 });
