@@ -16,6 +16,7 @@ export function useAudioEventHandlers(
   hasRecordedRef: React.MutableRefObject<boolean>
 ) {
   const autoMatchedTrackIdRef = useRef<string | null>(null);
+  const recoveryAttemptedRef = useRef(false);
   const pauseConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pauseConfirmTokenRef = useRef(0);
 
@@ -118,6 +119,8 @@ export function useAudioEventHandlers(
       settleLoading();
       if (audio.paused) return;
 
+      recoveryAttemptedRef.current = false;
+
       const state = useMusicStore.getState();
       const track = state.queue[state.currentIndex];
 
@@ -141,8 +144,17 @@ export function useAudioEventHandlers(
       play: onPlay,
       error: () => {
         cancelPendingPauseConfirm();
+        const state = useMusicStore.getState();
+
+        if (!recoveryAttemptedRef.current && state.queue.length > 0) {
+          recoveryAttemptedRef.current = true;
+          logger.warn("useAudioEventHandlers", "Audio error, attempting URL recovery");
+          state.incrementUrlRecoveryKey();
+          return;
+        }
+
         logger.error("useAudioEventHandlers", "Audio error");
-        useMusicStore.getState().setIsPlaying(false);
+        state.setIsPlaying(false);
         syncPositionState(0);
       },
       loadstart: markLoading,

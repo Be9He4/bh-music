@@ -98,6 +98,8 @@ export interface MusicState {
   hasUserGesture: boolean;
   consecutiveFailures: number;
   maxConsecutiveFailures: number;
+  urlRecoveryKey: number;
+  incrementUrlRecoveryKey: () => void;
   setVolume: (volume: number) => void;
   toggleRepeat: () => void;
   toggleShuffle: () => void;
@@ -225,13 +227,14 @@ export const useMusicStore = create<MusicState>()(
       // --- UI & Playback Base ---
       isFullScreenPlayer: false, setIsFullScreenPlayer: (isFullScreenPlayer) => set({ isFullScreenPlayer }),
       volume: 1.0, isRepeat: false, isShuffle: false, currentAudioTime: 0, isPlaying: false, isLoading: false,
-      seekTimestamp: 0, seekTargetTime: -1, duration: 0, currentAudioUrl: null, hasUserGesture: false, consecutiveFailures: 0, maxConsecutiveFailures: 3,
+      seekTimestamp: 0, seekTargetTime: -1, duration: 0, currentAudioUrl: null, hasUserGesture: false, consecutiveFailures: 0, maxConsecutiveFailures: 3, urlRecoveryKey: 0,
       setVolume: (volume) => set({ volume }), toggleRepeat: () => set(s => ({ isRepeat: !s.isRepeat })),
       setAudioCurrentTime: (currentAudioTime) => set({ currentAudioTime }), setDuration: (duration) => set({ duration }),
       setIsPlaying: (isPlaying) => set({ isPlaying }), togglePlay: () => set(s => ({ hasUserGesture: true, isPlaying: !s.isPlaying })),
       setIsLoading: (isLoading) => set({ isLoading }), seek: (time) => set({ seekTargetTime: time, seekTimestamp: Date.now(), isPlaying: true, hasUserGesture: true }),
       clearSeekTargetTime: () => set({ seekTargetTime: -1 }), setCurrentAudioUrl: (currentAudioUrl) => set({ currentAudioUrl }),
       setUserGesture: () => set({ hasUserGesture: true }), resetFailures: () => set({ consecutiveFailures: 0 }),
+      incrementUrlRecoveryKey: () => set(s => ({ urlRecoveryKey: s.urlRecoveryKey + 1 })),
       incrementFailures: () => { const f = get().consecutiveFailures + 1; set({ consecutiveFailures: f }); return f; },
 
       // --- Queue Management ---

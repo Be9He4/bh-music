@@ -138,8 +138,10 @@ export function useAudioTrackLoader(
   const setCurrentAudioUrl = useMusicStore(s => s.setCurrentAudioUrl);
   const incrementFailures = useMusicStore(s => s.incrementFailures);
   const maxConsecutiveFailures = useMusicStore(s => s.maxConsecutiveFailures);
+  const urlRecoveryKey = useMusicStore(s => s.urlRecoveryKey);
 
   const requestIdRef = useRef(0);
+  const prevUrlRecoveryKeyRef = useRef(urlRecoveryKey);
 
   const prevTrackRef = useRef<{ id?: string; source?: string } | null>(null);
   const remoteUrlRef = useRef<string | null>(null);
@@ -197,8 +199,16 @@ export function useAudioTrackLoader(
       try {
         setIsLoading(true);
 
-        if (prevTrackRef.current?.id === currentTrackId && prevTrackRef.current?.source === currentTrackSource && !isSwitchingTrackRef.current) {
+        const isRecovery = prevUrlRecoveryKeyRef.current !== urlRecoveryKey;
+
+        if (prevTrackRef.current?.id === currentTrackId && prevTrackRef.current?.source === currentTrackSource && !isSwitchingTrackRef.current && !isRecovery) {
           return;
+        }
+
+        if (isRecovery) {
+          remoteUrlRef.current = null;
+          fallbackStageRef.current = { trackKey: "", stage: "none" };
+          prevUrlRecoveryKeyRef.current = urlRecoveryKey;
         }
 
         isSwitchingTrackRef.current = true;
@@ -317,5 +327,5 @@ export function useAudioTrackLoader(
         requestIdRef.current++;
       }
     };
-  }, [currentTrack?.id, currentTrack?.source, currentTrack?.url_id, quality, hasUserGesture]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id, currentTrack?.source, currentTrack?.url_id, quality, hasUserGesture, urlRecoveryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 }
