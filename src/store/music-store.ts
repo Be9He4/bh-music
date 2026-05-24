@@ -60,6 +60,7 @@ export interface MusicState {
   enableAutoMatch: boolean;
   fullScreenBackgroundMode: FullScreenBackgroundMode;
   showSourceBadge: boolean;
+  enableStreamCache: boolean;
   setQuality: (quality: string) => void;
   setSearchSource: (source: MusicSource) => void;
   setAggregatedSources: (sources: MusicSource[]) => void;
@@ -77,6 +78,7 @@ export interface MusicState {
   setEmbedCover: (embed: boolean) => void;
   setEmbedLyric: (embed: boolean) => void;
   setDownloadDirectory: (dir: string) => void;
+  setEnableStreamCache: (enable: boolean) => void;
 
   searchQuery: string;
   searchIntent: SearchIntent | null;
@@ -222,6 +224,7 @@ export const useMusicStore = create<MusicState>()(
       // --- Settings ---
       quality: "192", searchSource: "all", aggregatedSources: ['joox', 'netease'],
       lastPlaylistCategory: "全部", lastMineTab: "recommend", lastFeaturedTab: "", enableAutoMatch: true, fullScreenBackgroundMode: "theme", showSourceBadge: false,
+      enableStreamCache: true,
       setQuality: (quality) => set({ quality }), setSearchSource: (searchSource) => set({ searchSource }),
       setAggregatedSources: (aggregatedSources) => set({ aggregatedSources }), setLastPlaylistCategory: (lastPlaylistCategory) => set({ lastPlaylistCategory }),
       setLastMineTab: (lastMineTab) => set({ lastMineTab }), setLastFeaturedTab: (lastFeaturedTab) => set({ lastFeaturedTab }), setEnableAutoMatch: (enableAutoMatch) => set({ enableAutoMatch }),
@@ -231,6 +234,7 @@ export const useMusicStore = create<MusicState>()(
       setEmbedCover: (embedCover) => set({ embedCover }),
       setEmbedLyric: (embedLyric) => set({ embedLyric }),
       setDownloadDirectory: (downloadDirectory) => set({ downloadDirectory }),
+      setEnableStreamCache: (enableStreamCache) => set({ enableStreamCache }),
 
       // --- Search State ---
       searchQuery: "", searchIntent: null, searchResults: [], searchLoading: false, searchHasMore: false, searchPage: 0,
@@ -366,6 +370,7 @@ export const useMusicStore = create<MusicState>()(
         fullScreenBackgroundMode: state.fullScreenBackgroundMode, showSourceBadge: state.showSourceBadge,
         downloadQuality: state.downloadQuality, embedCover: state.embedCover,
         embedLyric: state.embedLyric, downloadDirectory: state.downloadDirectory,
+        enableStreamCache: state.enableStreamCache,
       }),
     }
   )

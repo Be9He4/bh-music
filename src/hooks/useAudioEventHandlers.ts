@@ -38,9 +38,10 @@ export function useAudioEventHandlers(
     };
 
     const syncPositionState = (playbackRate: number) => {
+      const rate = playbackRate || audio.playbackRate || 1;
       MediaSession.setPositionState({
         duration: audio.duration || 0,
-        playbackRate,
+        playbackRate: rate,
         position: audio.currentTime,
       }).catch(console.error);
     };

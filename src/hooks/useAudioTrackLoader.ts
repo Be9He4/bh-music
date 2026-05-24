@@ -14,6 +14,9 @@ import { logger } from "@/lib/logger";
 
 const AUDIO_READY_TIMEOUT = 8000;
 
+// 模块级 URL 缓存：跨渲染保持已解析的音频 URL，离线时复用
+const urlMemoryCache = new Map<string, string>();
+
 type FallbackStage = "none" | "proxy" | "final";
 
 function isTrackPlayable(
@@ -31,7 +34,8 @@ function isTrackPlayable(
       const downloadKey = buildDownloadKey(track.source, track.id);
       return useDownloadStore.getState().hasRecord(downloadKey);
     }
-    return false;
+    // Web 端：SW 缓存可能已缓存该音频，不硬判不可播
+    return true;
   }
 
   return true;
@@ -173,6 +177,12 @@ export function useAudioTrackLoader(
 
       const getRemoteUrl = async () => {
         if (remoteUrlRef.current) return remoteUrlRef.current;
+        // 离线时优先用缓存 URL，避免 API 调用失败
+        const cached = urlMemoryCache.get(trackKey);
+        if (!navigator.onLine && cached) {
+          remoteUrlRef.current = cached;
+          return cached;
+        }
         const urlId = ((currentTrackSource as string) === 'local' || currentTrackSource === 'podcast')
           ? currentTrackUrlId
           : currentTrackId;
@@ -181,6 +191,7 @@ export function useAudioTrackLoader(
           source: currentTrackSource,
           quality: parseInt(quality, 10),
         });
+        urlMemoryCache.set(trackKey, remoteUrl);
         remoteUrlRef.current = remoteUrl;
         return remoteUrl;
       };
@@ -225,19 +236,23 @@ export function useAudioTrackLoader(
         const hasDownload = Boolean(localDownloadUrl);
 
         if (!isLocal && !hasDownload && !isOnline) {
-          const { queue, currentIndex } = useMusicStore.getState();
-          const nextPlayableIndex = findNextPlayableTrack(queue, currentIndex, isOnline);
+          // Web 端：放行，让 getRemoteUrl() 通过 cachedFetch (otter-cache-v1) 尝试离线解析 URL
+          // 原生平台：只允许本地文件/已下载音轨
+          if (Capacitor.isNativePlatform()) {
+            const { queue, currentIndex } = useMusicStore.getState();
+            const nextPlayableIndex = findNextPlayableTrack(queue, currentIndex, isOnline);
 
-          if (nextPlayableIndex !== null && nextPlayableIndex !== currentIndex) {
-            useMusicStore.getState().setCurrentIndexAndPlay(nextPlayableIndex);
-            return;
-          } else {
-            logger.error("useAudioTrackLoader", "Network unavailable, no playable tracks", {
-              trackId: currentTrackId,
-              source: currentTrackSource,
-            });
-            setIsPlaying(false);
-            return;
+            if (nextPlayableIndex !== null && nextPlayableIndex !== currentIndex) {
+              useMusicStore.getState().setCurrentIndexAndPlay(nextPlayableIndex);
+              return;
+            } else {
+              logger.error("useAudioTrackLoader", "Network unavailable, no playable tracks", {
+                trackId: currentTrackId,
+                source: currentTrackSource,
+              });
+              setIsPlaying(false);
+              return;
+            }
           }
         }
 
@@ -255,7 +270,7 @@ export function useAudioTrackLoader(
             return;
           }
 
-          if (currentTrackSource !== "local" && fallbackStageRef.current.stage === "none" && remoteUrlRef.current) {
+          if (currentTrackSource !== "local" && fallbackStageRef.current.stage === "none" && remoteUrlRef.current && isOnline) {
             const remoteUrl = remoteUrlRef.current;
             const proxyUrl = getProxyUrl(remoteUrl);
             fallbackStageRef.current.stage = "proxy";

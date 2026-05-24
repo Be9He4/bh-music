@@ -44,14 +44,13 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>
-              request.destination === 'audio' ||
-              /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(request.url),
+              request.destination === 'audio',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'audio-stream-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 7 * 24 * 60 * 60,
+                maxEntries: 500,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
               },
               cacheableResponse: {
                 statuses: [0, 200, 206],

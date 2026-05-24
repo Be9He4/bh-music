@@ -30,6 +30,7 @@ import { DownloadDirectorySelect } from "./settings/DownloadDirectorySelect";
 import { SettingItem } from "./settings/SettingItem";
 import { UpdateCheck } from "./settings/UpdateCheck";
 import { IssueLogs } from "./settings/IssueLogs";
+import { StreamCacheSetting } from "./settings/StreamCacheSetting";
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -111,6 +112,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               </Select>
             }
           />
+          <StreamCacheSetting />
           <QualitySelect />
           <AggregatedSourceSelect />
           <SettingItem
