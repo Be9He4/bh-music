@@ -43,6 +43,56 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
       },
     }),
+    {
+      name: 'kugou-resolve',
+      configureServer(server) {
+        server.middlewares.use('/api/kugou-resolve', async (req, res) => {
+          const shortPath = req.url!.replace('/api/kugou-resolve', '') || '/';
+          try {
+            const fetchRes = await fetch(`https://t1.kugou.com${shortPath}`, {
+              method: 'HEAD',
+              redirect: 'manual',
+            });
+            const location = fetchRes.headers.get('location') || '';
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ resolvedUrl: location }));
+          } catch {
+            res.statusCode = 502;
+            res.end(JSON.stringify({ error: 'Failed to resolve short link' }));
+          }
+        });
+      },
+    },
+    {
+      name: 'migu-resolve',
+      configureServer(server) {
+        server.middlewares.use('/api/migu-resolve', async (req, res) => {
+          if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }
+          let body = '';
+          req.on('data', (chunk: Buffer) => body += chunk.toString());
+          req.on('end', async () => {
+            try {
+              const { url }: { url?: string } = JSON.parse(body);
+              if (!url) { res.statusCode = 400; res.end(JSON.stringify({ error: 'url required' })); return; }
+              const parsed = new URL(url);
+              if (parsed.hostname !== 'c.migu.cn') { res.statusCode = 400; res.end(JSON.stringify({ error: 'not a migu short link' })); return; }
+
+              const fetchRes = await fetch(url, { redirect: 'manual' });
+              const location = fetchRes.headers.get('location') || '';
+              if (!location) { res.statusCode = 400; res.end(JSON.stringify({ error: 'no redirect' })); return; }
+
+              const target = new URL(location);
+              const playlistId = target.searchParams.get('id');
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ playlistId: playlistId && /^\d+$/.test(playlistId) ? playlistId : null }));
+            } catch {
+              res.statusCode = 502;
+              res.end(JSON.stringify({ error: 'resolve failed' }));
+            }
+          });
+        });
+      },
+    },
   ],
   resolve: {
     alias: {
@@ -131,6 +181,66 @@ export default defineConfig({
           proxy.on('proxyReq', (proxyReq) => {
             proxyReq.setHeader('Referer', 'https://y.qq.com/');
             proxyReq.setHeader('Origin', 'https://y.qq.com');
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          });
+        }
+      },
+      '/api/kugou-global': {
+        target: 'https://gateway.kugou.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/kugou-global/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('User-Agent', 'Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi');
+          });
+        }
+      },
+      '/api/kugou-page': {
+        target: 'https://www.kugou.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/kugou-page/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          });
+        }
+      },
+      '/api/kugou-register': {
+        target: 'https://userservice.kugou.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/kugou-register/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('User-Agent', 'Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi');
+          });
+        }
+      },
+      '/api/kugou': {
+        target: 'http://mobilecdn.kugou.com',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/kugou/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          });
+        }
+      },
+      '/api/kuwo': {
+        target: 'http://nplserver.kuwo.cn',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/kuwo/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          });
+        }
+      },
+      '/api/migu': {
+        target: 'https://app.c.nf.migu.cn',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/migu/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
             proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
           });
         }

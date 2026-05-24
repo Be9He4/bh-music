@@ -18,21 +18,26 @@ import { resolveUrl } from "@/lib/netease/netease-api";
 import { getPlaylistDetail } from "@/lib/netease/netease-api";
 import { convertSongToMusicTrack } from "@/lib/netease/netease-api";
 import { parseQqMusicUrl, getQqPlaylistDetail, convertQqSongToMusicTrack } from "@/lib/qqmusic/qqmusic-api";
+import { resolveKugouPlaylistId, getKugouPlaylistDetail, convertKugouSongToMusicTrack } from "@/lib/kugou/kugou-api";
+import { parseKuwoPlaylistUrl, getKuwoPlaylistDetail, convertKuwoSongToMusicTrack } from "@/lib/kuwo/kuwo-api";
+import { resolveMiguPlaylistId, getMiguPlaylistDetail, convertMiguSongToMusicTrack } from "@/lib/migu/migu-api";
 import type { MusicTrack } from "@/types/music";
 
-/** 参考 AddByUrlDrawer：从混合文本中提取 URL 和标题 */
+/** 参考 AddByUrlDrawer：从混合文本中提取 URL */
 function parseInput(text: string) {
   const raw = text.trim();
   const urlMatch = raw.match(/https?:\/\/[^\s]+/i);
-  if (!urlMatch) return { url: "", title: "" };
+  if (!urlMatch) return "";
   const url = urlMatch[0];
-  const title = raw.replace(url, "").replace(/^[【\[](.*?)[】\]]\s*/, "").trim();
-  return { url, title };
+  return url ;
 }
 
 const PLATFORM_LABELS: Record<Platform, string> = {
   netease: "网易云音乐",
   qq: "QQ音乐",
+  kugou: "酷狗音乐",
+  kuwo: "酷我音乐",
+  migu: "咪咕音乐",
 };
 
 type Phase = "input" | "loading" | "preview" | "error" | "importing";
@@ -70,14 +75,14 @@ export function PlaylistUrlImport() {
     navigator.clipboard
       ?.readText?.()
       .then((text) => {
-        const { url: extracted, title } = parseInput(text);
-        if (extracted && detectPlatform(extracted) && !url) {
-          setUrl(extracted);
+        const url = parseInput(text);
+        if (url && detectPlatform(url) && !url) {
+          setUrl(url);
           toastUtils.success("已自动填充链接", { id: "clipboard-import" });
         }
       })
       .catch(() => {});
-  }, [open, url]);
+  }, [open]);
 
   const handleFetch = async () => {
     const trimmed = url.trim();
@@ -85,7 +90,7 @@ export function PlaylistUrlImport() {
 
     const platform = detectPlatform(trimmed);
     if (!platform) {
-      setErrorMsg("不支持的链接格式，目前支持网易云音乐和QQ音乐的歌单链接");
+      setErrorMsg("不支持的链接格式，目前支持网易云音乐、QQ音乐、酷狗音乐、酷我音乐和咪咕音乐的歌单链接");
       setPhase("error");
       return;
     }
@@ -126,7 +131,7 @@ export function PlaylistUrlImport() {
           tracks,
           platform,
         });
-      } else {
+      } else if (platform === "qq") {
         const playlistId = parseQqMusicUrl(trimmed);
         if (!playlistId) {
           setErrorMsg("无法从此链接提取歌单ID");
@@ -142,6 +147,75 @@ export function PlaylistUrlImport() {
         }
 
         const tracks = detail.songs.map(convertQqSongToMusicTrack);
+        setPreview({
+          name: detail.name,
+          coverUrl: detail.coverUrl || "",
+          trackCount: detail.trackCount || tracks.length,
+          tracks,
+          platform,
+        });
+      } else if (platform === "kugou") {
+        const playlistId = await resolveKugouPlaylistId(trimmed);
+        if (!playlistId) {
+          setErrorMsg("无法从此链接提取歌单ID");
+          setPhase("error");
+          return;
+        }
+
+        const detail = await getKugouPlaylistDetail(playlistId);
+        if (!detail.songs?.length) {
+          setErrorMsg("歌单为空，无法导入");
+          setPhase("error");
+          return;
+        }
+
+        const tracks = detail.songs.map(convertKugouSongToMusicTrack);
+        setPreview({
+          name: detail.name,
+          coverUrl: detail.coverUrl || "",
+          trackCount: detail.trackCount || tracks.length,
+          tracks,
+          platform,
+        });
+      } else if (platform === "kuwo") {
+        const playlistId = parseKuwoPlaylistUrl(trimmed);
+        if (!playlistId) {
+          setErrorMsg("无法从此链接提取歌单ID");
+          setPhase("error");
+          return;
+        }
+
+        const detail = await getKuwoPlaylistDetail(playlistId);
+        if (!detail.songs?.length) {
+          setErrorMsg("歌单为空，无法导入");
+          setPhase("error");
+          return;
+        }
+
+        const tracks = detail.songs.map(convertKuwoSongToMusicTrack);
+        setPreview({
+          name: detail.name,
+          coverUrl: detail.coverUrl || "",
+          trackCount: detail.trackCount || tracks.length,
+          tracks,
+          platform,
+        });
+      } else {
+        const playlistId = await resolveMiguPlaylistId(trimmed);
+        if (!playlistId) {
+          setErrorMsg("无法从此链接提取歌单ID");
+          setPhase("error");
+          return;
+        }
+
+        const detail = await getMiguPlaylistDetail(playlistId);
+        if (!detail.songs?.length) {
+          setErrorMsg("歌单为空，无法导入");
+          setPhase("error");
+          return;
+        }
+
+        const tracks = detail.songs.map(convertMiguSongToMusicTrack);
         setPreview({
           name: detail.name,
           coverUrl: detail.coverUrl || "",
@@ -180,7 +254,7 @@ export function PlaylistUrlImport() {
       <SettingItem
         icon={Link2}
         title="链接导入歌单"
-        subtitle="粘贴网易云/QQ音乐歌单链接"
+        subtitle="粘贴网易云/QQ音乐/酷狗/酷我/咪咕歌单链接"
         onClick={() => setOpen(true)}
         showChevron
       />
@@ -200,18 +274,18 @@ export function PlaylistUrlImport() {
                   <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     className="pl-9 h-11 bg-muted/40 border-none rounded-xl focus-visible:ring-1 font-mono text-sm"
-                    placeholder="粘贴网易云或QQ音乐歌单分享链接"
+                    placeholder="输入歌单分享链接，如 https://kuwo.cn/playlist_detail/3596743037"
                     value={url}
                     onChange={(e) => {
-                      const { url: extracted } = parseInput(e.target.value);
-                      setUrl(extracted || e.target.value);
+                      const url = parseInput(e.target.value);
+                      setUrl(url);
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleFetch()}
                     autoFocus
                   />
                 </div>
                 <p className="text-xs text-muted-foreground px-1">
-                  支持 music.163.com / y.qq.com 歌单链接
+                  「在官方 APP 打开歌单」 → 「分享到微信」 → 「在微信打开分享链接」 →  「点击右上角并复制链接」
                 </p>
               </>
             )}
