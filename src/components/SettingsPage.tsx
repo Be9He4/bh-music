@@ -13,7 +13,7 @@ import {
   type FullScreenBackgroundMode,
 } from "@/store/music-store";
 import { Slider } from "./ui/slider";
-import { Image, Palette, Volume2, Wand2, Trash2 } from "lucide-react";
+import { Image, Palette, Volume2, Wand2, Trash2, Tag } from "lucide-react";
 import { Switch } from "./ui/switch";
 import {
   Select,
@@ -50,6 +50,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     setVolume,
     enableAutoMatch,
     setEnableAutoMatch,
+    showSourceBadge,
+    setShowSourceBadge,
     fullScreenBackgroundMode,
     setFullScreenBackgroundMode,
   } = useMusicStore();
@@ -66,6 +68,17 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               <Switch
                 checked={enableAutoMatch}
                 onCheckedChange={setEnableAutoMatch}
+              />
+            }
+          />
+          <SettingItem
+            icon={Tag}
+            title="显示音源标签"
+            subtitle="在歌曲列表中始终显示音源平台标签"
+            action={
+              <Switch
+                checked={showSourceBadge}
+                onCheckedChange={setShowSourceBadge}
               />
             }
           />

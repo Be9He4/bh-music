@@ -249,7 +249,7 @@ export function MusicTrackMobileMenu({
       setSearchIntent(null);
     }
     if (track.source && track.source !== "local") {
-      setSearchSource(track.source);
+      setSearchSource(provider.searchArtist ? track.source : "all");
     }
     setSearchResults([]);
     navigate("/search");
@@ -351,8 +351,8 @@ export function MusicTrackMobileMenu({
               </ActionButton>
             )}
 
-            {/* 如果支持歌手搜索或详情，显示歌手入口 */}
-            {(provider.searchArtist || provider.getArtistDetail) && (
+            {/* 除播客外，有歌手即显示歌手入口 */}
+            {track.source !== "podcast" && track.artist?.length > 0 && (
               <ActionButton
                 icon={User}
                 onClick={() => {
@@ -372,9 +372,8 @@ export function MusicTrackMobileMenu({
               </ActionButton>
             )}
 
-            {/* 如果支持专辑搜索或详情，显示专辑入口 */}
-            {(provider.searchAlbum || provider.getAlbumDetail) &&
-              track.album && (
+            {/* 除播客外，有专辑即显示专辑入口 */}
+            {track.source !== "podcast" && track.album && (
                 <ActionButton
                   icon={Disc}
                   onClick={() => {

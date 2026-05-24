@@ -140,11 +140,12 @@ export function MusicTrackList({
     }
   };
 
-  const { quality, addBatchToFavorites, addBatchToNextPlay } = useMusicStore(
+  const { quality, addBatchToFavorites, addBatchToNextPlay, showSourceBadge: storeShowBadge } = useMusicStore(
     useShallow((state) => ({
       quality: state.quality,
       addBatchToFavorites: state.addBatchToFavorites,
       addBatchToNextPlay: state.addBatchToNextPlay,
+      showSourceBadge: state.showSourceBadge,
     }))
   );
 
@@ -356,7 +357,7 @@ export function MusicTrackList({
                   isSelected={selectedIds.has(track.id)} onSelect={() => toggleSelect(track.id)}
                   onRemove={!isSelectionMode && onRemove && showItemRemove ? () => onRemove(track) : undefined}
                   removeLabel={removeLabel}
-                  quality={quality} showSourceBadge={isSelectionMode || showSourceBadge}
+                  quality={quality} showSourceBadge={isSelectionMode || storeShowBadge || showSourceBadge}
                 />
               ) : (
                 <div className="px-3 pb-20 pt-2 h-full">
