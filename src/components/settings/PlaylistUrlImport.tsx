@@ -14,13 +14,31 @@ import { toastUtils } from "@/lib/utils/toast";
 import { SettingItem } from "./SettingItem";
 import { logger } from "@/lib/logger";
 import { detectPlatform, type Platform } from "@/lib/platform-detector";
-import { resolveUrl } from "@/lib/netease/netease-api";
-import { getPlaylistDetail } from "@/lib/netease/netease-api";
-import { convertSongToMusicTrack } from "@/lib/netease/netease-api";
-import { parseQqMusicUrl, getQqPlaylistDetail, convertQqSongToMusicTrack } from "@/lib/qqmusic/qqmusic-api";
-import { resolveKugouPlaylistId, getKugouPlaylistDetail, convertKugouSongToMusicTrack } from "@/lib/kugou/kugou-api";
-import { parseKuwoPlaylistUrl, getKuwoPlaylistDetail, convertKuwoSongToMusicTrack } from "@/lib/kuwo/kuwo-api";
-import { resolveMiguPlaylistId, getMiguPlaylistDetail, convertMiguSongToMusicTrack } from "@/lib/migu/migu-api";
+import {
+  resolveUrl,
+  getPlaylistDetail,
+  convertSongToMusicTrack,
+} from "@/lib/netease/netease-api";
+import {
+  parseQqMusicUrl,
+  getQqPlaylistDetail,
+  convertQqSongToMusicTrack,
+} from "@/lib/qqmusic/qqmusic-api";
+import {
+  resolveKugouPlaylistId,
+  getKugouPlaylistDetail,
+  convertKugouSongToMusicTrack,
+} from "@/lib/kugou/kugou-api";
+import {
+  parseKuwoPlaylistUrl,
+  getKuwoPlaylistDetail,
+  convertKuwoSongToMusicTrack,
+} from "@/lib/kuwo/kuwo-api";
+import {
+  resolveMiguPlaylistId,
+  getMiguPlaylistDetail,
+  convertMiguSongToMusicTrack,
+} from "@/lib/migu/migu-api";
 import type { MusicTrack } from "@/types/music";
 
 /** 参考 AddByUrlDrawer：从混合文本中提取 URL */
@@ -29,7 +47,7 @@ function parseInput(text: string) {
   const urlMatch = raw.match(/https?:\/\/[^\s]+/i);
   if (!urlMatch) return "";
   const url = urlMatch[0];
-  return url ;
+  return url;
 }
 
 const PLATFORM_LABELS: Record<Platform, string> = {
@@ -90,7 +108,9 @@ export function PlaylistUrlImport() {
 
     const platform = detectPlatform(trimmed);
     if (!platform) {
-      setErrorMsg("不支持的链接格式，目前支持网易云音乐、QQ音乐、酷狗音乐、酷我音乐和咪咕音乐的歌单链接");
+      setErrorMsg(
+        "不支持的链接格式，目前支持网易云音乐、QQ音乐、酷狗音乐、酷我音乐和咪咕音乐的歌单链接"
+      );
       setPhase("error");
       return;
     }
@@ -238,9 +258,13 @@ export function PlaylistUrlImport() {
     setPhase("importing");
 
     try {
-      const playlistId = useMusicStore.getState().createPlaylist(preview.name, preview.coverUrl);
+      const playlistId = useMusicStore
+        .getState()
+        .createPlaylist(preview.name, preview.coverUrl);
       useMusicStore.getState().setPlaylistTracks(playlistId, preview.tracks);
-      toastUtils.success(`成功导入歌单「${preview.name}」\n共 ${preview.trackCount} 首歌曲`);
+      toastUtils.success(
+        `成功导入歌单「${preview.name}」\n共 ${preview.trackCount} 首歌曲`
+      );
       handleClose();
     } catch (e: unknown) {
       logger.error("PlaylistUrlImport", "Import failed", e);
@@ -285,7 +309,8 @@ export function PlaylistUrlImport() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground px-1">
-                  「在官方 APP 打开歌单」 → 「分享到微信」 → 「在微信打开分享链接」 →  「点击右上角并复制链接」
+                  「在官方 APP 打开歌单」 → 「分享到微信」 →
+                  「在微信打开分享链接」 → 「点击右上角并复制链接」
                 </p>
               </>
             )}
@@ -293,7 +318,9 @@ export function PlaylistUrlImport() {
             {phase === "loading" && (
               <div className="flex flex-col items-center py-12 gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">正在获取歌单信息...</p>
+                <p className="text-sm text-muted-foreground">
+                  正在获取歌单信息...
+                </p>
               </div>
             )}
 
@@ -312,9 +339,12 @@ export function PlaylistUrlImport() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base truncate">{preview.name}</h3>
+                    <h3 className="font-semibold text-base truncate">
+                      {preview.name}
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {PLATFORM_LABELS[preview.platform]} · {preview.trackCount} 首歌曲
+                      {PLATFORM_LABELS[preview.platform]} · {preview.trackCount}{" "}
+                      首歌曲
                     </p>
                   </div>
                 </div>
@@ -332,14 +362,25 @@ export function PlaylistUrlImport() {
             {(phase === "input" || phase === "error") && (
               <>
                 {phase === "error" && (
-                  <Button variant="outline" className="h-12 rounded-2xl" onClick={() => setPhase("input")}>
+                  <Button
+                    variant="outline"
+                    className="h-12 rounded-2xl"
+                    onClick={() => setPhase("input")}
+                  >
                     返回修改链接
                   </Button>
                 )}
                 <Button
                   className="h-12 rounded-2xl shadow-lg shadow-primary/20"
                   disabled={!url.trim()}
-                  onClick={phase === "error" ? () => { setPhase("input"); handleFetch(); } : handleFetch}
+                  onClick={
+                    phase === "error"
+                      ? () => {
+                          setPhase("input");
+                          handleFetch();
+                        }
+                      : handleFetch
+                  }
                 >
                   {phase === "error" ? "重试" : "获取歌单"}
                 </Button>

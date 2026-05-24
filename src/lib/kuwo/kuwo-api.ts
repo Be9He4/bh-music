@@ -1,12 +1,17 @@
-import { fetchWithTimeout, getApiUrl, IS_NATIVE, IS_WEB_PROD } from '@/lib/api/config';
+import {
+  fetchWithTimeout,
+  getApiUrl,
+  IS_NATIVE,
+  IS_WEB_PROD,
+} from "@/lib/api/config";
 import {
   convertKuwoSongToMusicTrack,
   fetchKuwoPlaylistDetail,
   KUWO_PAGE_SIZE,
-} from '@otter-music/shared';
-import type { KuwoPlaylistDetail } from '@otter-music/shared';
+  type KuwoPlaylistDetail,
+} from "@otter-music/shared";
 
-const KUWO_PROXY_PREFIX = '/music-api/kuwo';
+const KUWO_PROXY_PREFIX = "/music-api/kuwo";
 const NETWORK_TIMEOUT = 12000;
 
 export { convertKuwoSongToMusicTrack, KUWO_PAGE_SIZE };
@@ -17,11 +22,13 @@ export { convertKuwoSongToMusicTrack, KUWO_PAGE_SIZE };
 
 export function parseKuwoPlaylistUrl(urlStr: string): string | null {
   try {
-    const url = new URL(urlStr.startsWith('http') ? urlStr : `https://${urlStr}`);
+    const url = new URL(
+      urlStr.startsWith("http") ? urlStr : `https://${urlStr}`
+    );
     const pathMatch = url.pathname.match(/playlist_detail\/(\d+)/);
     if (pathMatch) return pathMatch[1];
 
-    const idParam = url.searchParams.get('pid') || url.searchParams.get('id');
+    const idParam = url.searchParams.get("pid") || url.searchParams.get("id");
     return idParam && /^\d+$/.test(idParam) ? idParam : null;
   } catch {
     return null;
@@ -32,29 +39,37 @@ export function parseKuwoPlaylistUrl(urlStr: string): string | null {
 // 歌单获取（环境路由 + 调用 shared 核心算法）
 // ============================================================
 
-export async function getKuwoPlaylistDetail(playlistId: string): Promise<KuwoPlaylistDetail> {
+export async function getKuwoPlaylistDetail(
+  playlistId: string
+): Promise<KuwoPlaylistDetail> {
   if (IS_WEB_PROD) {
-    const res = await fetchWithTimeout(`${getApiUrl()}${KUWO_PROXY_PREFIX}/playlist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playlistId }),
-    }, NETWORK_TIMEOUT);
+    const res = await fetchWithTimeout(
+      `${getApiUrl()}${KUWO_PROXY_PREFIX}/playlist`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistId }),
+      },
+      NETWORK_TIMEOUT
+    );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error((err as { error?: string }).error || `API error: ${res.status}`);
+      throw new Error(
+        (err as { error?: string }).error || `API error: ${res.status}`
+      );
     }
     return res.json();
   }
 
   if (IS_NATIVE) {
-    const { CapacitorHttp } = await import('@capacitor/core');
+    const { CapacitorHttp } = await import("@capacitor/core");
     return fetchKuwoPlaylistDetail(playlistId, async (path) => {
       const res = await CapacitorHttp.request({
-        method: 'GET',
+        method: "GET",
         url: `http://nplserver.kuwo.cn${path}`,
       });
       if (res.status >= 400) throw new Error(`Kuwo API error: ${res.status}`);
-      return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+      return typeof res.data === "string" ? res.data : JSON.stringify(res.data);
     });
   }
 

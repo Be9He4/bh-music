@@ -1,11 +1,15 @@
-import type { MusicTrack } from '@/types/music';
-import type { QqPlaylistDetail, QqPlaylistResponse, QqSongRaw } from './qqmusic-types';
-import { QQ_BASE_URL } from './qqmusic-types';
-import { IS_NATIVE, IS_WEB_PROD, getApiUrl } from '@/lib/api/config';
+import type { MusicTrack } from "@/types/music";
+import {
+  QQ_BASE_URL,
+  type QqPlaylistDetail,
+  type QqPlaylistResponse,
+  type QqSongRaw,
+} from "./qqmusic-types";
+import { IS_NATIVE, IS_WEB_PROD, getApiUrl } from "@/lib/api/config";
 
-const QQ_PROXY_PREFIX = '/music-api/qqmusic';
+const QQ_PROXY_PREFIX = "/music-api/qqmusic";
 const NETWORK_TIMEOUT = 12000;
-const QQ_REFERER = 'https://y.qq.com/';
+const QQ_REFERER = "https://y.qq.com/";
 
 /**
  * 从 QQ 音乐分享链接中提取歌单数字 ID。
@@ -15,14 +19,16 @@ const QQ_REFERER = 'https://y.qq.com/';
  */
 export function parseQqMusicUrl(urlStr: string): string | null {
   try {
-    const url = new URL(urlStr.startsWith('http') ? urlStr : `https://${urlStr}`);
+    const url = new URL(
+      urlStr.startsWith("http") ? urlStr : `https://${urlStr}`
+    );
 
     // 尝试从路径中提取: /n/yqq/playlist/7177076625.html
     const playlistMatch = url.pathname.match(/playlist\/(\d+)/);
     if (playlistMatch) return playlistMatch[1];
 
     // 尝试从 query 参数中提取: ?id=7177076625
-    const idParam = url.searchParams.get('id');
+    const idParam = url.searchParams.get("id");
     if (idParam && /^\d+$/.test(idParam)) return idParam;
 
     return null;
@@ -37,7 +43,7 @@ export function parseQqMusicUrl(urlStr: string): string | null {
 export function convertQqSongToMusicTrack(song: QqSongRaw): MusicTrack {
   const picUrl = song.albummid
     ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${song.albummid}.jpg`
-    : '';
+    : "";
 
   return {
     id: `qq_${song.songmid}`,
@@ -47,7 +53,7 @@ export function convertQqSongToMusicTrack(song: QqSongRaw): MusicTrack {
     pic_id: picUrl,
     url_id: song.songmid,
     lyric_id: song.songmid,
-    source: 'qq',
+    source: "qq",
   };
 }
 
@@ -59,7 +65,11 @@ export function buildQqPlaylistApiPath(playlistId: string): string {
   return `/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&json=1&utf8=1&nosign=1&disstid=${encodeURIComponent(playlistId)}&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=GB2312&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = NETWORK_TIMEOUT) {
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = NETWORK_TIMEOUT
+) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeout);
   try {
@@ -75,18 +85,22 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
  * - 生产环境 (Web): 通过 Cloudflare Worker /music-api/qqmusic/playlist
  * - 原生环境 (Capacitor): 直接调用 i.y.qq.com (原生无 CORS 限制)
  */
-export async function getQqPlaylistDetail(playlistId: string): Promise<QqPlaylistDetail> {
+export async function getQqPlaylistDetail(
+  playlistId: string
+): Promise<QqPlaylistDetail> {
   if (IS_WEB_PROD) {
     // 生产环境走 Worker 代理
     const apiUrl = getApiUrl();
     const res = await fetchWithTimeout(`${apiUrl}${QQ_PROXY_PREFIX}/playlist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playlistId }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error((err as { error?: string }).error || `API error: ${res.status}`);
+      throw new Error(
+        (err as { error?: string }).error || `API error: ${res.status}`
+      );
     }
     return res.json();
   }
@@ -94,17 +108,21 @@ export async function getQqPlaylistDetail(playlistId: string): Promise<QqPlaylis
   if (IS_NATIVE) {
     // 原生环境直接请求
     const url = `${QQ_BASE_URL}${buildQqPlaylistApiPath(playlistId)}`;
-    const { CapacitorHttp } = await import('@capacitor/core');
+    const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
-      method: 'GET',
+      method: "GET",
       url,
-      headers: { 'Referer': QQ_REFERER },
+      headers: { Referer: QQ_REFERER },
     });
     if (res.status >= 400) throw new Error(`QQ Music API error: ${res.status}`);
-    const rawText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+    const rawText =
+      typeof res.data === "string" ? res.data : JSON.stringify(res.data);
     const data = parseQqPlaylistResponse(rawText);
-    if (data.subcode && data.subcode !== 0) throw new Error(data.msg || `QQ Music API returned subcode ${data.subcode}`);
-    if (!data.cdlist?.length) throw new Error('歌单不存在或已被删除');
+    if (data.subcode && data.subcode !== 0)
+      throw new Error(
+        data.msg || `QQ Music API returned subcode ${data.subcode}`
+      );
+    if (!data.cdlist?.length) throw new Error("歌单不存在或已被删除");
     return {
       name: data.cdlist[0].dissname,
       coverUrl: data.cdlist[0].logo,
@@ -123,8 +141,11 @@ export async function getQqPlaylistDetail(playlistId: string): Promise<QqPlaylis
   const rawText = await res.text();
   const data = parseQqPlaylistResponse(rawText);
 
-  if (data.subcode && data.subcode !== 0) throw new Error(data.msg || `QQ Music API returned subcode ${data.subcode}`);
-  if (!data.cdlist?.length) throw new Error('歌单不存在或已被删除');
+  if (data.subcode && data.subcode !== 0)
+    throw new Error(
+      data.msg || `QQ Music API returned subcode ${data.subcode}`
+    );
+  if (!data.cdlist?.length) throw new Error("歌单不存在或已被删除");
 
   return {
     name: data.cdlist[0].dissname,

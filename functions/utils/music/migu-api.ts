@@ -4,23 +4,19 @@ import {
   buildMiguSongUrlPath,
   convertMiguSongToMusicTrack,
   MIGU_PAGE_SIZE,
-  parseMiguPlaylistInfoResponse,
-  parseMiguPlaylistSongsResponse,
-} from '@otter-music/shared';
-import type {
-  MiguPlaylistDetail,
-  MiguPlaylistInfoResponse,
-  MiguPlaylistSongsResponse,
-  MiguSongRaw,
-  MiguSongUrlResponse,
-} from '@otter-music/shared';
+  type MiguPlaylistDetail,
+  type MiguPlaylistInfoResponse,
+  type MiguPlaylistSongsResponse,
+  type MiguSongRaw,
+  type MiguSongUrlResponse,
+} from "@otter-music/shared";
 
 export { MIGU_PAGE_SIZE, convertMiguSongToMusicTrack };
 
-const MIGU_BASE_URL = 'https://app.c.nf.migu.cn';
-const MIGU_SHORT_LINK_HOST = 'c.migu.cn';
-const MIGU_SHARE_PAGE_HOST = 'h5.nf.migu.cn';
-const MIGU_SHARE_PLAYLIST_PATH = '/app/v4/p/share/playlist/index.html';
+const MIGU_BASE_URL = "https://app.c.nf.migu.cn";
+const MIGU_SHORT_LINK_HOST = "c.migu.cn";
+const MIGU_SHARE_PAGE_HOST = "h5.nf.migu.cn";
+const MIGU_SHARE_PLAYLIST_PATH = "/app/v4/p/share/playlist/index.html";
 
 // ============================================================
 // 短链解析
@@ -29,19 +25,25 @@ const MIGU_SHARE_PLAYLIST_PATH = '/app/v4/p/share/playlist/index.html';
 export function isMiguPlaylistShortLink(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
-    return url.protocol === 'https:' && url.hostname === MIGU_SHORT_LINK_HOST;
+    return url.protocol === "https:" && url.hostname === MIGU_SHORT_LINK_HOST;
   } catch {
     return false;
   }
 }
 
-export function parseMiguShareRedirectPlaylistId(urlStr: string): string | null {
+export function parseMiguShareRedirectPlaylistId(
+  urlStr: string
+): string | null {
   try {
     const url = new URL(urlStr);
-    if (url.protocol !== 'https:' || url.hostname !== MIGU_SHARE_PAGE_HOST || url.pathname !== MIGU_SHARE_PLAYLIST_PATH) {
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== MIGU_SHARE_PAGE_HOST ||
+      url.pathname !== MIGU_SHARE_PLAYLIST_PATH
+    ) {
       return null;
     }
-    const playlistId = url.searchParams.get('id');
+    const playlistId = url.searchParams.get("id");
     return playlistId && /^\d+$/.test(playlistId) ? playlistId : null;
   } catch {
     return null;
@@ -50,19 +52,19 @@ export function parseMiguShareRedirectPlaylistId(urlStr: string): string | null 
 
 export async function resolveMiguShortPlaylistId(
   urlStr: string,
-  fetcher: typeof fetch = fetch,
+  fetcher: typeof fetch = fetch
 ): Promise<string | null> {
   if (!isMiguPlaylistShortLink(urlStr)) return null;
 
   const response = await fetcher(urlStr, {
-    method: 'GET',
-    redirect: 'manual',
+    method: "GET",
+    redirect: "manual",
     headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     },
   });
-  const redirectUrl = response.headers.get('Location') || response.url;
+  const redirectUrl = response.headers.get("Location") || response.url;
   return parseMiguShareRedirectPlaylistId(redirectUrl);
 }
 
@@ -70,11 +72,14 @@ export async function resolveMiguShortPlaylistId(
 // 歌单获取（直接 fetch + 调用 shared 核心算法）
 // ============================================================
 
-async function fetchMiguJson<T>(path: string, headers: Record<string, string> = {}): Promise<T> {
+async function fetchMiguJson<T>(
+  path: string,
+  headers: Record<string, string> = {}
+): Promise<T> {
   const res = await fetch(`${MIGU_BASE_URL}${path}`, {
     headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       ...headers,
     },
   });
@@ -82,10 +87,14 @@ async function fetchMiguJson<T>(path: string, headers: Record<string, string> = 
   return res.json() as Promise<T>;
 }
 
-export async function fetchMiguPlaylistDetail(playlistId: string): Promise<MiguPlaylistDetail> {
-  const infoResponse = await fetchMiguJson<MiguPlaylistInfoResponse>(buildMiguPlaylistInfoPath(playlistId));
-  if (infoResponse.code !== '000000') {
-    throw new Error(infoResponse.info || '咪咕歌单信息接口返回异常');
+export async function fetchMiguPlaylistDetail(
+  playlistId: string
+): Promise<MiguPlaylistDetail> {
+  const infoResponse = await fetchMiguJson<MiguPlaylistInfoResponse>(
+    buildMiguPlaylistInfoPath(playlistId)
+  );
+  if (infoResponse.code !== "000000") {
+    throw new Error(infoResponse.info || "咪咕歌单信息接口返回异常");
   }
 
   const info = infoResponse.resource?.[0];
@@ -94,9 +103,11 @@ export async function fetchMiguPlaylistDetail(playlistId: string): Promise<MiguP
   const pageCount = Math.max(1, Math.ceil(total / MIGU_PAGE_SIZE));
 
   for (let page = 1; page <= pageCount && page <= 100; page += 1) {
-    const songsResponse = await fetchMiguJson<MiguPlaylistSongsResponse>(buildMiguPlaylistSongsPath(playlistId, page));
-    if (songsResponse.code !== '000000') {
-      throw new Error(songsResponse.info || '咪咕歌单歌曲接口返回异常');
+    const songsResponse = await fetchMiguJson<MiguPlaylistSongsResponse>(
+      buildMiguPlaylistSongsPath(playlistId, page)
+    );
+    if (songsResponse.code !== "000000") {
+      throw new Error(songsResponse.info || "咪咕歌单歌曲接口返回异常");
     }
     const pageSongs = songsResponse.list || [];
     if (!pageSongs.length) break;
@@ -104,11 +115,14 @@ export async function fetchMiguPlaylistDetail(playlistId: string): Promise<MiguP
     if ((songsResponse.totalCount || total) <= songs.length) break;
   }
 
-  if (!songs.length) throw new Error('歌单为空，无法导入');
+  if (!songs.length) throw new Error("歌单为空，无法导入");
 
   return {
     name: info?.title || `咪咕歌单 ${playlistId}`,
-    coverUrl: info?.imgItem?.img || songs.find((song) => song.albumImgs?.length)?.albumImgs?.[0]?.img || '',
+    coverUrl:
+      info?.imgItem?.img ||
+      songs.find((song) => song.albumImgs?.length)?.albumImgs?.[0]?.img ||
+      "",
     trackCount: total || songs.length,
     songs,
   };
@@ -118,11 +132,18 @@ export async function fetchMiguPlaylistDetail(playlistId: string): Promise<MiguP
 // 播放地址获取
 // ============================================================
 
-export async function fetchMiguSongUrl(copyrightId: string, contentId: string, br = 192): Promise<string | null> {
-  const response = await fetchMiguJson<MiguSongUrlResponse>(buildMiguSongUrlPath(copyrightId, contentId, br), {
-    channel: '0146951',
-    uid: '1234',
-  });
+export async function fetchMiguSongUrl(
+  copyrightId: string,
+  contentId: string,
+  br = 192
+): Promise<string | null> {
+  const response = await fetchMiguJson<MiguSongUrlResponse>(
+    buildMiguSongUrlPath(copyrightId, contentId, br),
+    {
+      channel: "0146951",
+      uid: "1234",
+    }
+  );
   const url = response.data?.url || response.data?.playUrl || null;
-  return url ? url.replace(/\+/g, '%2B') : null;
+  return url ? url.replace(/\+/g, "%2B") : null;
 }

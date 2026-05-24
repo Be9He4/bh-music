@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getMiguLyric, parseMiguPlaylistUrl, resolveMiguPlaylistId } from "./migu-api";
+import {
+  getMiguLyric,
+  parseMiguPlaylistUrl,
+  resolveMiguPlaylistId,
+} from "./migu-api";
 import {
   buildMiguPlaylistInfoPath,
   buildMiguPlaylistSongsPath,
@@ -10,7 +14,6 @@ import {
   parseMiguPlaylistSongsResponse,
   parseMiguSongUrlResponse,
   parseMiguTrackId,
-  forceHttps,
 } from "@otter-music/shared";
 
 afterEach(() => {
@@ -24,19 +27,29 @@ afterEach(() => {
 
 describe("parseMiguPlaylistUrl", () => {
   it("extracts playlist id from PC links", () => {
-    expect(parseMiguPlaylistUrl("https://music.migu.cn/v3/music/playlist/127623862")).toBe("127623862");
+    expect(
+      parseMiguPlaylistUrl("https://music.migu.cn/v3/music/playlist/127623862")
+    ).toBe("127623862");
   });
 
   it("extracts playlist id from mobile links", () => {
-    expect(parseMiguPlaylistUrl("https://m.music.migu.cn/v3/music/playlist/127623862")).toBe("127623862");
+    expect(
+      parseMiguPlaylistUrl(
+        "https://m.music.migu.cn/v3/music/playlist/127623862"
+      )
+    ).toBe("127623862");
   });
 
   it("extracts playlist id from my playlist links", () => {
-    expect(parseMiguPlaylistUrl("https://music.migu.cn/v3/my/playlist/127623862")).toBe("127623862");
+    expect(
+      parseMiguPlaylistUrl("https://music.migu.cn/v3/my/playlist/127623862")
+    ).toBe("127623862");
   });
 
   it("rejects invalid links", () => {
-    expect(parseMiguPlaylistUrl("https://music.migu.cn/v3/music/song/1")).toBeNull();
+    expect(
+      parseMiguPlaylistUrl("https://music.migu.cn/v3/music/song/1")
+    ).toBeNull();
     expect(parseMiguPlaylistUrl("not a url")).toBeNull();
   });
 });
@@ -46,22 +59,37 @@ describe("resolveMiguPlaylistId", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(resolveMiguPlaylistId("https://music.migu.cn/v3/music/playlist/127623862")).resolves.toBe("127623862");
+    await expect(
+      resolveMiguPlaylistId("https://music.migu.cn/v3/music/playlist/127623862")
+    ).resolves.toBe("127623862");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("resolves c.migu.cn short links through the Migu API route", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ playlistId: "234235348" }), { status: 200 }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ playlistId: "234235348" }), {
+          status: 200,
+        })
+      );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(resolveMiguPlaylistId("https://c.migu.cn/00CQck?ifrom=share")).resolves.toBe("234235348");
+    await expect(
+      resolveMiguPlaylistId("https://c.migu.cn/00CQck?ifrom=share")
+    ).resolves.toBe("234235348");
     expect(String(fetchMock.mock.calls[0][0])).toContain("/api/migu-resolve");
   });
 
   it("returns null when short-link resolution fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 400 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("{}", { status: 400 }))
+    );
 
-    await expect(resolveMiguPlaylistId("https://c.migu.cn/00CQck")).resolves.toBeNull();
+    await expect(
+      resolveMiguPlaylistId("https://c.migu.cn/00CQck")
+    ).resolves.toBeNull();
   });
 });
 
@@ -90,36 +118,50 @@ describe("build migu paths", () => {
 
 describe("parse migu responses", () => {
   it("parses playlist info JSON", () => {
-    const res = parseMiguPlaylistInfoResponse('{"code":"000000","resource":[{"title":"歌单"}]}');
+    const res = parseMiguPlaylistInfoResponse(
+      '{"code":"000000","resource":[{"title":"歌单"}]}'
+    );
     expect(res.resource?.[0].title).toBe("歌单");
   });
 
   it("parses playlist songs JSON", () => {
-    const res = parseMiguPlaylistSongsResponse('{"code":"000000","totalCount":1,"list":[{"songName":"歌曲"}]}');
+    const res = parseMiguPlaylistSongsResponse(
+      '{"code":"000000","totalCount":1,"list":[{"songName":"歌曲"}]}'
+    );
     expect(res.totalCount).toBe(1);
     expect(res.list?.[0].songName).toBe("歌曲");
   });
 
   it("parses song url JSON", () => {
-    const url = parseMiguSongUrlResponse({ data: { url: "//example.com/a+b.mp3" } });
+    const url = parseMiguSongUrlResponse({
+      data: { url: "//example.com/a+b.mp3" },
+    });
     expect(url).toBe("https://example.com/a%2Bb.mp3");
   });
 });
 
 describe("getMiguLyric", () => {
   it("loads web lyrics through the generic proxy", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response("[00:00.00]歌词", { status: 200 }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("[00:00.00]歌词", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(getMiguLyric("https://d.musicapp.migu.cn/lrc")).resolves.toEqual({
+    await expect(
+      getMiguLyric("https://d.musicapp.migu.cn/lrc")
+    ).resolves.toEqual({
       lyric: "[00:00.00]歌词",
       tlyric: "",
     });
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/proxy?url=https%3A%2F%2Fd.musicapp.migu.cn%2Flrc");
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      "/proxy?url=https%3A%2F%2Fd.musicapp.migu.cn%2Flrc"
+    );
   });
 
   it("loads native lyrics directly through CapacitorHttp", async () => {
-    const request = vi.fn().mockResolvedValue({ status: 200, data: "[00:00.00]歌词" });
+    const request = vi
+      .fn()
+      .mockResolvedValue({ status: 200, data: "[00:00.00]歌词" });
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout: vi.fn(),
       getApiUrl: vi.fn(),
@@ -133,7 +175,9 @@ describe("getMiguLyric", () => {
     vi.doMock("@capacitor/core", () => ({ CapacitorHttp: { request } }));
 
     const { getMiguLyric: getNativeMiguLyric } = await import("./migu-api");
-    await expect(getNativeMiguLyric("http://d.musicapp.migu.cn/lrc")).resolves.toEqual({
+    await expect(
+      getNativeMiguLyric("http://d.musicapp.migu.cn/lrc")
+    ).resolves.toEqual({
       lyric: "[00:00.00]歌词",
       tlyric: "",
     });
@@ -189,19 +233,28 @@ describe("convertMiguSongToMusicTrack", () => {
 
 describe("fetchMiguPlaylistDetail", () => {
   it("fetches playlist info and songs", async () => {
-    const detail = await fetchMiguPlaylistDetail("127623862", async (path: string) => {
-      if (path.includes("resourceinfo.do")) {
+    const detail = await fetchMiguPlaylistDetail(
+      "127623862",
+      async (path: string) => {
+        if (path.includes("resourceinfo.do")) {
+          return JSON.stringify({
+            code: "000000",
+            resource: [
+              {
+                title: "咪咕歌单",
+                musicNum: 1,
+                imgItem: { img: "https://example.com/cover.webp" },
+              },
+            ],
+          });
+        }
         return JSON.stringify({
           code: "000000",
-          resource: [{ title: "咪咕歌单", musicNum: 1, imgItem: { img: "https://example.com/cover.webp" } }],
+          totalCount: 1,
+          list: [{ copyrightId: "1", contentId: "2", songName: "Song" }],
         });
       }
-      return JSON.stringify({
-        code: "000000",
-        totalCount: 1,
-        list: [{ copyrightId: "1", contentId: "2", songName: "Song" }],
-      });
-    });
+    );
 
     expect(detail.name).toBe("咪咕歌单");
     expect(detail.coverUrl).toBe("https://example.com/cover.webp");
@@ -213,7 +266,10 @@ describe("fetchMiguPlaylistDetail", () => {
     await expect(
       fetchMiguPlaylistDetail("1", async (path: string) => {
         if (path.includes("resourceinfo.do")) {
-          return JSON.stringify({ code: "000000", resource: [{ musicNum: 0 }] });
+          return JSON.stringify({
+            code: "000000",
+            resource: [{ musicNum: 0 }],
+          });
         }
         return JSON.stringify({ code: "000000", list: [] });
       })
