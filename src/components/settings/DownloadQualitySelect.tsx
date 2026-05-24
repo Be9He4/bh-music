@@ -16,7 +16,7 @@ export function DownloadQualitySelect() {
     <SettingItem
       icon={Music}
       title="下载音质"
-      subtitle="仅影响下载文件，不影响流播音质"
+      subtitle="部分音源不支持无损下载"
       action={
         <Select value={downloadQuality} onValueChange={setDownloadQuality}>
           <SelectTrigger className="h-7 px-2 bg-transparent border-muted hover:bg-muted/20 w-36">
