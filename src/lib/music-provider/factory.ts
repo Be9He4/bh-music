@@ -5,6 +5,8 @@ import { AggregateProvider } from "./providers/aggregate-provider";
 import { PodcastProvider } from "./providers/podcast-provider";
 import { JooxProvider } from "./providers/joox-provider";
 import { KuwoProvider } from "./providers/kuwo-provider";
+import { KugouProvider } from "./providers/kugou-provider";
+import { MiguProvider } from "./providers/migu-provider";
 import { NeteaseProvider } from "./providers/netease-provider";
 import { QqProvider } from "./providers/qq-provider";
 import { NeteaseApiProvider } from "./providers/netease-api-provider";
@@ -38,6 +40,12 @@ export class MusicProviderFactory {
         break;
       case 'kuwo':
         provider = new KuwoProvider();
+        break;
+      case 'kugou':
+        provider = new KugouProvider();
+        break;
+      case 'migu':
+        provider = new MiguProvider();
         break;
       case 'netease':
         provider = new NeteaseProvider();
