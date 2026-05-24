@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { parseKuwoPlaylistUrl } from "./kuwo-api";
 import {
   buildKuwoPlaylistApiPath,
   convertKuwoSongToMusicTrack,
   fetchKuwoPlaylistDetail,
   parseKuwoPlaylistResponse,
-  parseKuwoPlaylistUrl,
-} from "./kuwo-api";
+} from "@otter-music/shared";
 
 describe("parseKuwoPlaylistUrl", () => {
   it("extracts playlist id from PC links", () => {
@@ -83,7 +83,7 @@ describe("convertKuwoSongToMusicTrack", () => {
 
 describe("fetchKuwoPlaylistDetail", () => {
   it("fetches playlist detail from public endpoint", async () => {
-    const detail = await fetchKuwoPlaylistDetail("2410926933", async (path) => {
+    const detail = await fetchKuwoPlaylistDetail("2410926933", async (path: string) => {
       expect(path).toContain("pid=2410926933");
       return JSON.stringify({
         result: "ok",
@@ -103,7 +103,7 @@ describe("fetchKuwoPlaylistDetail", () => {
   });
 
   it("fetches additional pages until total is reached", async () => {
-    const detail = await fetchKuwoPlaylistDetail("2410926933", async (path) => {
+    const detail = await fetchKuwoPlaylistDetail("2410926933", async (path: string) => {
       if (path.includes("pn=0")) {
         return JSON.stringify({
           result: "ok",

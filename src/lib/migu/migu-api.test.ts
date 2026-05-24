@@ -1,18 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getMiguLyric, parseMiguPlaylistUrl, resolveMiguPlaylistId } from "./migu-api";
 import {
   buildMiguPlaylistInfoPath,
   buildMiguPlaylistSongsPath,
   buildMiguSongUrlPath,
   convertMiguSongToMusicTrack,
   fetchMiguPlaylistDetail,
-  getMiguLyric,
   parseMiguPlaylistInfoResponse,
   parseMiguPlaylistSongsResponse,
-  parseMiguPlaylistUrl,
   parseMiguSongUrlResponse,
   parseMiguTrackId,
-  resolveMiguPlaylistId,
-} from "./migu-api";
+  forceHttps,
+} from "@otter-music/shared";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -56,7 +55,7 @@ describe("resolveMiguPlaylistId", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(resolveMiguPlaylistId("https://c.migu.cn/00CQck?ifrom=share")).resolves.toBe("234235348");
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/music-api/migu/resolve-playlist");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/migu-resolve");
   });
 
   it("returns null when short-link resolution fails", async () => {
@@ -190,7 +189,7 @@ describe("convertMiguSongToMusicTrack", () => {
 
 describe("fetchMiguPlaylistDetail", () => {
   it("fetches playlist info and songs", async () => {
-    const detail = await fetchMiguPlaylistDetail("127623862", async (path) => {
+    const detail = await fetchMiguPlaylistDetail("127623862", async (path: string) => {
       if (path.includes("resourceinfo.do")) {
         return JSON.stringify({
           code: "000000",
@@ -212,7 +211,7 @@ describe("fetchMiguPlaylistDetail", () => {
 
   it("throws for empty playlists", async () => {
     await expect(
-      fetchMiguPlaylistDetail("1", async (path) => {
+      fetchMiguPlaylistDetail("1", async (path: string) => {
         if (path.includes("resourceinfo.do")) {
           return JSON.stringify({ code: "000000", resource: [{ musicNum: 0 }] });
         }

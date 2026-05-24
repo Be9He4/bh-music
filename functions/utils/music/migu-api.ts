@@ -1,62 +1,31 @@
-interface MiguPlaylistInfoResponse {
-  code?: string;
-  info?: string;
-  resource?: MiguPlaylistInfoRaw[];
-}
+import {
+  buildMiguPlaylistInfoPath,
+  buildMiguPlaylistSongsPath,
+  buildMiguSongUrlPath,
+  convertMiguSongToMusicTrack,
+  MIGU_PAGE_SIZE,
+  parseMiguPlaylistInfoResponse,
+  parseMiguPlaylistSongsResponse,
+} from '@otter-music/shared';
+import type {
+  MiguPlaylistDetail,
+  MiguPlaylistInfoResponse,
+  MiguPlaylistSongsResponse,
+  MiguSongRaw,
+  MiguSongUrlResponse,
+} from '@otter-music/shared';
 
-interface MiguPlaylistInfoRaw {
-  title?: string;
-  musicNum?: number;
-  imgItem?: {
-    img?: string;
-  };
-}
-
-interface MiguPlaylistSongsResponse {
-  code?: string;
-  info?: string;
-  totalCount?: number;
-  list?: MiguSongRaw[];
-}
-
-interface MiguSongRaw {
-  copyrightId?: string;
-  contentId?: string;
-  songId?: string;
-  songName?: string;
-  singer?: string;
-  album?: string;
-  albumId?: string;
-  albumImgs?: Array<{ img?: string; imgSizeType?: string }>;
-  artists?: Array<{ id?: string; name?: string }>;
-  lrcUrl?: string;
-}
-
-interface MiguSongUrlResponse {
-  code?: string;
-  info?: string;
-  data?: {
-    url?: string;
-    playUrl?: string;
-  };
-}
-
-export interface MiguPlaylistDetail {
-  name: string;
-  coverUrl: string;
-  trackCount: number;
-  songs: MiguSongRaw[];
-}
+export { MIGU_PAGE_SIZE, convertMiguSongToMusicTrack };
 
 const MIGU_BASE_URL = 'https://app.c.nf.migu.cn';
-const MIGU_PAGE_SIZE = 50;
 const MIGU_SHORT_LINK_HOST = 'c.migu.cn';
 const MIGU_SHARE_PAGE_HOST = 'h5.nf.migu.cn';
 const MIGU_SHARE_PLAYLIST_PATH = '/app/v4/p/share/playlist/index.html';
 
-/**
- * 判断 URL 是否为允许解析的咪咕分享短链。
- */
+// ============================================================
+// 短链解析
+// ============================================================
+
 export function isMiguPlaylistShortLink(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
@@ -66,9 +35,6 @@ export function isMiguPlaylistShortLink(urlStr: string): boolean {
   }
 }
 
-/**
- * 从咪咕歌单分享跳转目标中提取歌单 ID。
- */
 export function parseMiguShareRedirectPlaylistId(urlStr: string): string | null {
   try {
     const url = new URL(urlStr);
@@ -82,9 +48,6 @@ export function parseMiguShareRedirectPlaylistId(urlStr: string): string | null 
   }
 }
 
-/**
- * 请求咪咕分享短链并解析重定向中的歌单 ID。
- */
 export async function resolveMiguShortPlaylistId(
   urlStr: string,
   fetcher: typeof fetch = fetch,
@@ -103,31 +66,22 @@ export async function resolveMiguShortPlaylistId(
   return parseMiguShareRedirectPlaylistId(redirectUrl);
 }
 
-/**
- * 构建咪咕歌单信息接口路径。
- */
-function buildMiguPlaylistInfoPath(playlistId: string): string {
-  return `/MIGUM2.0/v1.0/content/resourceinfo.do?needSimple=00&resourceType=2021&resourceId=${encodeURIComponent(playlistId)}`;
+// ============================================================
+// 歌单获取（直接 fetch + 调用 shared 核心算法）
+// ============================================================
+
+async function fetchMiguJson<T>(path: string, headers: Record<string, string> = {}): Promise<T> {
+  const res = await fetch(`${MIGU_BASE_URL}${path}`, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      ...headers,
+    },
+  });
+  if (!res.ok) throw new Error(`Migu API error: ${res.status}`);
+  return res.json() as Promise<T>;
 }
 
-/**
- * 构建咪咕歌单歌曲分页接口路径。
- */
-function buildMiguPlaylistSongsPath(playlistId: string, page: number, pageSize = MIGU_PAGE_SIZE): string {
-  return `/MIGUM2.0/v1.0/user/queryMusicListSongs.do?musicListId=${encodeURIComponent(playlistId)}&pageNo=${page}&pageSize=${pageSize}`;
-}
-
-/**
- * 构建咪咕播放地址接口路径。
- */
-function buildMiguSongUrlPath(copyrightId: string, contentId: string, br = 192): string {
-  const toneFlag = br >= 999 ? 'SQ' : br >= 320 ? 'HQ' : 'PQ';
-  return `/MIGUM3.0/strategy/pc/listen/v1.0?scene=&netType=01&resourceType=2&copyrightId=${encodeURIComponent(copyrightId)}&contentId=${encodeURIComponent(contentId)}&toneFlag=${toneFlag}`;
-}
-
-/**
- * 获取咪咕公开歌单详情。
- */
 export async function fetchMiguPlaylistDetail(playlistId: string): Promise<MiguPlaylistDetail> {
   const infoResponse = await fetchMiguJson<MiguPlaylistInfoResponse>(buildMiguPlaylistInfoPath(playlistId));
   if (infoResponse.code !== '000000') {
@@ -160,9 +114,10 @@ export async function fetchMiguPlaylistDetail(playlistId: string): Promise<MiguP
   };
 }
 
-/**
- * 获取咪咕歌曲播放地址。
- */
+// ============================================================
+// 播放地址获取
+// ============================================================
+
 export async function fetchMiguSongUrl(copyrightId: string, contentId: string, br = 192): Promise<string | null> {
   const response = await fetchMiguJson<MiguSongUrlResponse>(buildMiguSongUrlPath(copyrightId, contentId, br), {
     channel: '0146951',
@@ -170,19 +125,4 @@ export async function fetchMiguSongUrl(copyrightId: string, contentId: string, b
   });
   const url = response.data?.url || response.data?.playUrl || null;
   return url ? url.replace(/\+/g, '%2B') : null;
-}
-
-/**
- * 请求咪咕 JSON 接口。
- */
-async function fetchMiguJson<T>(path: string, headers: Record<string, string> = {}): Promise<T> {
-  const res = await fetch(`${MIGU_BASE_URL}${path}`, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      ...headers,
-    },
-  });
-  if (!res.ok) throw new Error(`Migu API error: ${res.status}`);
-  return res.json() as Promise<T>;
 }

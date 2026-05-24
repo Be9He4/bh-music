@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { parseKugouPlaylistUrl } from "./kugou-api";
 import {
   buildKugouAndroidSignedUrl,
   buildKugouGlobalPlaylistSongsUrl,
@@ -8,8 +9,10 @@ import {
   fetchKugouPlaylistPages,
   parseKugouPlaylistTitle,
   parseKugouPlaylistResponse,
-  parseKugouPlaylistUrl,
-} from "./kugou-api";
+} from "@otter-music/shared";
+
+const DFID = "-";
+const MID = "testmid12345678901234567890";
 
 describe("parseKugouPlaylistUrl", () => {
   it("extracts playlist id from PC links", () => {
@@ -68,7 +71,7 @@ describe("buildKugouGlobalPlaylistSongsUrl", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2023-11-14T22:13:20Z"));
 
-    const url = buildKugouGlobalPlaylistSongsUrl("gcid_3z11ahgl0z6z0dc", 2, 50);
+    const url = buildKugouGlobalPlaylistSongsUrl("gcid_3z11ahgl0z6z0dc", 2, DFID, MID, 50);
 
     expect(url).toContain("https://gateway.kugou.com/pubsongs/v2/get_other_list_file_nofilt?");
     expect(url).toContain("global_collection_id=gcid_3z11ahgl0z6z0dc");
@@ -132,7 +135,7 @@ describe("convertKugouSongToMusicTrack", () => {
 
 describe("fetchKugouPlaylistPages", () => {
   it("fetches all pages until total is reached", async () => {
-    const detail = await fetchKugouPlaylistPages("6222311", async (path) => {
+    const detail = await fetchKugouPlaylistPages("6222311", async (path: string) => {
       if (path.includes("page=1")) {
         return JSON.stringify({
           status: 1,
@@ -156,7 +159,9 @@ describe("fetchKugouGlobalPlaylistPages", () => {
   it("fetches global collection playlist pages", async () => {
     const detail = await fetchKugouGlobalPlaylistPages(
       "gcid_3z11ahgl0z6z0dc",
-      async (url) => {
+      DFID,
+      MID,
+      async (url: string) => {
         if (url.includes("begin_idx=0")) {
           return JSON.stringify({
             status: 1,

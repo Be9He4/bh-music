@@ -1,21 +1,34 @@
-import type { MusicTrack, SongLyric } from '@/types/music';
+import type { MusicTrack } from '@/types/music';
 import { fetchWithTimeout, getApiUrl, getProxyUrl, IS_NATIVE, IS_WEB_PROD } from '@/lib/api/config';
+import {
+  buildMiguHeaders,
+  buildMiguPlaylistInfoPath,
+  buildMiguPlaylistSongsPath,
+  buildMiguSongUrlPath,
+  convertMiguSongToMusicTrack,
+  fetchMiguPlaylistDetail,
+  MIGU_PAGE_SIZE,
+  parseMiguPlaylistInfoResponse,
+  parseMiguPlaylistSongsResponse,
+  parseMiguSongUrlResponse,
+  parseMiguTrackId,
+  forceHttps,
+} from '@otter-music/shared';
 import type {
   MiguPlaylistDetail,
-  MiguPlaylistInfoResponse,
-  MiguPlaylistSongsResponse,
   MiguSongRaw,
   MiguSongUrlResponse,
-} from './migu-types';
-import { forceHttps } from '../music-provider';
+} from '@otter-music/shared';
 
 const MIGU_PROXY_PREFIX = '/music-api/migu';
-const MIGU_PAGE_SIZE = 50;
 const NETWORK_TIMEOUT = 12000;
 
-/**
- * 从咪咕歌单分享链接中提取歌单 ID。
- */
+export { convertMiguSongToMusicTrack, forceHttps, MIGU_PAGE_SIZE };
+
+// ============================================================
+// URL 解析（前端特有逻辑）
+// ============================================================
+
 export function parseMiguPlaylistUrl(urlStr: string): string | null {
   try {
     const normalized = urlStr.replace('music.migu.cn/v3/my/playlist/', 'music.migu.cn/v3/music/playlist/');
@@ -30,9 +43,6 @@ export function parseMiguPlaylistUrl(urlStr: string): string | null {
   }
 }
 
-/**
- * 解析咪咕标准歌单链接或分享短链对应的歌单 ID。
- */
 export async function resolveMiguPlaylistId(urlStr: string): Promise<string | null> {
   const directId = parseMiguPlaylistUrl(urlStr);
   if (directId) return directId;
@@ -59,54 +69,10 @@ export async function resolveMiguPlaylistId(urlStr: string): Promise<string | nu
   }
 }
 
-/**
- * 构建咪咕歌单信息接口路径。
- */
-export function buildMiguPlaylistInfoPath(playlistId: string): string {
-  return `/MIGUM2.0/v1.0/content/resourceinfo.do?needSimple=00&resourceType=2021&resourceId=${encodeURIComponent(playlistId)}`;
-}
+// ============================================================
+// 歌单获取（环境路由 + 调用 shared 核心算法）
+// ============================================================
 
-/**
- * 构建咪咕歌单歌曲分页接口路径。
- */
-export function buildMiguPlaylistSongsPath(playlistId: string, page: number, pageSize = MIGU_PAGE_SIZE): string {
-  return `/MIGUM2.0/v1.0/user/queryMusicListSongs.do?musicListId=${encodeURIComponent(playlistId)}&pageNo=${page}&pageSize=${pageSize}`;
-}
-
-/**
- * 构建咪咕播放地址接口路径。
- */
-export function buildMiguSongUrlPath(copyrightId: string, contentId: string, br = 192): string {
-  const toneFlag = br >= 999 ? 'SQ' : br >= 320 ? 'HQ' : 'PQ';
-  return `/MIGUM3.0/strategy/pc/listen/v1.0?scene=&netType=01&resourceType=2&copyrightId=${encodeURIComponent(copyrightId)}&contentId=${encodeURIComponent(contentId)}&toneFlag=${toneFlag}`;
-}
-
-/**
- * 将咪咕歌曲对象转换为应用内部 MusicTrack。
- */
-export function convertMiguSongToMusicTrack(song: MiguSongRaw): MusicTrack {
-  const copyrightId = song.copyrightId || song.songId || 'unknown';
-  const contentId = song.contentId || '';
-  const encodedId = contentId ? `migu_${copyrightId}_${contentId}` : `migu_${copyrightId}`;
-  const coverUrl = song.albumImgs?.find((item) => item.img)?.img || '';
-
-  return {
-    id: encodedId,
-    name: song.songName || '未知歌曲',
-    artist: normalizeArtists(song),
-    album: song.album || '',
-    pic_id: coverUrl,
-    url_id: encodedId,
-    lyric_id: forceHttps(song.lrcUrl || ''),
-    source: 'migu',
-    artist_ids: song.artists?.map((artist) => artist.id).filter(Boolean) as string[] | undefined,
-    album_id: song.albumId,
-  };
-}
-
-/**
- * 获取咪咕公开歌单详情。
- */
 export async function getMiguPlaylistDetail(playlistId: string): Promise<MiguPlaylistDetail> {
   if (IS_WEB_PROD) {
     const res = await fetchWithTimeout(`${getApiUrl()}${MIGU_PROXY_PREFIX}/playlist`, {
@@ -140,47 +106,10 @@ export async function getMiguPlaylistDetail(playlistId: string): Promise<MiguPla
   });
 }
 
-/**
- * 拉取并解析咪咕歌单详情。
- */
-export async function fetchMiguPlaylistDetail(
-  playlistId: string,
-  fetchText: (path: string) => Promise<string>,
-): Promise<MiguPlaylistDetail> {
-  const infoResponse = parseMiguPlaylistInfoResponse(await fetchText(buildMiguPlaylistInfoPath(playlistId)));
-  if (infoResponse.code !== '000000') {
-    throw new Error(infoResponse.info || '咪咕歌单信息接口返回异常');
-  }
+// ============================================================
+// 播放地址获取（环境路由）
+// ============================================================
 
-  const info = infoResponse.resource?.[0];
-  const total = info?.musicNum || 0;
-  const songs: MiguSongRaw[] = [];
-  const pageCount = Math.max(1, Math.ceil(total / MIGU_PAGE_SIZE));
-
-  for (let page = 1; page <= pageCount && page <= 100; page += 1) {
-    const songsResponse = parseMiguPlaylistSongsResponse(await fetchText(buildMiguPlaylistSongsPath(playlistId, page)));
-    if (songsResponse.code !== '000000') {
-      throw new Error(songsResponse.info || '咪咕歌单歌曲接口返回异常');
-    }
-    const pageSongs = songsResponse.list || [];
-    if (!pageSongs.length) break;
-    songs.push(...pageSongs);
-    if ((songsResponse.totalCount || total) <= songs.length) break;
-  }
-
-  if (!songs.length) throw new Error('歌单为空，无法导入');
-
-  return {
-    name: info?.title || `咪咕歌单 ${playlistId}`,
-    coverUrl: info?.imgItem?.img || songs.find((song) => song.albumImgs?.length)?.albumImgs?.[0]?.img || '',
-    trackCount: total || songs.length,
-    songs,
-  };
-}
-
-/**
- * 获取咪咕歌曲播放地址。
- */
 export async function getMiguSongUrl(trackId: string, br = 192): Promise<string | null> {
   const ids = parseMiguTrackId(trackId);
   if (!ids) return null;
@@ -215,11 +144,12 @@ export async function getMiguSongUrl(trackId: string, br = 192): Promise<string 
   return parseMiguSongUrlResponse(await fetchJson());
 }
 
-/**
- * 获取咪咕歌词。
- */
-export async function getMiguLyric(lyricUrl: string): Promise<SongLyric | null> {
-  const normalizedUrl = normalizeMiguResourceUrl(lyricUrl);
+// ============================================================
+// 歌词获取（环境路由）
+// ============================================================
+
+export async function getMiguLyric(lyricUrl: string): Promise<{ lyric: string; tlyric: string } | null> {
+  const normalizedUrl = lyricUrl.startsWith('//') ? `https:${lyricUrl}` : forceHttps(lyricUrl);
   if (!normalizedUrl.startsWith('http')) return null;
 
   try {
@@ -236,61 +166,4 @@ export async function getMiguLyric(lyricUrl: string): Promise<SongLyric | null> 
   } catch {
     return null;
   }
-}
-
-/**
- * 解析咪咕歌单信息响应。
- */
-export function parseMiguPlaylistInfoResponse(text: string): MiguPlaylistInfoResponse {
-  return JSON.parse(text) as MiguPlaylistInfoResponse;
-}
-
-/**
- * 解析咪咕歌单歌曲响应。
- */
-export function parseMiguPlaylistSongsResponse(text: string): MiguPlaylistSongsResponse {
-  return JSON.parse(text) as MiguPlaylistSongsResponse;
-}
-
-/**
- * 解析咪咕歌曲播放地址响应。
- */
-export function parseMiguSongUrlResponse(response: MiguSongUrlResponse): string | null {
-  const url = response.data?.url || response.data?.playUrl || null;
-  return url ? normalizeMiguResourceUrl(url).replace(/\+/g, '%2B') : null;
-}
-
-/**
- * 从内部曲目 ID 中拆出咪咕版权 ID 和内容 ID。
- */
-export function parseMiguTrackId(trackId: string): { copyrightId: string; contentId: string } | null {
-  const match = trackId.match(/^migu_([^_]+)_([^_]+)$/);
-  return match ? { copyrightId: match[1], contentId: match[2] } : null;
-}
-
-/**
- * 生成咪咕接口需要的固定请求头。
- */
-export function buildMiguHeaders(): Record<string, string> {
-  return {
-    channel: '0146951',
-    uid: '1234',
-  };
-}
-
-/**
- * 将咪咕接口返回的资源地址规范为 HTTPS 绝对地址。
- */
-function normalizeMiguResourceUrl(url: string): string {
-  if (url.startsWith('//')) return `https:${url}`;
-  return forceHttps(url);
-}
-
-/**
- * 从咪咕歌曲字段中得到规范化歌手列表。
- */
-function normalizeArtists(song: MiguSongRaw): string[] {
-  const artists = song.artists?.map((artist) => artist.name).filter(Boolean) as string[] | undefined;
-  if (artists?.length) return artists;
-  return (song.singer || '未知歌手').split(/[|、/&]/).map((name) => name.trim()).filter(Boolean);
 }
