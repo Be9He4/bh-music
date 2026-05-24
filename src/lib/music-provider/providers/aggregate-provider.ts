@@ -6,8 +6,7 @@ import { getAggregatedSourcesForSearch } from "@/hooks/use-aggregated-sources";
 type ProviderResolver = (source: MusicSource) => IMusicProvider;
 
 export class AggregateProvider implements IMusicProvider {
-  isLocal = false;
-  
+
   constructor(
     private resolver: ProviderResolver,
   ) {}

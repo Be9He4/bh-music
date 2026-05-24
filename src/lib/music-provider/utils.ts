@@ -23,11 +23,11 @@ export const normalizeTrack = (t: RawApiTrack, source: MusicSource): MusicTrack 
   album_id: t.album_id,
 });
 
-export const cookieOf = (source: string) => localStorage.getItem(`cookie:${source.replace('_album', '')}`);
+const cookieOf = (source: string) => localStorage.getItem(`cookie:${source.replace('_album', '')}`);
 
 export const isAbort = (e: unknown) => e instanceof Error && e.name === 'AbortError';
 
-export const buildUrl = (
+const buildUrl = (
   apiBase: string,
   params: Record<string, string | number | undefined>,
   source?: MusicSource
@@ -47,7 +47,7 @@ export const buildUrl = (
   return `${apiBase}?${search.toString()}`;
 };
 
-export async function requestJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
+async function requestJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const onAbort = () => controller.abort();

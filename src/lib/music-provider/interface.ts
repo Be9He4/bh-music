@@ -8,7 +8,6 @@ export interface IMusicProvider {
   getLyric(track: MusicTrack): Promise<SongLyric | null>;
 
   // 属性标志 (可选)
-  isLocal?: boolean;          // 是否为本地资源
   canUnlock?: boolean;        // 是否支持解锁逻辑（如网易云变灰歌曲）
 
   // 扩展能力 (Feature Detection)

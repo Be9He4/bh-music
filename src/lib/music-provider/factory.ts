@@ -61,8 +61,4 @@ export class MusicProviderFactory {
     return provider;
   }
 
-  // TODO: 是否存在冗余
-  static createAggregateProvider(): IMusicProvider {
-    return new AggregateProvider((s) => this.getProvider(s));
-  }
 }

@@ -1,29 +1,23 @@
-import type { MusicTrack } from '@/types/music';
 import { fetchWithTimeout, getApiUrl, getProxyUrl, IS_NATIVE, IS_WEB_PROD } from '@/lib/api/config';
 import {
   buildMiguHeaders,
-  buildMiguPlaylistInfoPath,
-  buildMiguPlaylistSongsPath,
   buildMiguSongUrlPath,
   convertMiguSongToMusicTrack,
   fetchMiguPlaylistDetail,
   MIGU_PAGE_SIZE,
-  parseMiguPlaylistInfoResponse,
-  parseMiguPlaylistSongsResponse,
   parseMiguSongUrlResponse,
   parseMiguTrackId,
   forceHttps,
 } from '@otter-music/shared';
 import type {
   MiguPlaylistDetail,
-  MiguSongRaw,
   MiguSongUrlResponse,
 } from '@otter-music/shared';
 
 const MIGU_PROXY_PREFIX = '/music-api/migu';
 const NETWORK_TIMEOUT = 12000;
 
-export { convertMiguSongToMusicTrack, forceHttps, MIGU_PAGE_SIZE };
+export { convertMiguSongToMusicTrack, MIGU_PAGE_SIZE };
 
 // ============================================================
 // URL 解析（前端特有逻辑）

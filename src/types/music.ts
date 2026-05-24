@@ -6,10 +6,8 @@ export {
 } from "@otter-music/shared";
 
 export type {
-  LocalMusicTrack,
   MergedMusicTrack,
   MusicSource,
-  MusicStoreData,
   MusicTrack,
   Playlist,
   SearchIntent,
@@ -17,6 +15,5 @@ export type {
   SearchResult,
   SearchSuggestionItem,
   SongLyric,
-  SongPic,
   SongUrl,
 } from "@otter-music/shared";

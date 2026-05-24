@@ -36,7 +36,7 @@ export const normalizeArtists = (artists: string[]) =>
 /**
  * 提取括号内容作为别名（已标准化）
  */
-export const getAlias = (s: string): string => {
+const getAlias = (s: string): string => {
   const match = s.match(/[([{【（](.*?)[)\]}】）]/);
   return match ? normalizeText(match[1]) : '';
 };

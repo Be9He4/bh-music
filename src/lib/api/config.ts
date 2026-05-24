@@ -26,8 +26,8 @@ export function clearCustomApiUrl() {
   localStorage.removeItem(STORAGE_KEY_CUSTOM_API_URL);
 }
 
-export const API_TIMEOUT_MS = 10000;
-export const MUSIC_API_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
+const API_TIMEOUT_MS = 10000;
+const MUSIC_API_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
 
 export const DEFAULT_MUSIC_API_URL = "https://music-api.gdstudio.xyz/api.php";
 

@@ -38,7 +38,7 @@ export const musicApi = {
     signal?: AbortSignal,
     searchIntent?: SearchIntent | null
   ): Promise<SearchPageResult<MergedMusicTrack>> {
-    const provider = MusicProviderFactory.createAggregateProvider();
+    const provider = MusicProviderFactory.getProvider('all');
     return provider.search(query, page, count, signal, searchIntent) as Promise<SearchPageResult<MergedMusicTrack>>;
   },
 

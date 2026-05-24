@@ -1,10 +1,7 @@
-import type { MusicTrack } from '@/types/music';
 import { fetchWithTimeout, getApiUrl, IS_NATIVE, IS_WEB_PROD } from '@/lib/api/config';
 import {
-  buildKuwoPlaylistApiPath,
   convertKuwoSongToMusicTrack,
   fetchKuwoPlaylistDetail,
-  parseKuwoPlaylistResponse,
   KUWO_PAGE_SIZE,
 } from '@otter-music/shared';
 import type { KuwoPlaylistDetail } from '@otter-music/shared';

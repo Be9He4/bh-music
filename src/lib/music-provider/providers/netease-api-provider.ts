@@ -14,7 +14,6 @@ import { forceHttps } from "../utils";
 
 export class NeteaseApiProvider implements IMusicProvider {
   source = '_netease';
-  isLocal = false;
   canUnlock = true;
 
   async search(query: string, page: number, count: number, _signal?: AbortSignal, _intent?: SearchIntent): Promise<SearchPageResult<MusicTrack>> {
@@ -39,7 +38,6 @@ export class NeteaseApiProvider implements IMusicProvider {
   }
 
   async getPic(track: MusicTrack, size: number = 800): Promise<string | null> {
-    // TODO: 当前 MusicCover 里已经确保forceHttps， 这里是否还需要forceHttps？    
     try {
       const song = await getSongDetail(track.id);
       const url = song?.al?.picUrl;

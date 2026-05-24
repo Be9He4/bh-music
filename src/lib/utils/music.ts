@@ -22,7 +22,7 @@ export function cleanTrack(track: MusicTrack | MergedMusicTrack): MusicTrack {
 /**
  * 歌单去重结果
  */
-export interface DeduplicationResult {
+interface DeduplicationResult {
   removedCount: number;
   trackIdsToDelete: string[];
   tracksToLike: MusicTrack[];

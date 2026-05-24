@@ -7,19 +7,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * 格式化字节大小为人类可读格式
- * @param bytes 字节数
- * @returns 格式化后的字符串（如：1.5 MB, 2.3 GB）
- */
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-}
-
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 export const formatDateZN = (dateStr: string) => {

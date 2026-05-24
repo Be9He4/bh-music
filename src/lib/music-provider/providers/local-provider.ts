@@ -5,7 +5,6 @@ import { LocalMusicPlugin } from "@/plugins/local-music";
 import { logger } from "@/lib/logger";
 
 export class LocalProvider implements IMusicProvider {
-  isLocal = true;
 
   async search(_query: string, _page: number, _count: number, _signal?: AbortSignal, _intent?: SearchIntent): Promise<SearchPageResult<MusicTrack>> {
     return { items: [], hasMore: false };
