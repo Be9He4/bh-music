@@ -1,5 +1,6 @@
 // shared/src/types/index.ts
 export * from "./music";
+export * from "./music-platforms";
 export * from "./netease";
 export * from "./sync";
 export * from "./podcast";
