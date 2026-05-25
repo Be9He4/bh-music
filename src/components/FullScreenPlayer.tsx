@@ -23,11 +23,14 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useMounted } from "@/hooks/use-mounted";
-import { PlayerQueuePopover } from "./PlayerQueuePopover";
+import { PlayerQueueDrawer } from "./PlayerQueueDrawer";
 import { MusicTrackMobileMenu } from "./MusicTrackMobileMenu";
 import { AddToPlaylistDrawer } from "./AddToPlaylistDrawer";
 import { downloadMusicTrack } from "@/lib/utils/download";
-import { useMusicStore, type FullScreenBackgroundMode } from "@/store/music-store";
+import {
+  useMusicStore,
+  type FullScreenBackgroundMode,
+} from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
 import { ColorExtractor } from "react-color-extractor";
@@ -75,7 +78,7 @@ const BackgroundLayer = memo(
         <div
           className={cn(
             "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-            showThemeColor ? "opacity-100" : "opacity-0",
+            showThemeColor ? "opacity-100" : "opacity-0"
           )}
           style={dynamicStyle}
         />
@@ -84,7 +87,7 @@ const BackgroundLayer = memo(
         <div
           className={cn(
             "absolute inset-0 transition-opacity duration-1000",
-            showCoverMask ? "opacity-100" : "opacity-0",
+            showCoverMask ? "opacity-100" : "opacity-0"
           )}
         >
           {coverUrl && (
@@ -103,7 +106,7 @@ const BackgroundLayer = memo(
         <div
           className={cn(
             "absolute inset-0 transition-opacity duration-1000",
-            showThemeColor || showCoverMask ? "opacity-0" : "opacity-100",
+            showThemeColor || showCoverMask ? "opacity-0" : "opacity-100"
           )}
         >
           <div className="absolute inset-0 bg-linear-to-b from-zinc-900 via-zinc-950 to-black" />
@@ -120,7 +123,7 @@ const BackgroundLayer = memo(
         <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay pointer-events-none select-none bg-[url('data:image/svg+xml,...')]" />
       </div>
     );
-  },
+  }
 );
 BackgroundLayer.displayName = "BackgroundLayer";
 
@@ -165,7 +168,7 @@ export function FullScreenPlayer({
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
   const [hslColor, setHslColor] = useState<[number, number, number] | null>(
-    null,
+    null
   );
   const [prevCoverUrl, setPrevCoverUrl] = useState(coverUrl);
 
@@ -202,7 +205,7 @@ export function FullScreenPlayer({
       currentAudioUrl: state.currentAudioUrl,
       quality: state.quality,
       fullScreenBackgroundMode: state.fullScreenBackgroundMode,
-    })),
+    }))
   );
 
   const playTrack = (index: number) => setCurrentIndexAndPlay(index);
@@ -224,8 +227,8 @@ export function FullScreenPlayer({
     try {
       await navigator.clipboard.writeText(
         `【OtterMusic】${currentTrack.name} - ${currentTrack.artist.join(
-          ", ",
-        )}\n${currentAudioUrl}`,
+          ", "
+        )}\n${currentAudioUrl}`
       );
       toast.success("已复制到剪贴板");
     } catch {
@@ -248,7 +251,7 @@ export function FullScreenPlayer({
     <div
       className={cn(
         "fixed inset-0 z-50 transition-transform duration-500 ease-in-out flex flex-col",
-        isFullScreen ? "translate-y-0" : "translate-y-full",
+        isFullScreen ? "translate-y-0" : "translate-y-full"
       )}
     >
       {coverUrl && fullScreenBackgroundMode === "theme" && (
@@ -276,7 +279,6 @@ export function FullScreenPlayer({
           className="h-12 w-12 text-white/60 hover:bg-white/10 hover:text-white"
           onClick={() => {
             onClose();
-
           }}
         >
           <ChevronDown className="h-6 w-6" />
@@ -298,7 +300,6 @@ export function FullScreenPlayer({
         className="flex-1 flex flex-col items-center justify-center px-2 relative z-10 overflow-hidden cursor-pointer"
         onClick={() => {
           setShowLyrics(!showLyrics);
-
         }}
       >
         {showLyrics ? (
@@ -309,14 +310,15 @@ export function FullScreenPlayer({
           <div
             className={cn(
               "relative aspect-square w-72 max-w-[320px] overflow-hidden rounded-3xl transition-transform duration-500 ring-1 ring-white/5",
-              isPlaying ? "scale-100" : "scale-[0.95]",
+              isPlaying ? "scale-100" : "scale-[0.95]"
             )}
             style={{
-              boxShadow: fullScreenBackgroundMode === "theme" && hslColor
-                ? `0 30px 60px -12px hsla(${hslColor[0]}, ${
-                    hslColor[1]
-                  }%, ${Math.max(0, hslColor[2] - 20)}%, 0.4)`
-                : "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              boxShadow:
+                fullScreenBackgroundMode === "theme" && hslColor
+                  ? `0 30px 60px -12px hsla(${hslColor[0]}, ${
+                      hslColor[1]
+                    }%, ${Math.max(0, hslColor[2] - 20)}%, 0.4)`
+                  : "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
             }}
           >
             <MusicCover
@@ -352,7 +354,7 @@ export function FullScreenPlayer({
               <Heart
                 className={cn(
                   "h-6 w-6 transition-all",
-                  isFavorite && "fill-primary text-primary",
+                  isFavorite && "fill-primary text-primary"
                 )}
               />
             </Button>
@@ -409,7 +411,6 @@ export function FullScreenPlayer({
           className="h-12 w-12 text-white/70 hover:bg-white/10 hover:text-white"
           onClick={() => {
             onPrev();
-
           }}
         >
           <SkipBack className="h-6 w-6 fill-current" />
@@ -419,7 +420,6 @@ export function FullScreenPlayer({
           className="h-16 w-16 rounded-full bg-white text-black shadow-lg hover:scale-105 transition-all active:scale-95"
           onClick={() => {
             onTogglePlay();
-
           }}
           disabled={isLoading}
         >
@@ -437,12 +437,11 @@ export function FullScreenPlayer({
           className="h-12 w-12 text-white/70 hover:bg-white/10 hover:text-white"
           onClick={() => {
             onNext();
-
           }}
         >
           <SkipForward className="h-6 w-6 fill-current" />
         </Button>
-        <PlayerQueuePopover
+        <PlayerQueueDrawer
           queue={queue}
           currentIndex={currentIndex}
           isPlaying={isPlaying}
@@ -463,6 +462,6 @@ export function FullScreenPlayer({
         />
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }

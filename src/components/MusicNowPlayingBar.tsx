@@ -4,7 +4,7 @@ import { ListVideo, Pause, Play } from "lucide-react";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import { useMusicCover } from "@/hooks/useMusicCover";
-import { PlayerQueuePopover } from "./PlayerQueuePopover";
+import { PlayerQueueDrawer } from "./PlayerQueueDrawer";
 import { MusicCover } from "./MusicCover";
 import { useCallback } from "react";
 import toast from "react-hot-toast";
@@ -16,7 +16,10 @@ interface MusicNowPlayingBarProps {
   isTab?: boolean;
 }
 
-export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowPlayingBarProps) {
+export function MusicNowPlayingBar({
+  onOpenFullScreen,
+  isTab = true,
+}: MusicNowPlayingBarProps) {
   const {
     isPlaying,
     currentAudioTime,
@@ -90,7 +93,7 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
         onClick={onOpenFullScreen}
       >
         {/* 专辑封面 */}
-        <div 
+        <div
           className={cn(
             "relative shrink-0 overflow-hidden rounded-md transition-all duration-300 shadow-sm",
             isTab ? "h-8 w-8" : "h-11 w-11"
@@ -106,7 +109,7 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
 
         {/* 歌曲信息 - 单行 */}
         <p className="flex-1 min-w-0 truncate flex items-baseline gap-1.5">
-          <span 
+          <span
             className={cn(
               "font-medium text-foreground transition-all duration-300",
               isTab ? "text-sm" : "text-base"
@@ -114,7 +117,7 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
           >
             {currentTrack.name}
           </span>
-          <span 
+          <span
             className={cn(
               "text-muted-foreground truncate transition-all duration-300",
               isTab ? "text-xs" : "text-sm"
@@ -125,17 +128,14 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
         </p>
 
         {/* 圆环播放按钮 */}
-        <div 
+        <div
           className={cn(
             "relative shrink-0 transition-all duration-300",
             isTab ? "w-9 h-9" : "w-11 h-11"
           )}
         >
           {/* SVG 圆环进度 (利用 viewBox 自动等比缩放) */}
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox="0 0 40 40"
-          >
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 40 40">
             {/* 背景圆环 */}
             <circle
               cx="20"
@@ -172,15 +172,25 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
             aria-label={isPlaying ? "暂停" : "播放"}
           >
             {isPlaying ? (
-              <Pause className={cn("fill-current transition-all duration-300", isTab ? "h-4 w-4" : "h-5 w-5")} />
+              <Pause
+                className={cn(
+                  "fill-current transition-all duration-300",
+                  isTab ? "h-4 w-4" : "h-5 w-5"
+                )}
+              />
             ) : (
-              <Play className={cn("fill-current ml-0.5 transition-all duration-300", isTab ? "h-4 w-4" : "h-5 w-5")} />
+              <Play
+                className={cn(
+                  "fill-current ml-0.5 transition-all duration-300",
+                  isTab ? "h-4 w-4" : "h-5 w-5"
+                )}
+              />
             )}
           </button>
         </div>
 
         {/* 播放列表按钮 */}
-        <PlayerQueuePopover
+        <PlayerQueueDrawer
           queue={queue}
           currentIndex={currentIndex}
           isPlaying={isPlaying}
@@ -198,7 +208,12 @@ export function MusicNowPlayingBar({ onOpenFullScreen, isTab = true }: MusicNowP
               onClick={(e) => e.stopPropagation()}
               aria-label="播放列表"
             >
-              <ListVideo className={cn("transition-all duration-300", isTab ? "h-4 w-4" : "h-[22px] w-[22px]")} />
+              <ListVideo
+                className={cn(
+                  "transition-all duration-300",
+                  isTab ? "h-4 w-4" : "h-[22px] w-[22px]"
+                )}
+              />
             </button>
           }
         />
