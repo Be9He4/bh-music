@@ -52,6 +52,10 @@ export interface PickDirectoryResult {
   error?: string;
 }
 
+export interface SystemDarkModeResult {
+  isDarkMode: boolean;
+}
+
 export interface LocalMusicPlugin {
   scanLocalMusic(): Promise<ScanResult>;
   scanAllStorage(): Promise<ScanResult>;
@@ -66,6 +70,7 @@ export interface LocalMusicPlugin {
   hasAllStoragePermission(): Promise<HasPermissionResult>;
   deleteLocalMusic(options: { localPath: string }): Promise<DeleteResult>;
   pickDownloadDirectory(): Promise<PickDirectoryResult>;
+  getSystemDarkMode(): Promise<SystemDarkModeResult>;
 }
 
 const LocalMusicPlugin = registerPlugin<LocalMusicPlugin>("LocalMusicPlugin");

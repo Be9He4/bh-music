@@ -1,16 +1,16 @@
-import { ThemeProvider } from "next-themes";
+import { NativeThemeProvider } from "@/components/ui/native-theme-provider";
 import type { PropsWithChildren } from "react";
 import { Toaster } from "react-hot-toast";
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <ThemeProvider
+    <NativeThemeProvider
       attribute="class"
       enableSystem
       disableTransitionOnChange
     >
       {children}
-      
+
       <Toaster
         position="top-center"
         gutter={12}
@@ -28,6 +28,6 @@ export default function RootLayout({ children }: PropsWithChildren) {
           },
         }}
       />
-    </ThemeProvider>
+    </NativeThemeProvider>
   );
 }

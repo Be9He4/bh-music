@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
@@ -144,6 +145,13 @@ public class LocalMusicPlugin extends Plugin {
 
     private boolean hasRequiredPermission() {
         return getPermissionState(PERMISSION_ALIAS) == PermissionState.GRANTED;
+    }
+
+    @PluginMethod
+    public void getSystemDarkMode(PluginCall call) {
+        int nightModeFlags = getContext().getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        boolean isDarkMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES;
+        call.resolve(new JSObject().put("isDarkMode", isDarkMode));
     }
 
     // --- 内部扫描逻辑 ---
