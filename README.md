@@ -19,7 +19,6 @@
   <img src="https://img.shields.io/badge/Capacitor-8-119EFF?logo=capacitor&logoColor=white" />
 </p>
 
-
 <p align="center">
   <img src="https://github.com/user-attachments/assets/a20b5785-c4b3-4f44-86d9-f07350caf873" width="45%" />
   <img src="https://github.com/user-attachments/assets/475cb456-ed0f-40e9-829d-a746dffd2688" width="45%" />
@@ -34,27 +33,24 @@
 - **播放生态**：支持历史记录、喜欢列表、歌词显示、主题切换与数据同步配置。
 - **移动端体验完整**：支持 PWA 安装、Android 打包与 Media Session 集成，网页端也能接近原生体验。
 
->
 > 数据同步功能：通过管理员手动分配的 `SYNC_KEY` 接入。存储基于 Cloudflare KV（上限 25 MB），单用户理论可稳定同步 5 万首歌曲
 
 > [!NOTE]
 > 最低支持版本：minSdkVersion = 24 (Android 7.0)
-> 
+>
 > Android 13（API 33）以下设备可能存在部分 CSS 样式兼容问题，建议升级系统。
 
 > [!IMPORTANT]
 > 在线体验：[Otter Music](https://otter-music.pages.dev/)
-> 
+>
 > 支持 PWA，可添加到主屏幕（iOS 请使用 Safari）
 
 ## 快速开始
 
 ```bash
-npm install --legacy-peer-deps
+npm install
 npm run dev
 ```
-
-> 必须使用 `--legacy-peer-deps`，原因是 `@jofr/capacitor-media-session` 与 Capacitor 8 存在 peer 版本冲突。
 
 ## 常用脚本
 
@@ -89,6 +85,7 @@ npm run build:android:debug
 ```
 
 Debug APK 输出路径：
+
 - `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ## 项目结构
@@ -112,7 +109,6 @@ functions/                 # Cloudflare Workers 后端
 shared/                     # 跨端共享类型
 ```
 
-
 ## 📦 部署指南 (Cloudflare Pages)
 
 1. **创建项目**：Fork 本仓库，在 [Cloudflare Dashboard](https://dash.cloudflare.com/) 创建 Pages 项目。
@@ -126,9 +122,8 @@ shared/                     # 跨端共享类型
    - 在 Pages 设置中绑定该 KV，变量名设为 `oh_file_url`
 
 > 自建后端可在前端页面「设置 → API 地址」中填入自定义域名。
-> 
+>
 > `https://<你的域名>/admin` 路径用于管理 SYNC_KEY。
-
 
 ## TODO
 
@@ -148,7 +143,6 @@ shared/                     # 跨端共享类型
 ### Not TODO
 
 - 不接入 JOOX、KUWO 等官方接口：当前网易云官方接口够用，无需增加复杂度；接入 JOOX 还需要做代理
-
 
 ## 参考资料
 
