@@ -254,8 +254,17 @@ export function useAudioTrackLoader(
         const hasDownload = Boolean(localDownloadUrl);
 
         if (!isLocal && !hasDownload && !isOnline) {
-          // Web 端：放行，让 getRemoteUrl() 通过 cachedFetch (otter-cache-v1) 尝试离线解析 URL
-          // 原生平台：只允许本地文件/已下载音轨
+          // 先尝试走缓存链路（urlMemoryCache → cachedFetch → SW），全部失败再判定不可播
+          try {
+            const remoteUrl = await getRemoteUrl();
+            if (remoteUrl) {
+              await setSourceAndPlay(remoteUrl);
+              return;
+            }
+          } catch {
+            // 缓存未命中，继续下面的跳过逻辑
+          }
+
           if (Capacitor.isNativePlatform()) {
             const { queue, currentIndex } = useMusicStore.getState();
             const nextPlayableIndex = findNextPlayableTrack(
@@ -271,19 +280,19 @@ export function useAudioTrackLoader(
                 .getState()
                 .setCurrentIndexAndPlay(nextPlayableIndex);
               return;
-            } else {
-              logger.error(
-                "useAudioTrackLoader",
-                "Network unavailable, no playable tracks",
-                {
-                  trackId: currentTrackId,
-                  source: currentTrackSource,
-                }
-              );
-              setIsPlaying(false);
-              return;
             }
           }
+
+          logger.error(
+            "useAudioTrackLoader",
+            "Network unavailable, no playable tracks",
+            {
+              trackId: currentTrackId,
+              source: currentTrackSource,
+            }
+          );
+          setIsPlaying(false);
+          return;
         }
 
         try {
