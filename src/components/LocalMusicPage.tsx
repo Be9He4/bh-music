@@ -27,7 +27,6 @@ export function LocalMusicPage({
   currentTrackId,
   isPlaying,
 }: LocalMusicPageProps) {
-
   /* =========================
      UI 状态
   ========================= */
@@ -39,19 +38,13 @@ export function LocalMusicPage({
      Store
   ========================= */
   const { queue, currentIndex, skipToNext } = useMusicStore();
-  const {
-    files,
-    setFiles,
-    updateFiles,
-    setScanning
-  } = useLocalMusicStore();
+  const { files, setFiles, updateFiles, setScanning } = useLocalMusicStore();
 
   /* =========================
      扫描逻辑（单一职责）
   ========================= */
   const performScan = useCallback(
     async (type: "quick" | "full") => {
-
       setIsLoading(true);
       setError(null);
       setScanning(true, type);
@@ -73,12 +66,10 @@ export function LocalMusicPage({
         }
 
         throw new Error(result.error || "扫描失败");
-
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
         throw err;
-
       } finally {
         setIsLoading(false);
         setScanning(false);
@@ -103,7 +94,11 @@ export function LocalMusicPage({
         await performScan("quick");
       } catch (err) {
         if (mounted) {
-          logger.error("LocalMusicPage", "Initial local music scan failed", err);
+          logger.error(
+            "LocalMusicPage",
+            "Initial local music scan failed",
+            err
+          );
         }
       }
     })();
@@ -117,22 +112,14 @@ export function LocalMusicPage({
      手动扫描（带 toast）
   ========================= */
   const handleScan = (type: "quick" | "full") => {
-
     if (isLoading) return;
 
-    toast.promise(
-      performScan(type),
-      {
-        loading: type === "full"
-          ? "全盘扫描中..."
-          : "正在扫描本地音乐...",
-        success: (count: number) =>
-          count === 0
-            ? "未找到本地音乐"
-            : `找到 ${count} 首本地音乐`,
-        error: (err: Error) => err.message,
-      }
-    );
+    toast.promise(performScan(type), {
+      loading: type === "full" ? "全盘扫描中..." : "正在扫描本地音乐...",
+      success: (count: number) =>
+        count === 0 ? "未找到本地音乐" : `找到 ${count} 首本地音乐`,
+      error: (err: Error) => err.message,
+    });
   };
 
   /* =========================
@@ -153,9 +140,7 @@ export function LocalMusicPage({
           throw new Error(result.error || "删除失败");
         }
 
-        updateFiles((prev) =>
-          prev.filter((f) => f.localPath !== localPath)
-        );
+        updateFiles((prev) => prev.filter((f) => f.localPath !== localPath));
 
         const currentTrack = queue[currentIndex];
         if (currentTrack?.id === track.id) {
@@ -174,26 +159,30 @@ export function LocalMusicPage({
       return promise;
     }
 
-    toast.promise(
-      promise,
-      {
-        loading: "正在删除...",
-        success: "删除成功",
-        error: (err: Error) => err.message,
-      }
-    );
+    toast.promise(promise, {
+      loading: "正在删除...",
+      success: "删除成功",
+      error: (err: Error) => err.message,
+    });
   };
 
   /* =========================
      转换数据
   ========================= */
   const tracks = useMemo(
-    () => files.map(convertToMusicTrack),
+    () =>
+      files
+        .map((file, index) => ({ file, index }))
+        .sort((a, b) => {
+          const aTime = a.file.modifiedTime ?? Number.NEGATIVE_INFINITY;
+          const bTime = b.file.modifiedTime ?? Number.NEGATIVE_INFINITY;
+          return bTime - aTime || a.index - b.index;
+        })
+        .map(({ file }) => convertToMusicTrack(file)),
     [files]
   );
 
   const handlePlay = (track: MusicTrack | null, index?: number) => {
-
     if (track) {
       onPlay(track, tracks, "local");
       return;
@@ -218,7 +207,9 @@ export function LocalMusicPage({
       <PageLayout title="本地音乐" onBack={onBack}>
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <RefreshCw className="h-10 w-10 text-primary/80 animate-spin" />
-          <p className="text-foreground text-sm font-medium">正在扫描本地音乐...</p>
+          <p className="text-foreground text-sm font-medium">
+            正在扫描本地音乐...
+          </p>
         </div>
       </PageLayout>
     );

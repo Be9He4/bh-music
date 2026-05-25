@@ -161,7 +161,8 @@ public class LocalMusicPlugin extends Plugin {
         Uri musicUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
         String[] projection = {
                 MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.ARTIST,
-                MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION, MediaStore.Audio.Media.SIZE
+                MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION, MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.DATE_MODIFIED
         };
 
         try (Cursor cursor = resolver.query(musicUri, projection, MediaStore.Audio.Media.IS_MUSIC + " != 0", null, MediaStore.Audio.Media.TITLE + " ASC")) {
@@ -172,6 +173,7 @@ public class LocalMusicPlugin extends Plugin {
                 int albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM);
                 int durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
                 int sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE);
+                int modifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED);
 
                 do {
                     long id = cursor.getLong(idCol);
@@ -182,7 +184,8 @@ public class LocalMusicPlugin extends Plugin {
                             .put("album", formatUnknown(cursor.getString(albumCol)))
                             .put("duration", cursor.getLong(durationCol))
                             .put("localPath", ContentUris.withAppendedId(musicUri, id).toString())
-                            .put("fileSize", cursor.getLong(sizeCol)));
+                            .put("fileSize", cursor.getLong(sizeCol))
+                            .put("modifiedTime", cursor.getLong(modifiedCol) * 1000));
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
@@ -234,6 +237,7 @@ public class LocalMusicPlugin extends Plugin {
                 .put("id", String.valueOf(file.hashCode()))
                 .put("localPath", file.getAbsolutePath())
                 .put("fileSize", file.length())
+                .put("modifiedTime", file.lastModified())
                 .put("name", parsed[0])
                 .put("artist", parsed[1])
                 .put("album", null) //  专辑信息暂时忽略

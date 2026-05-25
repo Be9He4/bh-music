@@ -8,6 +8,7 @@ export interface LocalMusicFile {
   duration: number;
   localPath: string;
   fileSize: number;
+  modifiedTime?: number;
 }
 
 export interface ScanResult {
