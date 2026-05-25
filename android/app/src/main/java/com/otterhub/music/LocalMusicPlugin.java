@@ -165,7 +165,7 @@ public class LocalMusicPlugin extends Plugin {
                 MediaStore.Audio.Media.DATE_MODIFIED
         };
 
-        try (Cursor cursor = resolver.query(musicUri, projection, MediaStore.Audio.Media.IS_MUSIC + " != 0", null, MediaStore.Audio.Media.TITLE + " ASC")) {
+        try (Cursor cursor = resolver.query(musicUri, projection, buildMediaStoreMusicSelection(), null, MediaStore.Audio.Media.DATE_MODIFIED + " DESC")) {
             if (cursor != null && cursor.moveToFirst()) {
                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
                 int titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
@@ -192,6 +192,19 @@ public class LocalMusicPlugin extends Plugin {
             return new JSObject().put("success", false).put("error", "Failed: " + e.getMessage()).put("files", new JSArray());
         }
         return new JSObject().put("success", true).put("files", filesArray);
+    }
+
+    /** 构建保守的 MediaStore 音乐过滤条件，优先用系统用途元数据避免关键词误伤。 */
+    private String buildMediaStoreMusicSelection() {
+        String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            selection += " AND " + MediaStore.Audio.Media.IS_RECORDING + " = 0"
+                    + " AND " + MediaStore.Audio.Media.IS_PODCAST + " = 0"
+                    + " AND " + MediaStore.Audio.Media.IS_RINGTONE + " = 0"
+                    + " AND " + MediaStore.Audio.Media.IS_ALARM + " = 0"
+                    + " AND " + MediaStore.Audio.Media.IS_NOTIFICATION + " = 0";
+        }
+        return selection;
     }
 
     private void executeAllStorageScan(PluginCall call) {
