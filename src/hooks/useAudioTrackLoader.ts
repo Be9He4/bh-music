@@ -213,6 +213,7 @@ export function useAudioTrackLoader(
       const setSourceAndPlay = async (audioUrl: string) => {
         if (audio.src !== audioUrl) {
           setCurrentAudioUrl(audioUrl);
+          audio.src = "";
           audio.src = audioUrl;
           audio.load();
         }
@@ -308,11 +309,17 @@ export function useAudioTrackLoader(
             localDownloadUrl &&
             currentTrackSource !== "local"
           ) {
-            useDownloadStore.getState().removeRecord(downloadKey);
-            toast.error("本地文件失效，已切换在线播放");
-            const remoteUrl = await getRemoteUrl();
-            await setSourceAndPlay(remoteUrl);
-            return;
+            try {
+              audio.src = "";
+              await setSourceAndPlay(localDownloadUrl);
+              return;
+            } catch {
+              useDownloadStore.getState().removeRecord(downloadKey);
+              toast.error("播放失败，已切换在线播放");
+              const remoteUrl = await getRemoteUrl();
+              await setSourceAndPlay(remoteUrl);
+              return;
+            }
           }
 
           if (
