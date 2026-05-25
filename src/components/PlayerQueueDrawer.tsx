@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Shuffle, Trash2, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Shuffle, Trash2, X, Maximize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -9,13 +10,13 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerDescription,
-  DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { MusicCover } from "@/components/MusicCover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusicCover } from "@/hooks/useMusicCover";
 import { cn } from "@/lib/utils";
+import { useHistoryStore } from "@/store/history-store";
 import type { MusicTrack } from "@/types/music";
 
 interface PlayerQueueDrawerProps {
@@ -27,6 +28,8 @@ interface PlayerQueueDrawerProps {
   onClear: () => void;
   onReshuffle: () => void;
   onRemove: (track: MusicTrack) => void;
+  onPlayTrack?: (track: MusicTrack) => void;
+  onOpenChange?: (open: boolean) => void;
   trigger: React.ReactNode;
 }
 
@@ -129,10 +132,20 @@ export function PlayerQueueDrawer({
   onClear,
   onReshuffle,
   onRemove,
+  onPlayTrack,
+  onOpenChange,
   trigger,
 }: PlayerQueueDrawerProps) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
+  const [activeTab, setActiveTab] = useState<"queue" | "history">("queue");
+  const { history, removeFromHistory, clearHistory } = useHistoryStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const hasScrolledOnOpen = useRef(false);
 
   useEffect(() => {
@@ -157,6 +170,11 @@ export function PlayerQueueDrawer({
     if (el) scrollRef.current = el;
   };
 
+  const handleTabChange = (tab: "queue" | "history") => {
+    setActiveTab(tab);
+    viewportRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  };
+
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
@@ -166,17 +184,43 @@ export function PlayerQueueDrawer({
       >
         <DrawerHeader className="shrink-0 px-6 pb-4 pt-6">
           <div className="flex items-center justify-between">
-            <DrawerTitle className="text-lg font-medium tracking-tight">
-              播放列表{" "}
-              <span className="text-muted-foreground/60 text-base ml-1">
-                ({queue.length})
-              </span>
-            </DrawerTitle>
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => handleTabChange("queue")}
+                className={cn(
+                  "text-[15px] transition-all whitespace-nowrap",
+                  activeTab === "queue"
+                    ? "font-bold text-foreground tracking-wide"
+                    : "font-medium text-muted-foreground hover:text-foreground"
+                )}
+              >
+                播放列表{" "}
+                <span className="text-xs opacity-60 ml-0.5">
+                  {queue.length}
+                </span>
+              </button>
+              <button
+                onClick={() => handleTabChange("history")}
+                className={cn(
+                  "text-[15px] transition-all whitespace-nowrap",
+                  activeTab === "history"
+                    ? "font-bold text-foreground tracking-wide"
+                    : "font-medium text-muted-foreground hover:text-foreground"
+                )}
+              >
+                最近播放{" "}
+                <span className="text-xs opacity-60 ml-0.5">
+                  {history.length}
+                </span>
+              </button>
+            </div>
+
             <DrawerDescription className="sr-only">
               当前播放队列，可切换、清空或删除歌曲。
             </DrawerDescription>
+
             <div className="flex items-center gap-2">
-              {isShuffle && (
+              {activeTab === "queue" && isShuffle && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -190,9 +234,29 @@ export function PlayerQueueDrawer({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-9 w-9 text-muted-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
+                onClick={() => {
+                  setOpen(false);
+                  navigate(activeTab === "queue" ? "/queue" : "/history");
+                }}
+                title={activeTab === "queue" ? "展开播放列表" : "展开历史记录"}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-9 w-9 text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                onClick={onClear}
-                title="清空播放列表"
+                onClick={
+                  activeTab === "queue"
+                    ? onClear
+                    : () => {
+                        if (confirm("确定清空播放历史吗？")) {
+                          clearHistory();
+                        }
+                      }
+                }
+                title={activeTab === "queue" ? "清空播放列表" : "清空播放历史"}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -201,22 +265,39 @@ export function PlayerQueueDrawer({
         </DrawerHeader>
 
         <div className="min-h-0 flex-1">
-          <ScrollArea className="h-full">
+          <ScrollArea className="h-full" viewportRef={viewportRef}>
             <div className="px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] flex flex-col gap-1">
-              {queue.map((track, i) => (
-                <QueueTrackItem
-                  key={`${track.id}-${i}`}
-                  track={track}
-                  isCurrent={i === currentIndex}
-                  isPlaying={isPlaying}
-                  onSelect={() => {
-                    onPlay(i);
-                    setOpen(false);
-                  }}
-                  onRemove={() => onRemove(track)}
-                  itemRef={i === currentIndex ? setCurrentRef : undefined}
-                />
-              ))}
+              {activeTab === "queue"
+                ? queue.map((track, i) => (
+                    <QueueTrackItem
+                      key={`${track.id}-${i}`}
+                      track={track}
+                      isCurrent={i === currentIndex}
+                      isPlaying={isPlaying}
+                      onSelect={() => {
+                        onPlay(i);
+                        setOpen(false);
+                      }}
+                      onRemove={() => onRemove(track)}
+                      itemRef={i === currentIndex ? setCurrentRef : undefined}
+                    />
+                  ))
+                : history.map((track, i) => (
+                    <QueueTrackItem
+                      key={`${track.id}-${i}`}
+                      track={track}
+                      isCurrent={track.id === queue[currentIndex]?.id}
+                      isPlaying={
+                        isPlaying && track.id === queue[currentIndex]?.id
+                      }
+                      onSelect={() => {
+                        // 将历史歌曲加入队列并播放
+                        onPlayTrack?.(track);
+                        setOpen(false);
+                      }}
+                      onRemove={() => removeFromHistory(track.id)}
+                    />
+                  ))}
             </div>
           </ScrollArea>
         </div>

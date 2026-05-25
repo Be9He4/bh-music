@@ -192,6 +192,7 @@ export function FullScreenPlayer({
     clearQueue,
     reshuffle,
     removeFromQueue,
+    playTrackAsNext,
     currentAudioUrl,
     fullScreenBackgroundMode,
   } = useMusicStore(
@@ -202,6 +203,7 @@ export function FullScreenPlayer({
       clearQueue: state.clearQueue,
       reshuffle: state.reshuffle,
       removeFromQueue: state.removeFromQueue,
+      playTrackAsNext: state.playTrackAsNext,
       currentAudioUrl: state.currentAudioUrl,
       quality: state.quality,
       fullScreenBackgroundMode: state.fullScreenBackgroundMode,
@@ -450,6 +452,7 @@ export function FullScreenPlayer({
           onClear={handleClearQueue}
           onReshuffle={reshuffle}
           onRemove={handleRemoveFromQueue}
+          onPlayTrack={playTrackAsNext}
           trigger={
             <Button
               variant="ghost"
