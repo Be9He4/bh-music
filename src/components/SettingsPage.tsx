@@ -36,13 +36,19 @@ interface SettingsPageProps {
   onBack?: () => void;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function SettingsSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mb-6">
-      <h3 className="text-sm font-medium text-muted-foreground mb-2 px-1">{title}</h3>
-      <div className="space-y-3">
-        {children}
-      </div>
+      <h3 className="text-sm font-medium text-muted-foreground mb-2 px-1">
+        {title}
+      </h3>
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }
@@ -63,7 +69,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <PageLayout title="系统设置" onBack={onBack}>
       <div className="flex-1 p-4 pb-28 overflow-y-auto">
-        <Section title="偏好设置">
+        <SettingsSection title="常用设置">
           <SettingItem
             icon={Wand2}
             title="智能音源"
@@ -73,6 +79,26 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                 checked={enableAutoMatch}
                 onCheckedChange={setEnableAutoMatch}
               />
+            }
+          />
+          <QualitySelect />
+          <SettingItem
+            icon={Volume2}
+            title="音量调节"
+            action={
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-10 text-right">
+                  {Math.round(volume * 100)}%
+                </span>
+                <Slider
+                  value={[volume * 100]}
+                  onValueChange={([value]) => setVolume(value / 100)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-32"
+                />
+              </div>
             }
           />
           <SettingItem
@@ -86,6 +112,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               />
             }
           />
+          <AggregatedSourceSelect />
+        </SettingsSection>
+
+        <SettingsSection title="界面设置">
           <SettingItem
             icon={Palette}
             title="主题切换"
@@ -112,40 +142,20 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               </Select>
             }
           />
-          <StreamCacheSetting />
-          <QualitySelect />
-          <AggregatedSourceSelect />
-          <SettingItem
-            icon={Volume2}
-            title="音量调节"
-            action={
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground w-10 text-right">{Math.round(volume * 100)}%</span>
-                <Slider
-                  value={[volume * 100]}
-                  onValueChange={([value]) => setVolume(value / 100)}
-                  min={0}
-                  max={100}
-                  step={1}
-                  className="w-32"
-                />
-              </div>
-            }
-          />
-        </Section>
+        </SettingsSection>
 
-        <Section title="下载设置">
+        <SettingsSection title="下载设置">
           <DownloadQualitySelect />
           <DownloadSettingToggles />
           <DownloadDirectorySelect />
-        </Section>
+          <StreamCacheSetting />
+        </SettingsSection>
 
-        <Section title="账号数据">
+        <SettingsSection title="账号数据">
           <NeteaseLogin />
-          <ApiUrlConfig />
           <SyncConfig />
-          <PlaylistUrlImport />
           <PlaylistImport />
+          <PlaylistUrlImport />
           <SettingItem
             icon={Trash2}
             title="回收站"
@@ -153,12 +163,16 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             onClick={() => navigate("/settings/trash")}
             showChevron
           />
-        </Section>
+        </SettingsSection>
 
-        <Section title="关于系统">
+        <SettingsSection title="高级设置">
+          <ApiUrlConfig />
+        </SettingsSection>
+
+        <SettingsSection title="关于系统">
           <UpdateCheck />
           <IssueLogs />
-        </Section>
+        </SettingsSection>
       </div>
     </PageLayout>
   );
