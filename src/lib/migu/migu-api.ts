@@ -7,7 +7,9 @@ import {
 } from "@/lib/api/config";
 import {
   buildMiguHeaders,
+  buildMiguSearchPath,
   buildMiguSongUrlPath,
+  convertMiguSearchSongToMusicTrack,
   convertMiguSongToMusicTrack,
   fetchMiguPlaylistDetail,
   forceHttps,
@@ -15,6 +17,7 @@ import {
   parseMiguSongUrlResponse,
   parseMiguTrackId,
   type MiguPlaylistDetail,
+  type MusicTrack,
   type MiguSongUrlResponse,
 } from "@otter-music/shared";
 
@@ -218,4 +221,78 @@ export async function getMiguLyric(
   } catch {
     return null;
   }
+}
+
+// ============================================================
+// 搜索（环境路由）
+// ============================================================
+
+export async function searchMiguSongs(
+  keyword: string,
+  page: number,
+  rows = 20
+): Promise<{ items: MusicTrack[]; hasMore: boolean }> {
+  if (IS_WEB_PROD) {
+    const res = await fetchWithTimeout(
+      `${getApiUrl()}${MIGU_PROXY_PREFIX}/search`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword, page, rows }),
+      },
+      NETWORK_TIMEOUT
+    );
+    if (!res.ok) return { items: [], hasMore: false };
+    return res.json();
+  }
+
+  const path = buildMiguSearchPath(keyword, page, rows);
+
+  if (IS_NATIVE) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const res = await CapacitorHttp.request({
+      method: "GET",
+      url: `https://app.c.nf.migu.cn${path}`,
+      headers: buildMiguHeaders(),
+    });
+    if (res.status >= 400) return { items: [], hasMore: false };
+    const data =
+      typeof res.data === "object" ? res.data : JSON.parse(res.data as string);
+    return parseAndConvertMiguSearch(data);
+  }
+
+  try {
+    const res = await fetchWithTimeout(
+      `/api/migu${path}`,
+      { headers: buildMiguHeaders() },
+      NETWORK_TIMEOUT
+    );
+    if (!res.ok) return { items: [], hasMore: false };
+    return parseAndConvertMiguSearch(await res.json());
+  } catch {
+    return { items: [], hasMore: false };
+  }
+}
+
+function parseAndConvertMiguSearch(data: Record<string, unknown>): {
+  items: MusicTrack[];
+  hasMore: boolean;
+} {
+  const resultData = data?.songResultData as
+    | { totalCount?: string; result?: Array<Record<string, unknown>> }
+    | undefined;
+  const result = resultData?.result;
+  if (!result?.length) return { items: [], hasMore: false };
+
+  const total = Number(resultData?.totalCount) || 0;
+  return {
+    items: result.map((song) =>
+      convertMiguSearchSongToMusicTrack(
+        song as unknown as Parameters<
+          typeof convertMiguSearchSongToMusicTrack
+        >[0]
+      )
+    ),
+    hasMore: result.length >= 20,
+  };
 }

@@ -127,6 +127,7 @@ describe("handleAutoMatch", () => {
       .fn()
       .mockResolvedValue({ items: [match], hasMore: false });
     vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
       search,
       getUrl: vi.fn(),
       getPic: vi.fn(),
@@ -150,6 +151,7 @@ describe("handleAutoMatch", () => {
       .fn()
       .mockResolvedValue({ items: jooxLoveWrongResults, hasMore: false });
     vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
       search,
       getUrl: vi.fn(),
       getPic: vi.fn(),

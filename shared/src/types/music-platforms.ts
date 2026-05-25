@@ -153,3 +153,25 @@ export interface MiguPlaylistDetail {
   trackCount: number;
   songs: MiguSongRaw[];
 }
+
+// ============================================================
+// 咪咕搜索 (Migu Search)
+// ============================================================
+
+export interface MiguSearchResponse {
+  code?: string;
+  songResultData?: {
+    totalCount?: string;
+    result?: MiguSearchSongRaw[];
+  };
+}
+
+export interface MiguSearchSongRaw {
+  copyrightId?: string;
+  contentId?: string;
+  name?: string;
+  singers?: Array<{ id?: string; name?: string }>;
+  albums?: Array<{ id?: string; name?: string }>;
+  lyricUrl?: string;
+  imgItems?: Array<{ imgSizeType?: string; img?: string }>;
+}

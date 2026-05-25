@@ -1,13 +1,28 @@
 import { IMusicProvider } from "../interface";
-import { getMiguLyric, getMiguSongUrl } from "@/lib/migu/migu-api";
-import { MusicTrack, SearchIntent, SearchPageResult, SongLyric } from "@/types/music";
+import {
+  getMiguLyric,
+  getMiguSongUrl,
+  searchMiguSongs,
+} from "@/lib/migu/migu-api";
+import {
+  MusicTrack,
+  SearchIntent,
+  SearchPageResult,
+  SongLyric,
+} from "@/types/music";
 
-export class MiguProvider implements IMusicProvider {
-  /**
-   * 咪咕暂不提供站内搜索能力，仅作为歌单导入后的 provider。
-   */
-  async search(_query: string, _page: number, _count: number, _signal?: AbortSignal, _intent?: SearchIntent | null): Promise<SearchPageResult<MusicTrack>> {
-    return { items: [], hasMore: false };
+export class MiguApiProvider implements IMusicProvider {
+  source = "migu" as const;
+
+  async search(
+    query: string,
+    page: number,
+    count: number,
+    _signal?: AbortSignal,
+    _intent?: SearchIntent | null
+  ): Promise<SearchPageResult<MusicTrack>> {
+    const result = await searchMiguSongs(query, page, count);
+    return { items: result.items, hasMore: result.hasMore };
   }
 
   /**

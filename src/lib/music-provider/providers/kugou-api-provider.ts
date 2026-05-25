@@ -1,11 +1,23 @@
 import { IMusicProvider } from "../interface";
-import { MusicTrack, SearchIntent, SearchPageResult, SongLyric } from "@/types/music";
+import {
+  MusicTrack,
+  SearchIntent,
+  SearchPageResult,
+  SongLyric,
+} from "@/types/music";
 
-export class KugouProvider implements IMusicProvider {
+export class KugouApiProvider implements IMusicProvider {
+  source = "kugou" as const;
   /**
    * 酷狗暂不提供站内搜索能力，仅作为歌单导入后的安全占位 provider。
    */
-  async search(_query: string, _page: number, _count: number, _signal?: AbortSignal, _intent?: SearchIntent | null): Promise<SearchPageResult<MusicTrack>> {
+  async search(
+    _query: string,
+    _page: number,
+    _count: number,
+    _signal?: AbortSignal,
+    _intent?: SearchIntent | null
+  ): Promise<SearchPageResult<MusicTrack>> {
     return { items: [], hasMore: false };
   }
 

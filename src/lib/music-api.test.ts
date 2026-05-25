@@ -41,6 +41,7 @@ describe("musicApi.searchBestMatch", () => {
     const second = createTrack("second", "joox");
 
     vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
       search: vi
         .fn()
         .mockResolvedValue({ items: [first, second], hasMore: false }),
@@ -64,6 +65,7 @@ describe("musicApi.searchBestMatch", () => {
     const stronger = createTrack("stronger", "joox", "Song", ["Artist"]);
 
     vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
       search: vi
         .fn()
         .mockResolvedValue({ items: [weaker, stronger], hasMore: false }),
@@ -98,6 +100,7 @@ describe("musicApi local metadata", () => {
   it("loads local cover from the local provider via cachedFetch", async () => {
     const getPic = vi.fn().mockResolvedValue("data:image/jpeg;base64,abc");
     vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
       search: vi.fn(),
       getUrl: vi.fn(),
       getPic,
@@ -118,6 +121,7 @@ describe("musicApi local metadata", () => {
       .fn()
       .mockResolvedValue({ lyric: "[00:00.00]歌词", tlyric: "" });
     vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
       search: vi.fn(),
       getUrl: vi.fn(),
       getPic: vi.fn(),

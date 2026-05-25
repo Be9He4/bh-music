@@ -114,9 +114,10 @@ describe("PlayerQueueDrawer", () => {
     const props = renderDrawer({ currentIndex: 1 });
 
     click(document.querySelector("button")!);
+    expect(document.body.textContent).toContain("播放列表 (2)");
 
     const removeFirst = document.body.querySelector(
-      'button[aria-label="移除 First"]'
+      'button[aria-label="删除 First"]'
     );
     expect(removeFirst).not.toBeNull();
 

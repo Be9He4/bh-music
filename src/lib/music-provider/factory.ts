@@ -5,10 +5,10 @@ import { AggregateProvider } from "./providers/aggregate-provider";
 import { PodcastProvider } from "./providers/podcast-provider";
 import { JooxProvider } from "./providers/joox-provider";
 import { KuwoProvider } from "./providers/kuwo-provider";
-import { KugouProvider } from "./providers/kugou-provider";
-import { MiguProvider } from "./providers/migu-provider";
+import { KugouApiProvider } from "./providers/kugou-api-provider";
+import { MiguApiProvider } from "./providers/migu-api-provider";
 import { NeteaseProvider } from "./providers/netease-provider";
-import { QqProvider } from "./providers/qq-provider";
+import { QqApiProvider } from "./providers/qq-api-provider";
 import { NeteaseApiProvider } from "./providers/netease-api-provider";
 
 export class MusicProviderFactory {
@@ -22,36 +22,36 @@ export class MusicProviderFactory {
     let provider: IMusicProvider;
 
     switch (source) {
-      case 'all':
+      case "all":
         // Pass the factory method itself as the resolver to avoid circular dependency
         provider = new AggregateProvider((s) => this.getProvider(s));
         break;
-      case '_netease':
-        provider = new NeteaseApiProvider();  // 网易云官方 API
+      case "_netease":
+        provider = new NeteaseApiProvider(); // 网易云官方 API
         break;
-      case 'local':
+      case "local":
         provider = new LocalProvider();
         break;
-      case 'podcast':
+      case "podcast":
         provider = new PodcastProvider();
         break;
-      case 'joox':
+      case "joox":
         provider = new JooxProvider();
         break;
-      case 'kuwo':
+      case "kuwo":
         provider = new KuwoProvider();
         break;
-      case 'kugou':
-        provider = new KugouProvider();
+      case "kugou":
+        provider = new KugouApiProvider();
         break;
-      case 'migu':
-        provider = new MiguProvider();
+      case "migu":
+        provider = new MiguApiProvider();
         break;
-      case 'netease':
+      case "netease":
         provider = new NeteaseProvider();
         break;
-      case 'qq':
-        provider = new QqProvider();
+      case "qq":
+        provider = new QqApiProvider();
         break;
       default:
         throw new Error(`不支持的音乐源: ${source}`);
@@ -60,5 +60,4 @@ export class MusicProviderFactory {
     this.instances.set(source, provider);
     return provider;
   }
-
 }

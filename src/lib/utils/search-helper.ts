@@ -1,4 +1,9 @@
-import type { MusicSource, MusicTrack, MergedMusicTrack, SearchIntent } from '@/types/music';
+import type {
+  MusicSource,
+  MusicTrack,
+  MergedMusicTrack,
+  SearchIntent,
+} from "@/types/music";
 import {
   normalizeText,
   normalizeArtists,
@@ -6,9 +11,9 @@ import {
   isNameMatch,
   isArtistMatch,
   isNameContainsMatch,
-  isArtistContainsMatch
-} from './music-key';
-import { useSourceQualityStore } from '@/store';
+  isArtistContainsMatch,
+} from "./music-key";
+import { useSourceQualityStore } from "@/store";
 
 /* ================= 常量定义 ================= */
 export const SOURCE_WEIGHT: Partial<Record<MusicSource, number>> = {
@@ -16,13 +21,15 @@ export const SOURCE_WEIGHT: Partial<Record<MusicSource, number>> = {
   netease: 28,
   kuwo: 20,
   _netease: 20,
+  migu: 20,
 };
 
-export const SOURCE_RANK: Partial<Record<MusicSource, number>> = Object.fromEntries(
-  Object.entries(SOURCE_WEIGHT)
-    .sort(([, a], [, b]) => b - a)
-    .map(([source], i) => [source, i])
-) as Partial<Record<MusicSource, number>>;
+export const SOURCE_RANK: Partial<Record<MusicSource, number>> =
+  Object.fromEntries(
+    Object.entries(SOURCE_WEIGHT)
+      .sort(([, a], [, b]) => b - a)
+      .map(([source], i) => [source, i])
+  ) as Partial<Record<MusicSource, number>>;
 
 type PreparedTrack = MusicTrack & {
   normalizedName: string;
@@ -43,16 +50,18 @@ function prepareTracks(tracks: MusicTrack[]): PreparedTrack[] {
       ...t,
       normalizedName: normalizeText(t.name),
       normalizedArtists,
-      artistKey: normalizedArtists.join('/'),
+      artistKey: normalizedArtists.join("/"),
       exactKey: getExactKey(t),
       nameKey: normalizeText(t.name),
-      originalIndex: i
+      originalIndex: i,
     };
   });
 }
 
 /* 2. 精确去重 & 模糊聚类 */
-function mergeAndCluster(tracks: PreparedTrack[]): (MergedMusicTrack & PreparedTrack)[] {
+function mergeAndCluster(
+  tracks: PreparedTrack[]
+): (MergedMusicTrack & PreparedTrack)[] {
   // 1. 精确去重 (完全相同的音轨)
   const exactMap = new Map<string, PreparedTrack[]>();
   for (const t of tracks) {
@@ -61,7 +70,7 @@ function mergeAndCluster(tracks: PreparedTrack[]): (MergedMusicTrack & PreparedT
     exactMap.set(t.exactKey, list);
   }
 
-  const uniqueTracks = Array.from(exactMap.values()).map(group => {
+  const uniqueTracks = Array.from(exactMap.values()).map((group) => {
     // 选出原始排名最高的作为主轨
     group.sort((a, b) => a.originalIndex - b.originalIndex);
     const [main, ...variants] = group;
@@ -82,19 +91,20 @@ function mergeAndCluster(tracks: PreparedTrack[]): (MergedMusicTrack & PreparedT
     const clusters: (MergedMusicTrack & PreparedTrack)[] = [];
 
     for (const item of list) {
-      const target = clusters.find(c =>
-        item.normalizedArtists.some(a => c.normalizedArtists.includes(a))
+      const target = clusters.find((c) =>
+        item.normalizedArtists.some((a) => c.normalizedArtists.includes(a))
       );
 
       if (target) {
         // 核心：永远让原始排名最靠前的做主曲
-        const [main, sub] = item.originalIndex < target.originalIndex
-          ? [item, target]
-          : [target, item];
+        const [main, sub] =
+          item.originalIndex < target.originalIndex
+            ? [item, target]
+            : [target, item];
 
         target.id = main.id; // 原地更新以维持引用
         Object.assign(target, main, {
-          variants: [...(main.variants || []), sub, ...(sub.variants || [])]
+          variants: [...(main.variants || []), sub, ...(sub.variants || [])],
         });
       } else {
         clusters.push(item);
@@ -133,19 +143,29 @@ function score(t: MergedMusicTrack & PreparedTrack, q: string): number {
 
 /* ================= 导出接口 ================= */
 
-export function mergeAndSortTracks(tracks: MusicTrack[], query = ''): MergedMusicTrack[] {
+export function mergeAndSortTracks(
+  tracks: MusicTrack[],
+  query = ""
+): MergedMusicTrack[] {
   if (!tracks?.length) return [];
 
   const q = normalizeText(query);
   const clustered = mergeAndCluster(prepareTracks(tracks));
 
   return clustered
-    .map(t => ({ item: t, weight: score(t, q) }))
-    .sort((a, b) => b.weight - a.weight || a.item.originalIndex - b.item.originalIndex)
-    .map(v => v.item);
+    .map((t) => ({ item: t, weight: score(t, q) }))
+    .sort(
+      (a, b) =>
+        b.weight - a.weight || a.item.originalIndex - b.item.originalIndex
+    )
+    .map((v) => v.item);
 }
 
-export function applySearchIntentSort(items: MergedMusicTrack[], intent: SearchIntent | null, query = ""): MergedMusicTrack[] {
+export function applySearchIntentSort(
+  items: MergedMusicTrack[],
+  intent: SearchIntent | null,
+  query = ""
+): MergedMusicTrack[] {
   if (!intent || (!query && !intent.artist)) return items;
 
   const q = query;
@@ -156,18 +176,19 @@ export function applySearchIntentSort(items: MergedMusicTrack[], intent: SearchI
     const albumExact = q && isNameMatch(t.album, q);
     const artistExact = artistTarget && isArtistMatch(t.artist, [artistTarget]);
 
-    if (intent.type === 'album') {
+    if (intent.type === "album") {
       if (albumExact) s += 60;
       else if (q && isNameContainsMatch(t.album, q)) s += 18;
 
       if (artistExact) s += 24;
-      else if (artistTarget && isArtistContainsMatch(t.artist, [artistTarget])) s += 8;
+      else if (artistTarget && isArtistContainsMatch(t.artist, [artistTarget]))
+        s += 8;
 
       if (albumExact && artistExact) s += 16;
-    }
-    else if (intent.type === 'artist') {
+    } else if (intent.type === "artist") {
       if (artistExact) s += 60;
-      else if (artistTarget && isArtistContainsMatch(t.artist, [artistTarget])) s += 20;
+      else if (artistTarget && isArtistContainsMatch(t.artist, [artistTarget]))
+        s += 20;
 
       if (q && isNameMatch(t.name, q)) s += 12;
       else if (q && isNameContainsMatch(t.name, q)) s += 4;
@@ -178,5 +199,5 @@ export function applySearchIntentSort(items: MergedMusicTrack[], intent: SearchI
   return items
     .map((item, index) => ({ item, index, weight: getWeight(item) }))
     .sort((a, b) => b.weight - a.weight || a.index - b.index)
-    .map(v => v.item);
+    .map((v) => v.item);
 }

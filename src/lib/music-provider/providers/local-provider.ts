@@ -10,6 +10,7 @@ import { LocalMusicPlugin } from "@/plugins/local-music";
 import { logger } from "@/lib/logger";
 
 export class LocalProvider implements IMusicProvider {
+  source = "local" as const;
   async search(
     _query: string,
     _page: number,

@@ -1,14 +1,18 @@
 import {
   buildMiguPlaylistInfoPath,
   buildMiguPlaylistSongsPath,
+  buildMiguSearchPath,
   buildMiguSongUrlPath,
+  convertMiguSearchSongToMusicTrack,
   convertMiguSongToMusicTrack,
   MIGU_PAGE_SIZE,
   type MiguPlaylistDetail,
   type MiguPlaylistInfoResponse,
   type MiguPlaylistSongsResponse,
+  type MiguSearchResponse,
   type MiguSongRaw,
   type MiguSongUrlResponse,
+  type MusicTrack,
 } from "@otter-music/shared";
 
 export { MIGU_PAGE_SIZE, convertMiguSongToMusicTrack };
@@ -146,4 +150,28 @@ export async function fetchMiguSongUrl(
   );
   const url = response.data?.url || response.data?.playUrl || null;
   return url ? url.replace(/\+/g, "%2B") : null;
+}
+
+// ============================================================
+// 搜索
+// ============================================================
+
+export async function fetchMiguSearch(
+  keyword: string,
+  page: number,
+  rows = 20
+): Promise<{ items: MusicTrack[]; hasMore: boolean }> {
+  const path = buildMiguSearchPath(keyword, page, rows);
+  const data = await fetchMiguJson<MiguSearchResponse>(path, {
+    channel: "0146951",
+    uid: "1234",
+  });
+  const result = data?.songResultData?.result;
+  if (!result?.length) return { items: [], hasMore: false };
+
+  const total = Number(data?.songResultData?.totalCount) || 0;
+  return {
+    items: result.map(convertMiguSearchSongToMusicTrack),
+    hasMore: page * rows < total,
+  };
 }
