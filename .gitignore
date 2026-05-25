@@ -52,3 +52,4 @@ tsconfig.tsbuildinfo
 # AI
 .trae/
 .claude/
+openspec/
