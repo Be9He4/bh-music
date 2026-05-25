@@ -6,8 +6,8 @@
 
 ## 0️⃣ 添加 Release Note
 
-在 `assets/release/` 目录下添加对应版本的 Markdown 文件，要求文件名与新 Tag 一致（例如 `v2.0.2.md`）。
-*注：若未找到对应文件，GitHub Actions 将自动生成默认简易文案。*
+在 `public/release/` 目录下添加对应版本的 Markdown 文件，要求文件名与新 Tag 一致（例如 `v2.0.2.md`）。
+_注：若未找到对应文件，GitHub Actions 将自动生成默认简易文案。_
 
 > 建议先运行 `npm run ci-test` 完成本地测试
 
@@ -45,13 +45,14 @@ git push && git push --tags
 CI 流程依赖 GitHub Secrets 进行自动签名。若尚未配置，请按以下步骤操作：
 
 1. **生成签名证书（若无 `.jks`）**：
+
 ```bash
 keytool -genkeypair -v -keystore otter-music-release.jks -alias otter-music -keyalg RSA -keysize 2048 -validity 10000
 
 ```
 
-
 2. **获取 Keystore 的 Base64 编码**：
+
 ```powershell
 # Windows PowerShell 示例
 $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("android/otter-music-release.jks"))
@@ -59,14 +60,13 @@ Set-Clipboard $b64
 
 ```
 
-
 3. **在 GitHub 仓库添加 Secrets** (`Settings` -> `Secrets and variables` -> `Actions`)：
-| Name | Value | 说明 |
-| :--- | :--- | :--- |
-| `SIGNING_KEY` | *(粘贴上述 Base64)* | Keystore 文件内容 |
-| `ALIAS` | `otter-music` | 密钥别名 |
-| `KEY_STORE_PASSWORD` | *(你的密码)* | Keystore 密码 |
-| `KEY_PASSWORD` | *(你的密码)* | 密钥密码 |
+   | Name | Value | 说明 |
+   | :--- | :--- | :--- |
+   | `SIGNING_KEY` | _(粘贴上述 Base64)_ | Keystore 文件内容 |
+   | `ALIAS` | `otter-music` | 密钥别名 |
+   | `KEY_STORE_PASSWORD` | _(你的密码)_ | Keystore 密码 |
+   | `KEY_PASSWORD` | _(你的密码)_ | 密钥密码 |
 
 ---
 
@@ -83,13 +83,13 @@ npm run build:android:release
 
 ```
 
-*本地产物路径：`android/app/build/outputs/apk/release/*`
+_本地产物路径：`android/app/build/outputs/apk/release/_`
 
 ---
 
 # 🚀 发布前检查清单
 
-* [ ] Release Note 文件已就绪 (`assets/release/v*.md`)
-* [ ] Git 工作区干净，已使用 `npm version` 同步各项版本号
-* [ ] GitHub Secrets (`SIGNING_KEY` 等 4 项) 均已正确配置
-* [ ] 已执行 `git push --tags` 触发 CI
+- [ ] Release Note 文件已就绪 (`public/release/v*.md`)
+- [ ] Git 工作区干净，已使用 `npm version` 同步各项版本号
+- [ ] GitHub Secrets (`SIGNING_KEY` 等 4 项) 均已正确配置
+- [ ] 已执行 `git push --tags` 触发 CI

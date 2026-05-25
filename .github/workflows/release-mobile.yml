@@ -3,7 +3,7 @@ name: Release Mobile (Android Only)
 on:
   push:
     tags:
-      - 'v*' # 监听以 v 开头的 tag，例如 v2.1.5
+      - "v*" # 监听以 v 开头的 tag，例如 v2.1.5
   workflow_dispatch:
 
 permissions:
@@ -30,13 +30,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+          cache: "gradle"
 
       - name: Build app
         run: |
@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           TAG="${{ github.ref_name }}"
-          NOTES="assets/release/${TAG}.md"
+          NOTES="public/release/${TAG}.md"
           if [[ -f "$NOTES" ]]; then
             cp "$NOTES" release_body.md
           else
