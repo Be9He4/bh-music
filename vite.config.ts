@@ -43,7 +43,15 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
         runtimeCaching: [
           {
-            urlPattern: ({ request }) => request.destination === "audio",
+            urlPattern: ({ request }) => {
+              const secFetchDest = request.headers.get("Sec-Fetch-Dest");
+              if (secFetchDest === "empty") return false;
+              if (!secFetchDest && request.destination === "") return false;
+              return (
+                request.destination === "audio" ||
+                /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(request.url)
+              );
+            },
             handler: "NetworkFirst",
             options: {
               cacheName: "audio-stream-cache",

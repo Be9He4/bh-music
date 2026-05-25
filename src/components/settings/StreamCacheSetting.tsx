@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { SettingItem } from "./SettingItem";
 import { HardDrive, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { formatBytes, getAudioCacheStats, getStorageUsage, clearAudioCache } from "@/lib/cache-stats";
+import {
+  formatBytes,
+  getAudioCacheStats,
+  getStorageUsage,
+  clearAudioCache,
+} from "@/lib/cache-stats";
 import { toastUtils } from "@/lib/utils/toast";
 
 export function StreamCacheSetting() {
@@ -14,9 +19,12 @@ export function StreamCacheSetting() {
 
   useEffect(() => {
     if (expanded) {
-      Promise.all([getAudioCacheStats(), getStorageUsage()]).then(([s, usage]) => {
-        setStats({ entryCount: s.entryCount, approxSize: usage });
-      });
+      // opaque response 无法直接获取缓存大小，仅统计条目数
+      Promise.all([getAudioCacheStats(), getStorageUsage()]).then(
+        ([s, usage]) => {
+          setStats({ entryCount: s.entryCount, approxSize: usage });
+        }
+      );
     }
   }, [expanded]);
 
@@ -44,10 +52,14 @@ export function StreamCacheSetting() {
                 <span className="text-muted-foreground"> 个片段</span>
                 <span className="text-border mx-2">·</span>
                 <span className="text-muted-foreground">约占用 </span>
-                <span className="font-medium">{formatBytes(stats.approxSize)}</span>
+                <span className="font-medium">
+                  {formatBytes(stats.approxSize)}
+                </span>
               </p>
             ) : (
-              <p className="text-xs text-center text-muted-foreground">暂无缓存数据</p>
+              <p className="text-xs text-center text-muted-foreground">
+                暂无缓存数据
+              </p>
             )}
           </div>
           <Button
@@ -57,7 +69,9 @@ export function StreamCacheSetting() {
             disabled={stats.entryCount === 0}
             onClick={async (e) => {
               e.stopPropagation();
-              if (window.confirm("确定要清空所有音频缓存吗？此操作不可恢复。")) {
+              if (
+                window.confirm("确定要清空所有音频缓存吗？此操作不可恢复。")
+              ) {
                 await clearAudioCache();
                 setStats({ entryCount: 0, approxSize: 0 });
                 toastUtils.info("音频缓存已清空");

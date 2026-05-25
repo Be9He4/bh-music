@@ -20,22 +20,20 @@ const urlMemoryCache = new Map<string, string>();
 type FallbackStage = "none" | "proxy" | "final";
 
 function isTrackPlayable(
-  track: { source: MusicSource; id: string } | null,
-  isOnline: boolean
+  track: { source: MusicSource; id: string } | null
 ): boolean {
   if (!track) return false;
 
-  const isLocal = track.source === 'local';
+  const isLocal = track.source === "local";
 
   if (isLocal) return true;
 
-  if (!isOnline) {
+  if (!navigator.onLine) {
     if (Capacitor.isNativePlatform()) {
       const downloadKey = buildDownloadKey(track.source, track.id);
       return useDownloadStore.getState().hasRecord(downloadKey);
     }
     // Web 端：SW 缓存可能已缓存该音频，不硬判不可播
-    return true;
   }
 
   return true;
@@ -43,14 +41,13 @@ function isTrackPlayable(
 
 function findNextPlayableTrack(
   queue: { source: MusicSource; id: string }[],
-  startIndex: number,
-  isOnline: boolean
+  startIndex: number
 ): number | null {
   if (queue.length === 0) return null;
 
   for (let i = 0; i < queue.length; i++) {
     const index = (startIndex + i) % queue.length;
-    if (isTrackPlayable(queue[index], isOnline)) {
+    if (isTrackPlayable(queue[index])) {
       return index;
     }
   }
@@ -58,7 +55,10 @@ function findNextPlayableTrack(
   return null;
 }
 
-function waitForAudioReady(audio: HTMLAudioElement, timeout = AUDIO_READY_TIMEOUT): Promise<void> {
+function waitForAudioReady(
+  audio: HTMLAudioElement,
+  timeout = AUDIO_READY_TIMEOUT
+): Promise<void> {
   return new Promise((resolve, reject) => {
     let settled = false;
 
@@ -78,7 +78,10 @@ function waitForAudioReady(audio: HTMLAudioElement, timeout = AUDIO_READY_TIMEOU
 
     const onReady = () => finish(resolve);
     const onError = () => finish(() => reject(new Error("AUDIO_NOT_READY")));
-    const timer = setTimeout(() => finish(() => reject(new Error("AUDIO_READY_TIMEOUT"))), timeout);
+    const timer = setTimeout(
+      () => finish(() => reject(new Error("AUDIO_READY_TIMEOUT"))),
+      timeout
+    );
 
     audio.addEventListener("canplay", onReady, { once: true });
     audio.addEventListener("loadedmetadata", onReady, { once: true });
@@ -90,20 +93,20 @@ async function resolveLocalDownloadUrl({
   trackId,
   source,
 }: {
-  trackId: string
-  source: MusicSource
+  trackId: string;
+  source: MusicSource;
 }): Promise<{ url: string | null; downloadKey: string | null }> {
-  const isNative = Capacitor.isNativePlatform()
-  const isLocal = source === 'local'
+  const isNative = Capacitor.isNativePlatform();
+  const isLocal = source === "local";
   if (isNative && !isLocal) {
-    const downloadKey = buildDownloadKey(source, trackId)
-    const uri = useDownloadStore.getState().getUri(downloadKey)
+    const downloadKey = buildDownloadKey(source, trackId);
+    const uri = useDownloadStore.getState().getUri(downloadKey);
     if (uri) {
-      return { url: Capacitor.convertFileSrc(uri), downloadKey }
+      return { url: Capacitor.convertFileSrc(uri), downloadKey };
     }
   }
 
-  return { url: null, downloadKey: null }
+  return { url: null, downloadKey: null };
 }
 
 async function resolveRemoteAudioUrl({
@@ -111,17 +114,21 @@ async function resolveRemoteAudioUrl({
   source,
   quality,
 }: {
-  trackId: string
-  source: MusicSource
-  quality: number
+  trackId: string;
+  source: MusicSource;
+  quality: number;
 }): Promise<string> {
-  return retry(async () => {
-    const url = await musicApi.getUrl(trackId, source, quality)
-    if (!url) {
-      throw new Error("EMPTY_URL")
-    }
-    return url
-  }, 2, 800)
+  return retry(
+    async () => {
+      const url = await musicApi.getUrl(trackId, source, quality);
+      if (!url) {
+        throw new Error("EMPTY_URL");
+      }
+      return url;
+    },
+    2,
+    800
+  );
 }
 
 export function useAudioTrackLoader(
@@ -129,27 +136,30 @@ export function useAudioTrackLoader(
   isSwitchingTrackRef: React.MutableRefObject<boolean>,
   hasRecordedRef: React.MutableRefObject<boolean>
 ) {
-  const currentTrack = useMusicStore(s => s.queue[s.currentIndex]) || null;
+  const currentTrack = useMusicStore((s) => s.queue[s.currentIndex]) || null;
   const currentTrackId = currentTrack?.id;
   const currentTrackSource = currentTrack?.source;
   const currentTrackUrlId = currentTrack?.url_id;
-  const quality = useMusicStore(s => s.quality);
-  const currentAudioTime = useMusicStore(s => s.currentAudioTime);
-  const hasUserGesture = useMusicStore(s => s.hasUserGesture);
-  const setIsPlaying = useMusicStore(s => s.setIsPlaying);
-  const setIsLoading = useMusicStore(s => s.setIsLoading);
-  const skipToNext = useMusicStore(s => s.skipToNext);
-  const setCurrentAudioUrl = useMusicStore(s => s.setCurrentAudioUrl);
-  const incrementFailures = useMusicStore(s => s.incrementFailures);
-  const maxConsecutiveFailures = useMusicStore(s => s.maxConsecutiveFailures);
-  const urlRecoveryKey = useMusicStore(s => s.urlRecoveryKey);
+  const quality = useMusicStore((s) => s.quality);
+  const currentAudioTime = useMusicStore((s) => s.currentAudioTime);
+  const hasUserGesture = useMusicStore((s) => s.hasUserGesture);
+  const setIsPlaying = useMusicStore((s) => s.setIsPlaying);
+  const setIsLoading = useMusicStore((s) => s.setIsLoading);
+  const skipToNext = useMusicStore((s) => s.skipToNext);
+  const setCurrentAudioUrl = useMusicStore((s) => s.setCurrentAudioUrl);
+  const incrementFailures = useMusicStore((s) => s.incrementFailures);
+  const maxConsecutiveFailures = useMusicStore((s) => s.maxConsecutiveFailures);
+  const urlRecoveryKey = useMusicStore((s) => s.urlRecoveryKey);
 
   const requestIdRef = useRef(0);
   const prevUrlRecoveryKeyRef = useRef(urlRecoveryKey);
 
   const prevTrackRef = useRef<{ id?: string; source?: string } | null>(null);
   const remoteUrlRef = useRef<string | null>(null);
-  const fallbackStageRef = useRef<{ trackKey: string | null; stage: FallbackStage }>({
+  const fallbackStageRef = useRef<{
+    trackKey: string | null;
+    stage: FallbackStage;
+  }>({
     trackKey: null,
     stage: "none",
   });
@@ -183,11 +193,13 @@ export function useAudioTrackLoader(
           remoteUrlRef.current = cached;
           return cached;
         }
-        const urlId = ((currentTrackSource as string) === 'local' || currentTrackSource === 'podcast')
-          ? currentTrackUrlId
-          : currentTrackId;
+        const urlId =
+          (currentTrackSource as string) === "local" ||
+          currentTrackSource === "podcast"
+            ? currentTrackUrlId
+            : currentTrackId;
         const remoteUrl = await resolveRemoteAudioUrl({
-          trackId: urlId || '',
+          trackId: urlId || "",
           source: currentTrackSource,
           quality: parseInt(quality, 10),
         });
@@ -212,7 +224,12 @@ export function useAudioTrackLoader(
 
         const isRecovery = prevUrlRecoveryKeyRef.current !== urlRecoveryKey;
 
-        if (prevTrackRef.current?.id === currentTrackId && prevTrackRef.current?.source === currentTrackSource && !isSwitchingTrackRef.current && !isRecovery) {
+        if (
+          prevTrackRef.current?.id === currentTrackId &&
+          prevTrackRef.current?.source === currentTrackSource &&
+          !isSwitchingTrackRef.current &&
+          !isRecovery
+        ) {
           return;
         }
 
@@ -227,12 +244,13 @@ export function useAudioTrackLoader(
 
         audio.pause();
 
-        const isLocal = (currentTrackSource as string) === 'local';
+        const isLocal = (currentTrackSource as string) === "local";
         const isOnline = navigator.onLine;
-        const { url: localDownloadUrl, downloadKey } = await resolveLocalDownloadUrl({
-          trackId: currentTrackId || "",
-          source: currentTrackSource,
-        });
+        const { url: localDownloadUrl, downloadKey } =
+          await resolveLocalDownloadUrl({
+            trackId: currentTrackId || "",
+            source: currentTrackSource,
+          });
         const hasDownload = Boolean(localDownloadUrl);
 
         if (!isLocal && !hasDownload && !isOnline) {
@@ -240,16 +258,28 @@ export function useAudioTrackLoader(
           // 原生平台：只允许本地文件/已下载音轨
           if (Capacitor.isNativePlatform()) {
             const { queue, currentIndex } = useMusicStore.getState();
-            const nextPlayableIndex = findNextPlayableTrack(queue, currentIndex, isOnline);
+            const nextPlayableIndex = findNextPlayableTrack(
+              queue,
+              currentIndex
+            );
 
-            if (nextPlayableIndex !== null && nextPlayableIndex !== currentIndex) {
-              useMusicStore.getState().setCurrentIndexAndPlay(nextPlayableIndex);
+            if (
+              nextPlayableIndex !== null &&
+              nextPlayableIndex !== currentIndex
+            ) {
+              useMusicStore
+                .getState()
+                .setCurrentIndexAndPlay(nextPlayableIndex);
               return;
             } else {
-              logger.error("useAudioTrackLoader", "Network unavailable, no playable tracks", {
-                trackId: currentTrackId,
-                source: currentTrackSource,
-              });
+              logger.error(
+                "useAudioTrackLoader",
+                "Network unavailable, no playable tracks",
+                {
+                  trackId: currentTrackId,
+                  source: currentTrackSource,
+                }
+              );
               setIsPlaying(false);
               return;
             }
@@ -257,12 +287,16 @@ export function useAudioTrackLoader(
         }
 
         try {
-          const primaryUrl = localDownloadUrl || await getRemoteUrl();
+          const primaryUrl = localDownloadUrl || (await getRemoteUrl());
           await setSourceAndPlay(primaryUrl);
         } catch (primaryError) {
           console.error("Primary audio load failed:", primaryError);
 
-          if (downloadKey && localDownloadUrl && currentTrackSource !== "local") {
+          if (
+            downloadKey &&
+            localDownloadUrl &&
+            currentTrackSource !== "local"
+          ) {
             useDownloadStore.getState().removeRecord(downloadKey);
             toast.error("本地文件失效，已切换在线播放");
             const remoteUrl = await getRemoteUrl();
@@ -270,7 +304,12 @@ export function useAudioTrackLoader(
             return;
           }
 
-          if (currentTrackSource !== "local" && fallbackStageRef.current.stage === "none" && remoteUrlRef.current && isOnline) {
+          if (
+            currentTrackSource !== "local" &&
+            fallbackStageRef.current.stage === "none" &&
+            remoteUrlRef.current &&
+            isOnline
+          ) {
             const remoteUrl = remoteUrlRef.current;
             const proxyUrl = getProxyUrl(remoteUrl);
             fallbackStageRef.current.stage = "proxy";
@@ -284,11 +323,16 @@ export function useAudioTrackLoader(
       } catch (err: unknown) {
         if (requestId !== requestIdRef.current) return;
         const errorMessage = err instanceof Error ? err.message : String(err);
-        logger.error("useAudioTrackLoader", `Audio load failed: ${errorMessage}`, err, {
-          trackId: currentTrackId,
-          source: currentTrackSource,
-          urlId: currentTrackUrlId,
-        });
+        logger.error(
+          "useAudioTrackLoader",
+          `Audio load failed: ${errorMessage}`,
+          err,
+          {
+            trackId: currentTrackId,
+            source: currentTrackSource,
+            urlId: currentTrackUrlId,
+          }
+        );
 
         if (useMusicStore.getState().enableAutoMatch) {
           try {
@@ -316,7 +360,10 @@ export function useAudioTrackLoader(
           if (audio.paused) {
             setIsPlaying(false);
           } else {
-            logger.warn("useAudioTrackLoader", "Skip setIsPlaying(false) because audio is still playing");
+            logger.warn(
+              "useAudioTrackLoader",
+              "Skip setIsPlaying(false) because audio is still playing"
+            );
           }
         } else {
           skipToNext();
@@ -342,5 +389,12 @@ export function useAudioTrackLoader(
         requestIdRef.current++;
       }
     };
-  }, [currentTrack?.id, currentTrack?.source, currentTrack?.url_id, quality, hasUserGesture, urlRecoveryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    currentTrack?.id,
+    currentTrack?.source,
+    currentTrack?.url_id,
+    quality,
+    hasUserGesture,
+    urlRecoveryKey,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 }
