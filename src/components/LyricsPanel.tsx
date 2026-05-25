@@ -34,22 +34,25 @@ function formatTime(seconds: number): string {
 
 function parseSimpleLrc(lrc: string): { time: number; text: string }[] {
   const lines: { time: number; text: string }[] = [];
-  
+
   for (const line of lrc.split("\n")) {
     const timeMatches = [...line.matchAll(TIME_EXP)];
-    
+
     if (timeMatches.length > 0) {
       const text = line.replace(TIME_EXP, "").trim();
-      
+
       if (text) {
         for (const m of timeMatches) {
-          const time = Number(m[1]) * 60 + Number(m[2]) + Number(m[3].padEnd(3, "0")) / 1000;
+          const time =
+            Number(m[1]) * 60 +
+            Number(m[2]) +
+            Number(m[3].padEnd(3, "0")) / 1000;
           lines.push({ time, text });
         }
       }
     }
   }
-  
+
   return lines.sort((a, b) => a.time - b.time);
 }
 
@@ -113,15 +116,19 @@ const LyricLineView = memo(function LyricLineView({
         "origin-center will-change-transform",
         isActive
           ? "text-white scale-110 drop-shadow-md opacity-100"
-          : "text-white/40 scale-100 hover:text-white/60 opacity-100",
+          : "text-white/40 scale-100 hover:text-white/60 opacity-100"
       )}
     >
-      <p className="text-lg font-medium leading-8 min-h-8 tracking-wide wrap-break-word">{line.text}</p>
+      <p className="text-lg font-medium leading-8 min-h-8 tracking-wide wrap-break-word">
+        {line.text}
+      </p>
       {line.ttext && (
-        <p className={cn(
-          "mt-1.5 font-medium text-[15px] wrap-break-word transition-colors duration-500",
-          isActive ? "text-white/80" : "text-white/30"
-        )}>
+        <p
+          className={cn(
+            "mt-1.5 font-medium text-[15px] wrap-break-word transition-colors duration-500",
+            isActive ? "text-white/80" : "text-white/30"
+          )}
+        >
           {line.ttext}
         </p>
       )}
@@ -129,17 +136,18 @@ const LyricLineView = memo(function LyricLineView({
   );
 });
 
-export function LyricsPanel({ track, active = true }: LyricsPanelProps) { 
+export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [centerLineIndex, setCenterLineIndex] = useState(-1);
 
-  const { currentTime, seek } = useMusicStore(
+  const { currentTime, seek, seekTimestamp } = useMusicStore(
     useShallow((state) => ({
       currentTime: state.currentAudioTime,
       seek: state.seek,
+      seekTimestamp: state.seekTimestamp,
     }))
   );
 
@@ -152,8 +160,8 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
       ? Math.max(
           0,
           lyrics.findLastIndex(
-            (line: LyricLine) => currentTime >= line.time + LYRIC_OFFSET,
-          ),
+            (line: LyricLine) => currentTime >= line.time + LYRIC_OFFSET
+          )
         )
       : 0;
 
@@ -172,7 +180,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
         scrollTimeoutRef.current = null;
       }
     },
-    [seek],
+    [seek]
   );
 
   const handleScroll = useCallback(() => {
@@ -274,6 +282,16 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     return () => clearTimeout(timer);
   }, [activeIndex, isUserScrolling]);
 
+  // 监听 seek 操作，重置用户滚动状态，使歌词立即跳转到对应位置
+  useEffect(() => {
+    setIsUserScrolling(false);
+    setCenterLineIndex(-1);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+  }, [seekTimestamp]);
+
   useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) {
@@ -341,12 +359,14 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
       {/* 使用 CSS Mask 实现上下渐隐效果，让边缘更柔和 */}
-      <ScrollArea 
-        className="h-full w-full **:data-[slot=scroll-area-scrollbar]:w-1.5 **:data-[slot=scroll-area-thumb]:bg-white/10 **:data-[slot=scroll-area-thumb]:hover:bg-white/30 **:ata-slot=scroll-area-thumb]]:transition-colors" 
+      <ScrollArea
+        className="h-full w-full **:data-[slot=scroll-area-scrollbar]:w-1.5 **:data-[slot=scroll-area-thumb]:bg-white/10 **:data-[slot=scroll-area-thumb]:hover:bg-white/30 **:ata-slot=scroll-area-thumb]]:transition-colors"
         viewportRef={viewportRef}
         style={{
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 15%, black 90%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 15%, black 90%, transparent 100%)"
+          maskImage:
+            "linear-gradient(to bottom, transparent 0%, black 15%, black 90%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0%, black 15%, black 90%, transparent 100%)",
         }}
       >
         {LyricsList}
