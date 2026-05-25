@@ -52,7 +52,10 @@ export class LocalProvider implements IMusicProvider {
         if (result.success && result.dataUrl) return result.dataUrl;
         return null;
       } catch (e) {
-        logger.error("local-provider", "getEmbeddedCover error", e);
+        logger.error("local-provider", "getEmbeddedCover error", e, {
+          localPath: track.pic_id,
+          errorMessage: e instanceof Error ? e.message : String(e),
+        });
         return null;
       }
     }
@@ -73,7 +76,10 @@ export class LocalProvider implements IMusicProvider {
         }
         return null;
       } catch (e) {
-        logger.error("local-provider", "getEmbeddedLyrics error", e);
+        logger.error("local-provider", "getEmbeddedLyrics error", e, {
+          localPath: track.lyric_id,
+          errorMessage: e instanceof Error ? e.message : String(e),
+        });
         return null;
       }
     }
