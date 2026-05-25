@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shuffle, Trash2, X, Maximize2 } from "lucide-react";
-
+import { Trash2, X, Maximize2, Dices } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -228,7 +227,7 @@ export function PlayerQueueDrawer({
                   onClick={onReshuffle}
                   title="再次打乱"
                 >
-                  <Shuffle className="h-4 w-4" />
+                  <Dices className="h-4 w-4" />
                 </Button>
               )}
               <Button

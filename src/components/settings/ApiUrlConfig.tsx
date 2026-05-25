@@ -99,7 +99,7 @@ export function ApiUrlConfig() {
           <DrawerHeader>
             <DrawerTitle>自定义 API 地址</DrawerTitle>
             <DrawerDescription>
-              自建后端用户可在此修改 API 地址。留空则恢复默认地址。
+              自建后端用户可在此修改 API 地址，留空则恢复默认。
               {customUrl && (
                 <span className="block mt-1 text-muted-foreground">
                   当前: {customUrl}

@@ -81,7 +81,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               />
             }
           />
-          <QualitySelect />
+          <AggregatedSourceSelect />
           <SettingItem
             icon={Volume2}
             title="音量调节"
@@ -101,6 +101,17 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               </div>
             }
           />
+          <QualitySelect />
+          <StreamCacheSetting />
+          <PlaylistUrlImport />
+        </SettingsSection>
+
+        <SettingsSection title="界面设置">
+          <SettingItem
+            icon={Palette}
+            title="主题切换"
+            action={<ThemeToggle />}
+          />
           <SettingItem
             icon={Tag}
             title="显示音源标签"
@@ -111,15 +122,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                 onCheckedChange={setShowSourceBadge}
               />
             }
-          />
-          <AggregatedSourceSelect />
-        </SettingsSection>
-
-        <SettingsSection title="界面设置">
-          <SettingItem
-            icon={Palette}
-            title="主题切换"
-            action={<ThemeToggle />}
           />
           <SettingItem
             icon={Image}
@@ -148,14 +150,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           <DownloadQualitySelect />
           <DownloadSettingToggles />
           <DownloadDirectorySelect />
-          <StreamCacheSetting />
         </SettingsSection>
 
         <SettingsSection title="账号数据">
           <NeteaseLogin />
           <SyncConfig />
           <PlaylistImport />
-          <PlaylistUrlImport />
           <SettingItem
             icon={Trash2}
             title="回收站"
