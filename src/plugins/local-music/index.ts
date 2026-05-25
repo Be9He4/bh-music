@@ -1,4 +1,4 @@
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin } from "@capacitor/core";
 
 export interface LocalMusicFile {
   id: string;
@@ -32,6 +32,13 @@ export interface DeleteResult {
   error?: string;
 }
 
+export interface PickDirectoryResult {
+  success: boolean;
+  path?: string;
+  uri?: string;
+  error?: string;
+}
+
 export interface LocalMusicPlugin {
   scanLocalMusic(): Promise<ScanResult>;
   scanAllStorage(): Promise<ScanResult>;
@@ -39,8 +46,9 @@ export interface LocalMusicPlugin {
   openManageStorageSettings(): Promise<void>;
   hasAllStoragePermission(): Promise<HasPermissionResult>;
   deleteLocalMusic(options: { localPath: string }): Promise<DeleteResult>;
+  pickDownloadDirectory(): Promise<PickDirectoryResult>;
 }
 
-const LocalMusicPlugin = registerPlugin<LocalMusicPlugin>('LocalMusicPlugin');
+const LocalMusicPlugin = registerPlugin<LocalMusicPlugin>("LocalMusicPlugin");
 
 export { LocalMusicPlugin };

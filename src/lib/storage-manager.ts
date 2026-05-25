@@ -19,10 +19,10 @@ export const STORAGE_CONFIG = {
 export const AppPaths = {
   // 音乐文件存放处
   Music: STORAGE_CONFIG.ROOT,
-  
+
   // 私有数据存放处（如 JSON 记录）
   Data: `${STORAGE_CONFIG.ROOT}/.data`,
-  
+
   // 缓存存放处（如封面图片等）
   Cache: `${STORAGE_CONFIG.ROOT}/.cache`,
 
@@ -36,7 +36,6 @@ export const AppPaths = {
 };
 
 export const DOWNLOAD_RECORDS_FILE = "downloads.json";
-
 
 export function buildFileName(track: MusicTrack) {
   return sanitize(
@@ -57,14 +56,4 @@ export function getMusicPath(customDir?: string): string {
     return `${STORAGE_CONFIG.ROOT}/${customDir}`.replace(/\/+/g, "/");
   }
   return AppPaths.Music;
-}
-
-const INVALID_PATH_RE = /\.\./;
-
-/** 验证下载路径合法性 */
-export function validateDownloadPath(path: string): string | null {
-  if (!path.trim()) return null;
-  if (INVALID_PATH_RE.test(path)) return "路径不允许包含 ..";
-  if (/[*?"<>|]/.test(path)) return "路径包含非法字符 (* ? \" < > |)";
-  return null;
 }

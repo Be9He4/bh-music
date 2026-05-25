@@ -1,6 +1,7 @@
 package com.otterhub.music;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Intent;
@@ -11,8 +12,11 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
+
+import androidx.activity.result.ActivityResult;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -20,6 +24,7 @@ import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
@@ -90,6 +95,34 @@ public class LocalMusicPlugin extends Plugin {
     public void hasAllStoragePermission(PluginCall call) {
         boolean hasPerm = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ? Environment.isExternalStorageManager() : hasRequiredPermission();
         call.resolve(new JSObject().put("hasPermission", hasPerm));
+    }
+
+    @PluginMethod
+    public void pickDownloadDirectory(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        startActivityForResult(call, intent, "handlePickDirectoryResult");
+    }
+
+    // --- 目录选择回调 ---
+
+    @ActivityCallback
+    private void handlePickDirectoryResult(PluginCall call, ActivityResult result) {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+            call.resolve(new JSObject().put("success", false).put("error", "cancelled"));
+            return;
+        }
+
+        Uri treeUri = result.getData().getData();
+        if (treeUri == null) {
+            call.resolve(new JSObject().put("success", false).put("error", "No directory selected"));
+            return;
+        }
+
+        String relativePath = extractPathFromTreeUri(treeUri);
+        call.resolve(new JSObject()
+            .put("success", true)
+            .put("path", relativePath != null ? relativePath : "")
+            .put("uri", treeUri.toString()));
     }
 
     @PermissionCallback
@@ -288,6 +321,20 @@ public class LocalMusicPlugin extends Plugin {
         String lower = fileName.toLowerCase();
         for (String ext : AUDIO_EXTENSIONS) if (lower.endsWith(ext)) return true;
         return false;
+    }
+
+    private String extractPathFromTreeUri(Uri treeUri) {
+        try {
+            String docId = DocumentsContract.getTreeDocumentId(treeUri);
+            int colonIndex = docId.indexOf(':');
+            if (colonIndex >= 0 && colonIndex < docId.length() - 1) {
+                return docId.substring(colonIndex + 1);
+            }
+            return "";
+        } catch (Exception e) {
+            android.util.Log.w("LocalMusicPlugin", "Failed to parse tree URI: " + treeUri);
+            return null;
+        }
     }
 
     private String[] parseFileName(String fileName) {
