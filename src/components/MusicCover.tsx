@@ -39,24 +39,24 @@ export function MusicCover({
     setIsSaving(true);
 
     try {
-        const filename = `${alt.replace(/[\\/:*?"<>|]/g, "_")}.jpg`;
+      const filename = `${alt.replace(/[\\/:*?"<>|]/g, "_")}.jpg`;
 
-        if (Capacitor.isNativePlatform()) {
-          await ensurePermission();
-          const fileUri = await Filesystem.getUri({
-            directory: Directory.ExternalStorage,
-            path: `Pictures/OtterMusic/${filename}`,
-          });
-          await FileTransfer.downloadFile({
-            url: coverUrl,
-            path: fileUri.uri,
-          });
-          toast.success("已保存到相册");
-        } else {
-          const response = await fetch(coverUrl);
-          const blob = await response.blob();
-          triggerBlobDownload(blob, filename);
-        }
+      if (Capacitor.isNativePlatform()) {
+        await ensurePermission();
+        const fileUri = await Filesystem.getUri({
+          directory: Directory.ExternalStorage,
+          path: `Pictures/OtterMusic/${filename}`,
+        });
+        await FileTransfer.downloadFile({
+          url: coverUrl,
+          path: fileUri.uri,
+        });
+        toast.success(`已保存到 Pictures/OtterMusic/${filename}`);
+      } else {
+        const response = await fetch(coverUrl);
+        const blob = await response.blob();
+        triggerBlobDownload(blob, filename);
+      }
     } catch {
       toast.error("保存失败，请重试");
     } finally {
@@ -69,7 +69,7 @@ export function MusicCover({
       <div
         className={cn(
           "w-full h-full bg-muted flex items-center justify-center shrink-0",
-          className,
+          className
         )}
       >
         {fallbackIcon || (
@@ -84,33 +84,39 @@ export function MusicCover({
       <img
         src={coverUrl}
         alt={alt}
-        className={cn("w-full h-full object-cover shrink-0", previewable && "cursor-pointer", className)}
+        className={cn(
+          "w-full h-full object-cover shrink-0",
+          previewable && "cursor-pointer",
+          className
+        )}
         onError={() => setError(true)}
         onClick={() => previewable && setIsPreviewOpen(true)}
       />
 
-      {previewable && isPreviewOpen && createPortal(
-        <div
-          className="fixed inset-0 z-500 flex flex-col items-center justify-center bg-black select-none animate-in fade-in duration-200"
-          onClick={() => setIsPreviewOpen(false)}
-        >
-          <img
-            src={coverUrl}
-            alt={alt}
-            className="max-w-full max-h-[80vh] object-contain pointer-events-none"
-          />
-
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="absolute bottom-5 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm transition-colors border border-white/10 disabled:opacity-50"
+      {previewable &&
+        isPreviewOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-500 flex flex-col items-center justify-center bg-black select-none animate-in fade-in duration-200"
+            onClick={() => setIsPreviewOpen(false)}
           >
-            <Download size={16} />
-            {isSaving ? "保存中..." : "保存图片"}
-          </button>
-        </div>,
-        document.body
-      )}
+            <img
+              src={coverUrl}
+              alt={alt}
+              className="max-w-full max-h-[80vh] object-contain pointer-events-none"
+            />
+
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="absolute bottom-5 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm transition-colors border border-white/10 disabled:opacity-50"
+            >
+              <Download size={16} />
+              {isSaving ? "保存中..." : "保存图片"}
+            </button>
+          </div>,
+          document.body
+        )}
     </>
   );
 }
