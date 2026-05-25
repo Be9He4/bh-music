@@ -15,6 +15,7 @@ import android.os.Looper;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.util.Base64;
 
 import androidx.activity.result.ActivityResult;
 
@@ -30,6 +31,12 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -235,7 +242,7 @@ public class LocalMusicPlugin extends Plugin {
         if (isValid(parsed[0]) && isValid(parsed[1])) return audioFile; // 歌手和标题都完整，直接返回跳过 MetadataRetriever
 
         try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
-            retriever.setDataSource(file.getAbsolutePath());
+            setRetrieverDataSource(retriever, file.getAbsolutePath());
             String mTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
             String mArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
             String mAlbum = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);
@@ -272,6 +279,63 @@ public class LocalMusicPlugin extends Plugin {
         File file = new File(localPath);
         if (!file.exists()) resolveError(call, "File not found");
         else resolveSuccess(call, "url", Uri.fromFile(file).toString());
+    }
+
+    /** 读取音频文件内嵌封面，返回可直接用于 img.src 的 data URL。 */
+    @PluginMethod
+    public void getEmbeddedCover(PluginCall call) {
+        String localPath = call.getString("localPath");
+        if (!isValid(localPath)) {
+            resolveError(call, "localPath is required");
+            return;
+        }
+
+        executor.execute(() -> {
+            try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
+                setRetrieverDataSource(retriever, localPath);
+                byte[] picture = retriever.getEmbeddedPicture();
+                if (picture == null || picture.length == 0) {
+                    mainHandler.post(() -> resolveError(call, "No embedded cover"));
+                    return;
+                }
+
+                String mimeType = detectImageMimeType(picture);
+                String base64 = Base64.encodeToString(picture, Base64.NO_WRAP);
+                JSObject result = new JSObject()
+                        .put("success", true)
+                        .put("dataUrl", "data:" + mimeType + ";base64," + base64);
+                mainHandler.post(() -> call.resolve(result));
+            } catch (Exception e) {
+                mainHandler.post(() -> resolveError(call, "Failed: " + e.getMessage()));
+            }
+        });
+    }
+
+    /** 读取 MP3 ID3v2 USLT 非同步歌词帧。 */
+    @PluginMethod
+    public void getEmbeddedLyrics(PluginCall call) {
+        String localPath = call.getString("localPath");
+        if (!isValid(localPath)) {
+            resolveError(call, "localPath is required");
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                String lyric = extractUsltLyrics(localPath);
+                if (!isValid(lyric)) {
+                    mainHandler.post(() -> resolveError(call, "No embedded lyrics"));
+                    return;
+                }
+
+                JSObject result = new JSObject()
+                        .put("success", true)
+                        .put("lyric", lyric);
+                mainHandler.post(() -> call.resolve(result));
+            } catch (Exception e) {
+                mainHandler.post(() -> resolveError(call, "Failed: " + e.getMessage()));
+            }
+        });
     }
 
     @PluginMethod
@@ -321,6 +385,166 @@ public class LocalMusicPlugin extends Plugin {
         String lower = fileName.toLowerCase();
         for (String ext : AUDIO_EXTENSIONS) if (lower.endsWith(ext)) return true;
         return false;
+    }
+
+    /** 将 file:// URI 或普通文件路径解析为纯文件系统路径。 */
+    private String resolvePlainPath(String localPath) {
+        if (localPath.startsWith("file://")) {
+            String path = Uri.parse(localPath).getPath();
+            return path != null ? path : localPath;
+        }
+        return localPath;
+    }
+
+    /** 为普通文件路径、file URI 和 content URI 设置 MediaMetadataRetriever 数据源。 */
+    private void setRetrieverDataSource(MediaMetadataRetriever retriever, String localPath) {
+        if (localPath.startsWith("content://")) {
+            retriever.setDataSource(getContext(), Uri.parse(localPath));
+            return;
+        }
+        retriever.setDataSource(resolvePlainPath(localPath));
+    }
+
+    /** 根据图片魔数识别常见封面 MIME 类型。 */
+    private String detectImageMimeType(byte[] data) {
+        if (data.length >= 8
+                && data[0] == (byte) 0x89
+                && data[1] == 0x50
+                && data[2] == 0x4E
+                && data[3] == 0x47) {
+            return "image/png";
+        }
+        if (data.length >= 12
+                && data[0] == 0x52
+                && data[1] == 0x49
+                && data[2] == 0x46
+                && data[3] == 0x46
+                && data[8] == 0x57
+                && data[9] == 0x45
+                && data[10] == 0x42
+                && data[11] == 0x50) {
+            return "image/webp";
+        }
+        return "image/jpeg";
+    }
+
+    /** 从 ID3v2 tag 中提取首个 USLT 歌词帧。 */
+    private String extractUsltLyrics(String localPath) throws IOException {
+        try (InputStream input = openLocalInputStream(localPath)) {
+            if (input == null) return null;
+
+            byte[] header = readExact(input, 10);
+            if (header == null || header[0] != 'I' || header[1] != 'D' || header[2] != '3') return null;
+
+            int majorVersion = header[3] & 0xFF;
+            int tagSize = readSynchsafeInt(header, 6);
+            if (tagSize <= 0 || tagSize > 5 * 1024 * 1024) return null;
+
+            byte[] tag = readExact(input, tagSize);
+            if (tag == null) return null;
+
+            int offset = skipExtendedHeaderIfNeeded(tag, majorVersion, header[5] & 0xFF);
+            while (offset + 10 <= tag.length) {
+                String frameId = new String(tag, offset, 4, StandardCharsets.ISO_8859_1);
+                if (frameId.trim().isEmpty()) break;
+
+                int frameSize = majorVersion >= 4
+                        ? readSynchsafeInt(tag, offset + 4)
+                        : readInt(tag, offset + 4);
+                if (frameSize <= 0 || offset + 10 + frameSize > tag.length) break;
+
+                if ("USLT".equals(frameId)) {
+                    String lyric = decodeUsltFrame(Arrays.copyOfRange(tag, offset + 10, offset + 10 + frameSize));
+                    return isValid(lyric) ? lyric : null;
+                }
+
+                offset += 10 + frameSize;
+            }
+        }
+        return null;
+    }
+
+    /** 打开普通文件路径、file URI 或 content URI 对应的输入流。 */
+    private InputStream openLocalInputStream(String localPath) throws IOException {
+        if (localPath.startsWith("content://")) {
+            return getContext().getContentResolver().openInputStream(Uri.parse(localPath));
+        }
+        String path = resolvePlainPath(localPath);
+        return new FileInputStream(path);
+    }
+
+    /** 读取指定长度字节；流提前结束时返回 null。 */
+    private byte[] readExact(InputStream input, int length) throws IOException {
+        byte[] data = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            int read = input.read(data, offset, length - offset);
+            if (read < 0) return null;
+            offset += read;
+        }
+        return data;
+    }
+
+    /** 读取 ID3 synchsafe 整数。 */
+    private int readSynchsafeInt(byte[] data, int offset) {
+        return ((data[offset] & 0x7F) << 21)
+                | ((data[offset + 1] & 0x7F) << 14)
+                | ((data[offset + 2] & 0x7F) << 7)
+                | (data[offset + 3] & 0x7F);
+    }
+
+    /** 读取大端 32 位整数。 */
+    private int readInt(byte[] data, int offset) {
+        return ((data[offset] & 0xFF) << 24)
+                | ((data[offset + 1] & 0xFF) << 16)
+                | ((data[offset + 2] & 0xFF) << 8)
+                | (data[offset + 3] & 0xFF);
+    }
+
+    /** 跳过 ID3v2 扩展头，返回首个 frame offset。 */
+    private int skipExtendedHeaderIfNeeded(byte[] tag, int majorVersion, int flags) {
+        if ((flags & 0x40) == 0 || tag.length < 4) return 0;
+
+        int size = majorVersion >= 4 ? readSynchsafeInt(tag, 0) : readInt(tag, 0);
+        if (size < 0 || size > tag.length) return 0;
+        return majorVersion >= 4 ? size : size + 4;
+    }
+
+    /** 解码 USLT 帧正文，去除编码、语言和描述字段。 */
+    private String decodeUsltFrame(byte[] frame) {
+        if (frame.length < 5) return null;
+
+        int encoding = frame[0] & 0xFF;
+        Charset charset = getId3Charset(encoding);
+        int offset = 4;
+        int textStart = findTextStartAfterDescription(frame, offset, encoding);
+        if (textStart < 0 || textStart >= frame.length) return null;
+
+        byte[] textBytes = Arrays.copyOfRange(frame, textStart, frame.length);
+        return new String(textBytes, charset).replace("\u0000", "").trim();
+    }
+
+    /** 获取 ID3 文本编码。 */
+    private Charset getId3Charset(int encoding) {
+        if (encoding == 1) return StandardCharsets.UTF_16;
+        if (encoding == 2) return StandardCharsets.UTF_16BE;
+        if (encoding == 3) return StandardCharsets.UTF_8;
+        return StandardCharsets.ISO_8859_1;
+    }
+
+    /** 定位 USLT 描述字段后的歌词正文起点。 */
+    private int findTextStartAfterDescription(byte[] frame, int offset, int encoding) {
+        if (encoding == 1 || encoding == 2) {
+            for (int i = offset; i + 1 < frame.length; i += 2) {
+                if (frame[i] == 0 && frame[i + 1] == 0) return i + 2;
+            }
+            return -1;
+        }
+
+        for (int i = offset; i < frame.length; i++) {
+            if (frame[i] == 0) return i + 1;
+        }
+        return -1;
     }
 
     private String extractPathFromTreeUri(Uri treeUri) {

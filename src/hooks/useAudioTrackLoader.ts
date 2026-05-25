@@ -118,6 +118,8 @@ async function resolveRemoteAudioUrl({
   source: MusicSource;
   quality: number;
 }): Promise<string> {
+  // 离线时 cachedFetch 磁盘未命中则网络必然不可用，无需重试
+  const maxRetries = navigator.onLine ? 2 : 0;
   return retry(
     async () => {
       const url = await musicApi.getUrl(trackId, source, quality);
@@ -126,7 +128,7 @@ async function resolveRemoteAudioUrl({
       }
       return url;
     },
-    2,
+    maxRetries,
     800
   );
 }

@@ -1,12 +1,22 @@
 import { IMusicProvider } from "../interface";
-import { MusicTrack, SearchPageResult, SongLyric, SearchIntent } from "@/types/music";
+import {
+  MusicTrack,
+  SearchPageResult,
+  SongLyric,
+  SearchIntent,
+} from "@/types/music";
 import { Capacitor } from "@capacitor/core";
 import { LocalMusicPlugin } from "@/plugins/local-music";
 import { logger } from "@/lib/logger";
 
 export class LocalProvider implements IMusicProvider {
-
-  async search(_query: string, _page: number, _count: number, _signal?: AbortSignal, _intent?: SearchIntent): Promise<SearchPageResult<MusicTrack>> {
+  async search(
+    _query: string,
+    _page: number,
+    _count: number,
+    _signal?: AbortSignal,
+    _intent?: SearchIntent
+  ): Promise<SearchPageResult<MusicTrack>> {
     return { items: [], hasMore: false };
   }
 
@@ -15,7 +25,9 @@ export class LocalProvider implements IMusicProvider {
 
     if (Capacitor.isNativePlatform()) {
       try {
-        const result = await LocalMusicPlugin.getLocalFileUrl({ localPath: path });
+        const result = await LocalMusicPlugin.getLocalFileUrl({
+          localPath: path,
+        });
         if (result.success && result.url) {
           return Capacitor.convertFileSrc(result.url);
         }
@@ -30,10 +42,42 @@ export class LocalProvider implements IMusicProvider {
   }
 
   async getPic(track: MusicTrack, _size?: number): Promise<string | null> {
-     return track.pic_id || null;
+    if (!track.pic_id) return null;
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await LocalMusicPlugin.getEmbeddedCover({
+          localPath: track.pic_id,
+        });
+        if (result.success && result.dataUrl) return result.dataUrl;
+        return null;
+      } catch (e) {
+        logger.error("local-provider", "getEmbeddedCover error", e);
+        return null;
+      }
+    }
+
+    return null;
   }
 
-  async getLyric(_track: MusicTrack): Promise<SongLyric | null> {
+  async getLyric(track: MusicTrack): Promise<SongLyric | null> {
+    if (!track.lyric_id) return null;
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await LocalMusicPlugin.getEmbeddedLyrics({
+          localPath: track.lyric_id,
+        });
+        if (result.success && result.lyric) {
+          return { lyric: result.lyric, tlyric: "" };
+        }
+        return null;
+      } catch (e) {
+        logger.error("local-provider", "getEmbeddedLyrics error", e);
+        return null;
+      }
+    }
+
     return null;
   }
 }

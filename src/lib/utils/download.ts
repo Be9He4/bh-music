@@ -2,7 +2,12 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Encoding } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { musicApi } from "@/lib/music-api";
-import { AppPaths, DOWNLOAD_RECORDS_FILE, STORAGE_CONFIG, buildFileName } from "@/lib/storage-manager";
+import {
+  AppPaths,
+  DOWNLOAD_RECORDS_FILE,
+  STORAGE_CONFIG,
+  buildFileName,
+} from "@/lib/storage-manager";
 import { MusicSource, MusicTrack } from "@/types/music";
 import toast from "react-hot-toast";
 import { LocalMusicFile } from "@/plugins/local-music";
@@ -28,7 +33,12 @@ interface PerformDownloadOpts {
  * 单首曲目下载核心逻辑
  * @param toastId 传入则展示详细进度（单曲模式）；不传则彻底静默（批量模式）
  */
-async function performDownloadOne(track: MusicTrack, _br: number, toastId?: string, opts?: PerformDownloadOpts): Promise<void> {
+async function performDownloadOne(
+  track: MusicTrack,
+  _br: number,
+  toastId?: string,
+  opts?: PerformDownloadOpts
+): Promise<void> {
   const fileName = buildFileName(track);
   const isNative = Capacitor.isNativePlatform();
   const br = parseInt(useMusicStore.getState().downloadQuality) || 320;
@@ -69,7 +79,10 @@ export async function downloadMusicTrack(track: MusicTrack, br = 192) {
   try {
     await performDownloadOne(track, br, toastId);
   } catch (err: unknown) {
-    logger.error("downloadMusicTrack", "Download failed", err, { trackId: track.id, source: track.source });
+    logger.error("downloadMusicTrack", "Download failed", err, {
+      trackId: track.id,
+      source: track.source,
+    });
     const message = err instanceof Error ? err.message : String(err);
     toast.error(`下载失败: ${message}`, { id: toastId });
   }
@@ -79,7 +92,7 @@ export async function downloadMusicTrack(track: MusicTrack, br = 192) {
  * 批量下载
  */
 export async function downloadMusicTrackBatch(tracks: MusicTrack[], br = 192) {
-  const validTracks = tracks.filter(t => t.source !== "local");
+  const validTracks = tracks.filter((t) => t.source !== "local");
   const total = validTracks.length;
 
   if (!total) {
@@ -89,7 +102,7 @@ export async function downloadMusicTrackBatch(tracks: MusicTrack[], br = 192) {
   let done = 0;
   let failCount = 0;
   const toastId = toast.loading(`准备下载 0/${total}`);
-  
+
   // 节流 UI 更新，保证高并发下主线程顺畅，且最后一次必定刷新
   let lastProgressUpdate = 0;
   const updateProgress = (current: number, isLast = false) => {
@@ -107,7 +120,11 @@ export async function downloadMusicTrackBatch(tracks: MusicTrack[], br = 192) {
         await performDownloadOne(track, br);
       } catch (err) {
         failCount++;
-        logger.error("downloadMusicTrackBatch", `Failed: ${track.name || track.id}`, err);
+        logger.error(
+          "downloadMusicTrackBatch",
+          `Failed: ${track.name || track.id}`,
+          err
+        );
       } finally {
         done++;
         updateProgress(done, done === total);
@@ -123,9 +140,9 @@ export async function downloadMusicTrackBatch(tracks: MusicTrack[], br = 192) {
   const failMsg = `下载完成（成功 ${successCount} / 失败 ${failCount}）`;
   const successMsg = `已成功下载全部 ${successCount} 首`;
 
-  failCount > 0 
-    ? toastUtils.warning(failMsg, { id: toastId , duration: 5000 })
-    : toast.success(successMsg, { id: toastId , duration: 3000 });
+  failCount > 0
+    ? toastUtils.warning(failMsg, { id: toastId, duration: 5000 })
+    : toast.success(successMsg, { id: toastId, duration: 3000 });
 }
 
 /* ================= Native 下载 ================= */
@@ -148,11 +165,14 @@ async function downloadNative(
     path: filePath,
   });
 
-  const listener = await FileTransfer.addListener("progress", ({ bytes, contentLength }) => {
-    if (!contentLength || !toastId) return;
-    const percent = Math.round((bytes / contentLength) * 100);
-    toast.loading(`下载 ${percent}%`, { id: toastId });
-  });
+  const listener = await FileTransfer.addListener(
+    "progress",
+    ({ bytes, contentLength }) => {
+      if (!contentLength || !toastId) return;
+      const percent = Math.round((bytes / contentLength) * 100);
+      toast.loading(`下载 ${percent}%`, { id: toastId });
+    }
+  );
 
   try {
     await FileTransfer.downloadFile({
@@ -169,13 +189,16 @@ async function downloadNative(
     await useDownloadStore.getState().addRecord(key, fileUri.uri);
 
     if (toastId) toast.success("下载完成", { id: toastId });
-
   } finally {
     await listener.remove();
   }
 }
 
-async function embedMetadataNative(filePath: string, track: MusicTrack, toastId?: string) {
+async function embedMetadataNative(
+  filePath: string,
+  track: MusicTrack,
+  toastId?: string
+) {
   try {
     if (toastId) toast.loading("正在写入元数据...", { id: toastId });
 
@@ -318,7 +341,11 @@ async function ensureDir(path: string) {
   }
 }
 
-export function triggerBlobDownload(blob: Blob, filename: string, toastId?: string) {
+export function triggerBlobDownload(
+  blob: Blob,
+  filename: string,
+  toastId?: string
+) {
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
@@ -351,13 +378,15 @@ export async function saveDownloadRecordsToDisk(
       encoding: Encoding.UTF8,
       recursive: true,
     });
-
   } catch (e) {
     logger.error("download", "保存下载记录失败", e);
   }
 }
 
-export async function loadDownloadRecordsFromDisk(): Promise<Record<string, string> | null> {
+export async function loadDownloadRecordsFromDisk(): Promise<Record<
+  string,
+  string
+> | null> {
   if (!Capacitor.isNativePlatform()) return null;
 
   try {
@@ -373,7 +402,6 @@ export async function loadDownloadRecordsFromDisk(): Promise<Record<string, stri
         : JSON.stringify(result.data);
 
     return JSON.parse(content);
-
   } catch (e) {
     console.warn("读取下载记录失败:", e);
     return null;
@@ -424,7 +452,8 @@ export const convertToMusicTrack = (file: LocalMusicFile): MusicTrack => {
     otterPath &&
     localPathArtist &&
     !LOCAL_ARTIST_SPLIT_RE.test(artistStr) &&
-    (LOCAL_ARTIST_SPLIT_RE.test(localPathArtist) || LOCAL_ARTIST_DOUBLE_SPACE_RE.test(localPathArtist))
+    (LOCAL_ARTIST_SPLIT_RE.test(localPathArtist) ||
+      LOCAL_ARTIST_DOUBLE_SPACE_RE.test(localPathArtist))
   ) {
     artistStr = localPathArtist;
   }
@@ -450,9 +479,9 @@ export const convertToMusicTrack = (file: LocalMusicFile): MusicTrack => {
     name: file.name || "未知歌曲",
     artist: artistList,
     album: album || "",
-    pic_id: "",
+    pic_id: file.localPath,
     url_id: file.localPath,
-    lyric_id: "",
+    lyric_id: file.localPath,
     source: "local" as MusicSource,
   };
 };

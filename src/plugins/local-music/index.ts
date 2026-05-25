@@ -23,6 +23,18 @@ export interface LocalFileUrlResult {
   error?: string;
 }
 
+export interface EmbeddedCoverResult {
+  success: boolean;
+  dataUrl?: string;
+  error?: string;
+}
+
+export interface EmbeddedLyricsResult {
+  success: boolean;
+  lyric?: string;
+  error?: string;
+}
+
 export interface HasPermissionResult {
   hasPermission: boolean;
 }
@@ -43,6 +55,12 @@ export interface LocalMusicPlugin {
   scanLocalMusic(): Promise<ScanResult>;
   scanAllStorage(): Promise<ScanResult>;
   getLocalFileUrl(options: { localPath: string }): Promise<LocalFileUrlResult>;
+  getEmbeddedCover(options: {
+    localPath: string;
+  }): Promise<EmbeddedCoverResult>;
+  getEmbeddedLyrics(options: {
+    localPath: string;
+  }): Promise<EmbeddedLyricsResult>;
   openManageStorageSettings(): Promise<void>;
   hasAllStoragePermission(): Promise<HasPermissionResult>;
   deleteLocalMusic(options: { localPath: string }): Promise<DeleteResult>;

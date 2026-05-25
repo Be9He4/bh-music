@@ -51,7 +51,7 @@ export function MusicCover({
           url: coverUrl,
           path: fileUri.uri,
         });
-        toast.success(`已保存到 Pictures/OtterMusic/${filename}`);
+        toast.success(`已保存到 Pictures/OtterMusic`);
       } else {
         const response = await fetch(coverUrl);
         const blob = await response.blob();
