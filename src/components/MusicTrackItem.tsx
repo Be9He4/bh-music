@@ -22,16 +22,24 @@ import { useDownloadStore } from "@/store/download-store";
 
 // 预定义 Badge 样式，避免每次渲染都重新计算
 const PRIVILEGE_BADGES = {
-  1: { label: "VIP", icon: Gem, className: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
-  4: { label: "付费", icon: DollarSign, className: "text-rose-500 bg-rose-500/10 border-rose-500/20" },
+  1: {
+    label: "VIP",
+    icon: Gem,
+    className: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  },
+  4: {
+    label: "付费",
+    icon: DollarSign,
+    className: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+  },
 } as const;
 
 function getNeteaseBadge(p?: NeteasePrivilege) {
   if (!p || p.pl > 0) return null; // 可完整播放则不显示任何标记
-  
+
   if (p.fee === 1) return PRIVILEGE_BADGES[1];
   if (p.fee === 4) return PRIVILEGE_BADGES[4];
-  
+
   return null;
 }
 
@@ -47,6 +55,7 @@ interface MusicTrackItemProps {
   onPlay: () => void;
   onRemove?: () => void;
   removeLabel?: string;
+  confirmRemove?: boolean;
   isDownloaded?: boolean; // 可选，未传则从 store 按需读取
   quality?: string;
   showSourceBadge?: boolean;
@@ -68,6 +77,7 @@ export function MusicTrackItem({
   onPlay,
   onRemove,
   removeLabel,
+  confirmRemove,
   isDownloaded,
   quality = "192",
   showSourceBadge = true,
@@ -88,12 +98,14 @@ export function MusicTrackItem({
 
   // 按需读取下载状态（虚拟列表保证活跃 Item 极少，按需 selector 远比父组件全量 map 高效）
   const downloadKey = buildDownloadKey(track.source, track.id);
-  const isDownloadedFromStore = useDownloadStore(s => !!s.records[downloadKey]);
+  const isDownloadedFromStore = useDownloadStore(
+    (s) => !!s.records[downloadKey]
+  );
   const isDownloadedFinal = isDownloaded ?? isDownloadedFromStore;
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
-  
+
   const variants = (track as MergedMusicTrack).variants || [];
   const badge = getNeteaseBadge(track.privilege);
 
@@ -190,8 +202,8 @@ export function MusicTrackItem({
       {/* Column 3: Actions */}
       <div className="flex items-center justify-end gap-1">
         {isSortable && (
-          <div 
-            {...dragHandleProps} 
+          <div
+            {...dragHandleProps}
             className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/50 hover:text-foreground transition-colors touch-none mr-1"
             onClick={(e) => e.stopPropagation()}
           >
@@ -221,16 +233,17 @@ export function MusicTrackItem({
               toast.success("已取消喜欢");
             } else {
               const error = addToFavorites(track);
-                if (error) {
-                  toastUtils.info(error);
-                } else {
-                  toast.success("已喜欢");
-                }
+              if (error) {
+                toastUtils.info(error);
+              } else {
+                toast.success("已喜欢");
+              }
             }
           }}
           isFavorite={isFavorite(track.id)}
           onRemove={onRemove}
           removeLabel={removeLabel}
+          confirmRemove={confirmRemove}
         />
 
         <AddToPlaylistDrawer

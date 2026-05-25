@@ -1,4 +1,11 @@
-import React, { RefObject, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   DndContext,
@@ -12,27 +19,38 @@ import {
   defaultDropAnimationSideEffects,
   DropAnimation,
   DragStartEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   restrictToVerticalAxis,
   restrictToWindowEdges,
-} from '@dnd-kit/modifiers';
+} from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import {
-  ListChecks, Plus, Heart, Download, Trash2,
-  Loader2, Search, Check, MoreVertical,
+  ListChecks,
+  Plus,
+  Heart,
+  Download,
+  Trash2,
+  Loader2,
+  Search,
+  Check,
+  MoreVertical,
   ListPlus,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { MusicTrackItem } from "./MusicTrackItem";
 import { AddToPlaylistDrawer } from "./AddToPlaylistDrawer";
 import { downloadMusicTrackBatch } from "@/lib/utils/download";
@@ -56,6 +74,7 @@ interface MusicTrackListProps {
   loading?: boolean;
   emptyMessage?: string;
   removeLabel?: string;
+  confirmRemove?: boolean;
   showSourceBadge?: boolean;
   onReorder?: (newOrder: MusicTrack[]) => void;
   showItemRemove?: boolean;
@@ -65,7 +84,13 @@ interface MusicTrackListProps {
 
 const ROW_HEIGHT = 48; // 缩小默认估算行高
 
-function SortableTrackItem({ track, children }: { track: MusicTrack, children: React.ReactElement }) {
+function SortableTrackItem({
+  track,
+  children,
+}: {
+  track: MusicTrack;
+  children: React.ReactElement;
+}) {
   const {
     attributes,
     listeners,
@@ -79,7 +104,7 @@ function SortableTrackItem({ track, children }: { track: MusicTrack, children: R
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? transition : undefined,
     zIndex: isDragging ? 1 : 0,
-    position: 'relative' as const,
+    position: "relative" as const,
     opacity: isDragging ? 0 : 1,
   };
 
@@ -87,16 +112,27 @@ function SortableTrackItem({ track, children }: { track: MusicTrack, children: R
     <div ref={setNodeRef} style={style} {...attributes}>
       {React.cloneElement(children as React.ReactElement<any>, {
         dragHandleProps: listeners,
-        isSortable: true
+        isSortable: true,
       })}
     </div>
   );
 }
 
 export function MusicTrackList({
-  tracks, onPlay, scrollContainerRef, playlistId, currentTrackId, isPlaying,
-  onRemove, onBatchRemove, onLoadMore, hasMore, loading,
-  emptyMessage = "暂无歌曲", removeLabel = "删除",
+  tracks,
+  onPlay,
+  scrollContainerRef,
+  playlistId,
+  currentTrackId,
+  isPlaying,
+  onRemove,
+  onBatchRemove,
+  onLoadMore,
+  hasMore,
+  loading,
+  emptyMessage = "暂无歌曲",
+  removeLabel = "删除",
+  confirmRemove,
   showSourceBadge = false,
   onReorder,
   showItemRemove = true,
@@ -121,7 +157,7 @@ export function MusicTrackList({
   );
 
   const enableDnd = isSelectionMode && !!onReorder;
-  const trackIds = useMemo(() => tracks.map(t => t.id), [tracks]);
+  const trackIds = useMemo(() => tracks.map((t) => t.id), [tracks]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -132,15 +168,20 @@ export function MusicTrackList({
     setActiveId(null);
 
     if (active.id !== over?.id && onReorder) {
-       const oldIndex = tracks.findIndex((t) => t.id === active.id);
-       const newIndex = tracks.findIndex((t) => t.id === over?.id);
-       if (oldIndex !== -1 && newIndex !== -1) {
-         onReorder(arrayMove(tracks, oldIndex, newIndex));
-       }
+      const oldIndex = tracks.findIndex((t) => t.id === active.id);
+      const newIndex = tracks.findIndex((t) => t.id === over?.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorder(arrayMove(tracks, oldIndex, newIndex));
+      }
     }
   };
 
-  const { quality, addBatchToFavorites, addBatchToNextPlay, showSourceBadge: storeShowBadge } = useMusicStore(
+  const {
+    quality,
+    addBatchToFavorites,
+    addBatchToNextPlay,
+    showSourceBadge: storeShowBadge,
+  } = useMusicStore(
     useShallow((state) => ({
       quality: state.quality,
       addBatchToFavorites: state.addBatchToFavorites,
@@ -158,17 +199,21 @@ export function MusicTrackList({
   }, []);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedIds(selectedIds.size === tracks.length ? new Set() : new Set(tracks.map((t) => t.id)));
+    setSelectedIds(
+      selectedIds.size === tracks.length
+        ? new Set()
+        : new Set(tracks.map((t) => t.id))
+    );
   }, [selectedIds.size, tracks]);
 
   // 外部预选：去重等功能触发时，合并 ID 并进入选择模式
   useEffect(() => {
     if (!preselectedIds || preselectedIds.size === 0) return;
     setIsSelectionMode(true);
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       if (prev.size === 0) return preselectedIds;
       const merged = new Set(prev);
-      preselectedIds.forEach(id => merged.add(id));
+      preselectedIds.forEach((id) => merged.add(id));
       return merged;
     });
   }, [preselectedIds]);
@@ -179,7 +224,10 @@ export function MusicTrackList({
     onSelectionModeChange?.(false);
   }, [onSelectionModeChange]);
 
-  const getSelectedTracks = useCallback(() => tracks.filter((t) => selectedIds.has(t.id)), [tracks, selectedIds]);
+  const getSelectedTracks = useCallback(
+    () => tracks.filter((t) => selectedIds.has(t.id)),
+    [tracks, selectedIds]
+  );
 
   const handleBatchFavorites = () => {
     const selected = getSelectedTracks();
@@ -212,7 +260,11 @@ export function MusicTrackList({
     }
 
     const toastId = toast.loading(`${removeLabel}中 0/${count}`);
-    await processBatchCPU(selected, (t) => onRemove!(t, true), (c, t) => toast.loading(`${removeLabel}中 ${c}/${t}`, { id: toastId }));
+    await processBatchCPU(
+      selected,
+      (t) => onRemove!(t, true),
+      (c, t) => toast.loading(`${removeLabel}中 ${c}/${t}`, { id: toastId })
+    );
     toast.success(`已${removeLabel} ${count} 首`, { id: toastId });
     resetSelection();
   };
@@ -228,7 +280,7 @@ export function MusicTrackList({
     sideEffects: defaultDropAnimationSideEffects({
       styles: {
         active: {
-          opacity: '0.3',
+          opacity: "0.3",
         },
       },
     }),
@@ -258,7 +310,15 @@ export function MusicTrackList({
             <div className="text-center">#</div>
             <div>标题</div>
             <div className="flex justify-end">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setIsSelectionMode(true); onSelectionModeChange?.(true); }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => {
+                  setIsSelectionMode(true);
+                  onSelectionModeChange?.(true);
+                }}
+              >
                 <ListChecks className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -268,14 +328,18 @@ export function MusicTrackList({
             {/* 第一列：全选复选框 */}
             <div className="flex justify-center">
               <Checkbox
-                checked={selectedIds.size > 0 && selectedIds.size === tracks.length}
+                checked={
+                  selectedIds.size > 0 && selectedIds.size === tracks.length
+                }
                 onCheckedChange={toggleSelectAll}
               />
             </div>
 
             {/* 第二列：已选统计和基础操作 */}
             <div className="flex items-center min-w-0 justify-between">
-              <span className="text-foreground">已选 {selectedIds.size} 首</span>
+              <span className="text-foreground">
+                已选 {selectedIds.size} 首
+              </span>
               <Button
                 size="sm"
                 variant="secondary"
@@ -301,19 +365,31 @@ export function MusicTrackList({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent side="bottom" align="end" className="w-40 p-1">
-                  <div className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer" onClick={handleBatchFavorites}>
+                  <div
+                    className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer"
+                    onClick={handleBatchFavorites}
+                  >
                     <Heart className="mr-2 h-3.5 w-3.5" /> 喜欢
                   </div>
-                  <div className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer" onClick={handleBatchDownload}>
+                  <div
+                    className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer"
+                    onClick={handleBatchDownload}
+                  >
                     <Download className="mr-2 h-3.5 w-3.5" /> 下载
                   </div>
-                  <div className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer" onClick={() => setIsAddToPlaylistOpen(true)}>
+                  <div
+                    className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer"
+                    onClick={() => setIsAddToPlaylistOpen(true)}
+                  >
                     <ListPlus className="mr-2 h-3.5 w-3.5" /> 添加到歌单
                   </div>
                   {(onRemove || onBatchRemove) && (
                     <>
                       <div className="border-t my-1" />
-                      <div className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer text-destructive" onClick={handleBatchRemove}>
+                      <div
+                        className="flex items-center px-2 py-1.5 text-xs rounded-sm hover:bg-accent cursor-pointer text-destructive"
+                        onClick={handleBatchRemove}
+                      >
                         <Trash2 className="mr-2 h-3.5 w-3.5" /> {removeLabel}
                       </div>
                     </>
@@ -322,7 +398,12 @@ export function MusicTrackList({
               </Popover>
 
               {/* 退出选择模式按钮 */}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetSelection}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={resetSelection}
+              >
                 <Check className="w-4 h-4" />
               </Button>
             </div>
@@ -346,26 +427,56 @@ export function MusicTrackList({
           strategy={verticalListSortingStrategy}
           disabled={!enableDnd}
         >
-          <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+          <div
+            className="relative w-full"
+            style={{ height: virtualizer.getTotalSize() }}
+          >
             {virtualizer.getVirtualItems().map((item) => {
               const track = tracks[item.index];
               const content = track ? (
                 <MusicTrackItem
-                  track={track} playlistId={playlistId} index={item.index}
-                  isCurrent={track.id === currentTrackId} isPlaying={isPlaying}
-                  onPlay={() => onPlay(track)} showCheckbox={isSelectionMode}
-                  isSelected={selectedIds.has(track.id)} onSelect={() => toggleSelect(track.id)}
-                  onRemove={!isSelectionMode && onRemove && showItemRemove ? () => onRemove(track) : undefined}
+                  track={track}
+                  playlistId={playlistId}
+                  index={item.index}
+                  isCurrent={track.id === currentTrackId}
+                  isPlaying={isPlaying}
+                  onPlay={() => onPlay(track)}
+                  showCheckbox={isSelectionMode}
+                  isSelected={selectedIds.has(track.id)}
+                  onSelect={() => toggleSelect(track.id)}
+                  onRemove={
+                    !isSelectionMode && onRemove && showItemRemove
+                      ? () => onRemove(track)
+                      : undefined
+                  }
                   removeLabel={removeLabel}
-                  quality={quality} showSourceBadge={isSelectionMode || storeShowBadge || showSourceBadge}
+                  confirmRemove={confirmRemove}
+                  quality={quality}
+                  showSourceBadge={
+                    isSelectionMode || storeShowBadge || showSourceBadge
+                  }
                 />
               ) : (
                 <div className="px-3 pb-20 pt-2 h-full">
                   {onLoadMore ? (
-                    <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground h-8" onClick={onLoadMore} disabled={!hasMore || loading}>
-                      {loading ? <Loader2 className="animate-spin w-3.5 h-3.5 mr-2" /> : hasMore ? "加载更多" : "没有更多了"}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs text-muted-foreground h-8"
+                      onClick={onLoadMore}
+                      disabled={!hasMore || loading}
+                    >
+                      {loading ? (
+                        <Loader2 className="animate-spin w-3.5 h-3.5 mr-2" />
+                      ) : hasMore ? (
+                        "加载更多"
+                      ) : (
+                        "没有更多了"
+                      )}
                     </Button>
-                  ) : <div className="h-full" />}
+                  ) : (
+                    <div className="h-full" />
+                  )}
                 </div>
               );
 
@@ -378,7 +489,9 @@ export function MusicTrackList({
                   style={{ transform: `translateY(${item.start}px)` }}
                 >
                   {track && enableDnd ? (
-                    <SortableTrackItem track={track}>{content}</SortableTrackItem>
+                    <SortableTrackItem track={track}>
+                      {content}
+                    </SortableTrackItem>
                   ) : (
                     content
                   )}
@@ -391,22 +504,29 @@ export function MusicTrackList({
           modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
           dropAnimation={dropAnimation}
         >
-          {activeId ? (() => {
-            const track = tracks.find(t => t.id === activeId);
-            if (!track) return null;
-            return (
-              <MusicTrackItem
-                track={track} playlistId={playlistId} index={tracks.findIndex(t => t.id === activeId)}
-                isCurrent={track.id === currentTrackId} isPlaying={isPlaying}
-                onPlay={() => {}} showCheckbox={isSelectionMode}
-                isSelected={selectedIds.has(track.id)}
-                quality={quality} showSourceBadge={true}
-                dragHandleProps={{ style: { cursor: 'grabbing' } }}
-                isSortable={true}
-                className="bg-background border rounded-md shadow-xl scale-105 ring-1 ring-primary/20 cursor-grabbing opacity-90"
-              />
-            );
-          })() : null}
+          {activeId
+            ? (() => {
+                const track = tracks.find((t) => t.id === activeId);
+                if (!track) return null;
+                return (
+                  <MusicTrackItem
+                    track={track}
+                    playlistId={playlistId}
+                    index={tracks.findIndex((t) => t.id === activeId)}
+                    isCurrent={track.id === currentTrackId}
+                    isPlaying={isPlaying}
+                    onPlay={() => {}}
+                    showCheckbox={isSelectionMode}
+                    isSelected={selectedIds.has(track.id)}
+                    quality={quality}
+                    showSourceBadge={true}
+                    dragHandleProps={{ style: { cursor: "grabbing" } }}
+                    isSortable={true}
+                    className="bg-background border rounded-md shadow-xl scale-105 ring-1 ring-primary/20 cursor-grabbing opacity-90"
+                  />
+                );
+              })()
+            : null}
         </DragOverlay>
       </DndContext>
 

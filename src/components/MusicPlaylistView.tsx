@@ -50,6 +50,7 @@ interface MusicPlaylistViewProps {
   action?: React.ReactNode;
   coverUrl?: string;
   removeLabel?: string;
+  confirmRemove?: boolean;
   icon?: React.ReactNode;
 }
 
@@ -69,34 +70,40 @@ export function MusicPlaylistView({
   action,
   coverUrl,
   removeLabel,
+  confirmRemove,
   icon,
 }: MusicPlaylistViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCoverDialogOpen, setIsCoverDialogOpen] = useState(false);
   const [isAddByUrlOpen, setIsAddByUrlOpen] = useState(false);
   const [coverUrlInput, setCoverUrlInput] = useState("");
-  const [dedupeSelectedIds, setDedupeSelectedIds] = useState<Set<string> | undefined>();
+  const [dedupeSelectedIds, setDedupeSelectedIds] = useState<
+    Set<string> | undefined
+  >();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const playlists = useMusicStore(useShallow(state => state.playlists));
-  const playlist = playlists.find(p => p.id === playlistId);
+  const playlists = useMusicStore(useShallow((state) => state.playlists));
+  const playlist = playlists.find((p) => p.id === playlistId);
   const isPersonalPlaylist = useMemo(() => {
     return !!playlist;
   }, [playlist]);
 
   const handleReorder = (newOrder: MusicTrack[]) => {
     if (playlistId && isPersonalPlaylist) {
-      useMusicStore.getState().replaceActivePlaylistTracks(playlistId, newOrder);
+      useMusicStore
+        .getState()
+        .replaceActivePlaylistTracks(playlistId, newOrder);
     }
   };
 
   const filteredTracks = useMemo(() => {
     if (!searchQuery.trim()) return tracks;
     const lower = searchQuery.toLowerCase();
-    return tracks.filter(t =>
-      t.name.toLowerCase().includes(lower) ||
-      t.artist?.some(a => a?.toLowerCase().includes(lower)) ||
-      t.album?.toLowerCase().includes(lower)
+    return tracks.filter(
+      (t) =>
+        t.name.toLowerCase().includes(lower) ||
+        t.artist?.some((a) => a?.toLowerCase().includes(lower)) ||
+        t.album?.toLowerCase().includes(lower)
     );
   }, [tracks, searchQuery]);
 
@@ -109,7 +116,8 @@ export function MusicPlaylistView({
     const result = deduplicateTracks(
       tracks,
       (id) => musicStore.isFavorite(id),
-      (track) => downloadStore.hasRecord(buildDownloadKey(track.source, track.id))
+      (track) =>
+        downloadStore.hasRecord(buildDownloadKey(track.source, track.id))
     );
 
     if (result.removedCount === 0) {
@@ -119,7 +127,7 @@ export function MusicPlaylistView({
 
     // 自动合并喜欢状态（元数据修正，非删除操作）
     if (result.tracksToLike.length > 0) {
-      result.tracksToLike.forEach(track => {
+      result.tracksToLike.forEach((track) => {
         musicStore.addToFavorites(track);
       });
       toast.success(`已合并 ${result.tracksToLike.length} 首歌曲的喜欢状态`);
@@ -166,7 +174,9 @@ export function MusicPlaylistView({
       return;
     }
 
-    useMusicStore.getState().updatePlaylist(playlistId, { coverUrl: coverUrlInput });
+    useMusicStore
+      .getState()
+      .updatePlaylist(playlistId, { coverUrl: coverUrlInput });
     setIsCoverDialogOpen(false);
     toast.success("封面设置成功");
   };
@@ -180,7 +190,10 @@ export function MusicPlaylistView({
   };
 
   return (
-    <div ref={scrollContainerRef} className="flex flex-1 min-h-0 flex-col overflow-y-auto">
+    <div
+      ref={scrollContainerRef}
+      className="flex flex-1 min-h-0 flex-col overflow-y-auto"
+    >
       {/* Header */}
       <div className="p-4 border-b flex gap-4 bg-muted/10 relative items-end">
         <div className="h-22 w-22 bg-primary/10 rounded-lg flex items-center justify-center shadow-sm border overflow-hidden shrink-0">
@@ -202,7 +215,9 @@ export function MusicPlaylistView({
           )}
         </div>
         <div className="flex-1 space-y-1">
-          <h2 className="text-base font-bold tracking-tight line-clamp-1">{title}</h2>
+          <h2 className="text-base font-bold tracking-tight line-clamp-1">
+            {title}
+          </h2>
           <div className="text-xs text-muted-foreground flex items-center gap-2">
             <span>{tracks.length} 首歌曲</span>
             {createdAt && (
@@ -219,43 +234,56 @@ export function MusicPlaylistView({
             )}
           </div>
           <div className="pt-1 flex gap-2 items-center">
-             <Button
-                onClick={() => onPlay(null)}
-                className="rounded-full px-3 h-8"
-                size="sm"
-             >
-                <Play className="h-3 w-3 fill-current" />
-             </Button>
-             {action}
-             {playlistId && (
-               <PlaylistOperations
-                 onRename={onRename ? () => {
-                   const newName = window.prompt("请输入新歌单名称", title);
-                   if (newName && newName.trim()) {
-                     onRename(playlistId, newName.trim());
-                   }
-                 } : undefined}
-                 onDeduplicate={handleDeduplicate}
-                 onExport={() => exportPlaylist(title, tracks)}
-                 onDelete={onDelete ? () => {
-                   if (confirm(`确定删除歌单「${title}」吗？`)) {
-                     onDelete(playlistId);
-                   }
-                 } : undefined}
-                 onSetCover={handleSetCover}
-                 onAddByUrl={isPersonalPlaylist ? () => setIsAddByUrlOpen(true) : undefined}
-               />
-             )}
+            <Button
+              onClick={() => onPlay(null)}
+              className="rounded-full px-3 h-8"
+              size="sm"
+            >
+              <Play className="h-3 w-3 fill-current" />
+            </Button>
+            {action}
+            {playlistId && (
+              <PlaylistOperations
+                onRename={
+                  onRename
+                    ? () => {
+                        const newName = window.prompt(
+                          "请输入新歌单名称",
+                          title
+                        );
+                        if (newName && newName.trim()) {
+                          onRename(playlistId, newName.trim());
+                        }
+                      }
+                    : undefined
+                }
+                onDeduplicate={handleDeduplicate}
+                onExport={() => exportPlaylist(title, tracks)}
+                onDelete={
+                  onDelete
+                    ? () => {
+                        if (confirm(`确定删除歌单「${title}」吗？`)) {
+                          onDelete(playlistId);
+                        }
+                      }
+                    : undefined
+                }
+                onSetCover={handleSetCover}
+                onAddByUrl={
+                  isPersonalPlaylist ? () => setIsAddByUrlOpen(true) : undefined
+                }
+              />
+            )}
 
-             <div className="relative ml-auto w-32">
-                <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
-                <Input
-                  placeholder="搜索..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-xs"
-                />
-             </div>
+            <div className="relative ml-auto w-32">
+              <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
+              <Input
+                placeholder="搜索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -265,16 +293,26 @@ export function MusicPlaylistView({
         <MusicTrackList
           tracks={filteredTracks}
           scrollContainerRef={scrollContainerRef}
-          onPlay={(track) => onPlay(track, tracks.findIndex(t => t.id === track.id))}
+          onPlay={(track) =>
+            onPlay(
+              track,
+              tracks.findIndex((t) => t.id === track.id)
+            )
+          }
           playlistId={playlistId}
           currentTrackId={currentTrackId}
           isPlaying={isPlaying}
           onRemove={onRemove}
           onBatchRemove={onBatchRemove}
           removeLabel={removeLabel}
-          onReorder={isPersonalPlaylist && !searchQuery ? handleReorder : undefined}
+          confirmRemove={confirmRemove}
+          onReorder={
+            isPersonalPlaylist && !searchQuery ? handleReorder : undefined
+          }
           preselectedIds={dedupeSelectedIds}
-          onSelectionModeChange={(active) => { if (!active) setDedupeSelectedIds(undefined); }}
+          onSelectionModeChange={(active) => {
+            if (!active) setDedupeSelectedIds(undefined);
+          }}
         />
       </div>
 
@@ -293,12 +331,18 @@ export function MusicPlaylistView({
                 placeholder="请输入图片 URL"
               />
             </div>
-            <Button variant="secondary" onClick={handleUseFirstTrackCover} disabled={tracks.length === 0}>
+            <Button
+              variant="secondary"
+              onClick={handleUseFirstTrackCover}
+              disabled={tracks.length === 0}
+            >
               从第一首歌曲获取
             </Button>
           </div>
           <DrawerFooter className="pt-0">
-            <Button onClick={handleSaveCover} className="h-11">保存</Button>
+            <Button onClick={handleSaveCover} className="h-11">
+              保存
+            </Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>

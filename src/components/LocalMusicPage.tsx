@@ -7,6 +7,16 @@ import { MusicTrack } from "@/types/music";
 import { MusicPlaylistView } from "./MusicPlaylistView";
 import { cn } from "@/lib/utils";
 import { PageLayout } from "./PageLayout";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import toast from "react-hot-toast";
 import { convertToMusicTrack } from "@/lib/utils/download";
 import { useMusicStore } from "@/store/music-store";
@@ -33,6 +43,9 @@ export function LocalMusicPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MusicTrack | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<MusicTrack[]>([]);
+  const [deleteLocalFile, setDeleteLocalFile] = useState(false);
 
   /* =========================
      Store
@@ -125,19 +138,21 @@ export function LocalMusicPage({
   /* =========================
      删除
   ========================= */
-  const handleDeleteTrack = async (track: MusicTrack, silent = false) => {
-    const localPath = track.url_id;
-    if (!localPath) {
-      if (!silent) toast.error("缺少文件路径");
-      throw new Error("缺少文件路径");
-    }
+  /** 从当前本地音乐列表移除歌曲，按需删除物理文件。 */
+  const removeLocalTrack = useCallback(
+    async (track: MusicTrack, shouldDeleteFile: boolean) => {
+      const localPath = track.url_id;
+      if (!localPath) {
+        throw new Error("缺少文件路径");
+      }
 
-    const promise = (async () => {
       try {
-        const result = await LocalMusicPlugin.deleteLocalMusic({ localPath });
+        if (shouldDeleteFile) {
+          const result = await LocalMusicPlugin.deleteLocalMusic({ localPath });
 
-        if (!result.success) {
-          throw new Error(result.error || "删除失败");
+          if (!result.success) {
+            throw new Error(result.error || "删除失败");
+          }
         }
 
         updateFiles((prev) => prev.filter((f) => f.localPath !== localPath));
@@ -153,17 +168,45 @@ export function LocalMusicPage({
         });
         throw error;
       }
+    },
+    [currentIndex, queue, skipToNext, updateFiles]
+  );
+
+  /** 打开本地音乐删除确认弹窗。 */
+  const handleDeleteTrack = (track: MusicTrack) => {
+    setDeleteTarget(track);
+    setDeleteTargets([track]);
+    setDeleteLocalFile(false);
+  };
+
+  /** 打开本地音乐批量删除确认弹窗。 */
+  const handleBatchDeleteTracks = (tracks: MusicTrack[]) => {
+    setDeleteTarget(null);
+    setDeleteTargets(tracks);
+    setDeleteLocalFile(false);
+  };
+
+  /** 执行已确认的本地音乐删除操作。 */
+  const confirmDeleteTracks = async () => {
+    const targets = deleteTargets;
+    if (targets.length === 0) return;
+
+    const promise = (async () => {
+      for (const track of targets) {
+        await removeLocalTrack(track, deleteLocalFile);
+      }
+      setDeleteTarget(null);
+      setDeleteTargets([]);
+      setDeleteLocalFile(false);
     })();
 
-    if (silent) {
-      return promise;
-    }
-
     toast.promise(promise, {
-      loading: "正在删除...",
-      success: "删除成功",
+      loading: deleteLocalFile ? "正在删除文件..." : "正在移除...",
+      success: deleteLocalFile ? "已删除文件" : "已从列表移除",
       error: (err: Error) => err.message,
     });
+
+    await promise;
   };
 
   /* =========================
@@ -258,13 +301,67 @@ export function LocalMusicPage({
         currentTrackId={currentTrackId}
         isPlaying={isPlaying}
         onRemove={handleDeleteTrack}
+        onBatchRemove={handleBatchDeleteTracks}
         removeLabel="删除"
+        confirmRemove={false}
       />
 
       <LocalMusicPermissionDialog
         open={showPermissionDialog}
         onOpenChange={setShowPermissionDialog}
       />
+
+      <Dialog
+        open={deleteTargets.length > 0}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDeleteTarget(null);
+          setDeleteTargets([]);
+          setDeleteLocalFile(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {deleteTarget
+                ? `删除《${deleteTarget.name}》`
+                : `删除选中的 ${deleteTargets.length} 首歌曲`}
+            </DialogTitle>
+            <DialogDescription>
+              默认只从当前列表移除，重新扫描后可能再次出现。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 py-2">
+            <Checkbox
+              data-testid="delete-local-file"
+              checked={deleteLocalFile}
+              onCheckedChange={(checked) =>
+                setDeleteLocalFile(checked === true)
+              }
+            />
+            <span className="text-sm">同时删除本地文件</span>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDeleteTarget(null);
+                setDeleteTargets([]);
+                setDeleteLocalFile(false);
+              }}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              data-testid="confirm-local-delete"
+              onClick={confirmDeleteTracks}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 }

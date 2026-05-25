@@ -45,6 +45,7 @@ interface MusicTrackMobileMenuProps {
   isFavorite?: boolean;
   onRemove?: () => void;
   removeLabel?: string;
+  confirmRemove?: boolean;
   customActions?: ReactNode;
   triggerClassName?: string;
   onNavigate?: () => void;
@@ -81,6 +82,7 @@ export function MusicTrackMobileMenu({
   isFavorite,
   onRemove,
   removeLabel = "删除",
+  confirmRemove = true,
   customActions,
   triggerClassName,
   onNavigate,
@@ -315,6 +317,7 @@ export function MusicTrackMobileMenu({
                 onClick={() => {
                   onOpenChange(false);
                   if (
+                    !confirmRemove ||
                     window.confirm(`确定${removeLabel}《${track.name}》吗？`)
                   ) {
                     onRemove();
