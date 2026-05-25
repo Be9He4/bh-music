@@ -40,13 +40,6 @@ android/captures/
 
 # Capacitor Android 构建产物
 android/app/src/main/assets/public/
-
-# Capacitor 自动生成的资源
-# icons/
-android/app/src/main/res/drawable-*/splash.png
-android/app/src/main/res/drawable-night/splash.png
-android/app/src/main/res/mipmap-*/ic_launcher*.png
-android/app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml
 tsconfig.tsbuildinfo
 
 # AI
