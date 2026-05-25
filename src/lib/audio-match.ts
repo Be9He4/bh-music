@@ -1,10 +1,41 @@
 import { toast } from "react-hot-toast";
 import { useMusicStore } from "@/store/music-store";
-import { EXCLUDED_FOR_SEARCH, getAggregatedSourcesForMatch } from "@/hooks/use-aggregated-sources";
+import {
+  EXCLUDED_FOR_SEARCH,
+  getAggregatedSourcesForMatch,
+} from "@/hooks/use-aggregated-sources";
 import { musicApi } from "@/lib/music-api";
 import type { MusicTrack } from "@/types/music";
-import { isNameMatch, isArtistMatch } from "./utils/music-key";
+import {
+  isNameMatch,
+  isArtistMatch,
+  normalizeArtists,
+  normalizeText,
+} from "./utils/music-key";
 import { logger } from "@/lib/logger";
+
+/**
+ * 计算自动换源的单源内排序分数，优先保证歌名与歌手完全一致。
+ */
+function scoreAutoMatchCandidate(
+  target: MusicTrack,
+  candidate: MusicTrack,
+  originalIndex: number
+): number {
+  let score = 0;
+  const sameArtistSet =
+    normalizeArtists(target.artist).join("/") ===
+    normalizeArtists(candidate.artist).join("/");
+
+  if (sameArtistSet) score += 100;
+
+  if (normalizeText(target.name) === normalizeText(candidate.name))
+    score += 100;
+
+  score += Math.max(0, 20 - originalIndex);
+
+  return score;
+}
 
 /**
  * 自动匹配免费源逻辑
@@ -15,11 +46,21 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
   if (track.source && EXCLUDED_FOR_SEARCH.includes(track.source)) {
     return false;
   }
-  const toastId = toast.loading("正在搜索免费音源...", { id: `auto-match-${track.id}` });
-  
+  const toastId = toast.loading("正在搜索免费音源...", {
+    id: `auto-match-${track.id}`,
+  });
+
   try {
-    const { updateTrackInQueue, isFavorite, favorites, setFavorites, updateTrackInPlaylists } = useMusicStore.getState();
-    const aggregatedSources = getAggregatedSourcesForMatch();
+    const {
+      updateTrackInQueue,
+      isFavorite,
+      favorites,
+      setFavorites,
+      updateTrackInPlaylists,
+    } = useMusicStore.getState();
+    const aggregatedSources = getAggregatedSourcesForMatch().filter(
+      (source) => source !== track.source
+    );
     if (aggregatedSources.length === 0) {
       return false;
     }
@@ -33,7 +74,10 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
         // 2. 歌手匹配 (集合交集)
         return isArtistMatch(track.artist, item.artist);
       },
-      5
+      5,
+      undefined,
+      (item, originalIndex) =>
+        scoreAutoMatchCandidate(track, item, originalIndex)
     );
 
     if (!match) {
@@ -44,7 +88,7 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
     updateTrackInQueue(track.id, match);
     updateTrackInPlaylists(track.id, match);
     if (isFavorite(track.id)) {
-      setFavorites(favorites.map(t => t.id === track.id ? match : t));
+      setFavorites(favorites.map((t) => (t.id === track.id ? match : t)));
     }
 
     toast.success(`已自动切换至: ${match.source}`, { id: toastId });

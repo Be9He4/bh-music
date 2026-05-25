@@ -15,7 +15,6 @@ import {
   CornerDownRight,
   User,
   Disc,
-  Zap,
   MessageSquareQuote,
   Link2,
 } from "lucide-react";
@@ -25,10 +24,7 @@ import { useMusicCover } from "@/hooks/useMusicCover";
 import { MusicTrack, SearchIntent } from "@/types/music";
 import { useNavigate } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
-import { normalizeText } from "@/lib/utils/music-key";
-import { musicApi } from "@/lib/music-api";
 import { MusicProviderFactory } from "@/lib/music-provider";
-import { toastUtils } from "@/lib/utils/toast";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
 import {
   Dialog,
@@ -36,7 +32,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { logger } from "@/lib/logger";
 
 interface MusicTrackMobileMenuProps {
   track: MusicTrack;
@@ -54,21 +49,6 @@ interface MusicTrackMobileMenuProps {
   triggerClassName?: string;
   onNavigate?: () => void;
 }
-
-// 辅助函数：替换列表中的指定歌曲
-const replaceInList = (
-  list: MusicTrack[],
-  oldId: string,
-  newTrack: MusicTrack,
-) => {
-  let replaced = false;
-  const newList = list.map((item) => {
-    if (item.id !== oldId) return item;
-    replaced = true;
-    return newTrack;
-  });
-  return { replaced, newList };
-};
 
 const ActionButton = ({
   onClick,
@@ -92,7 +72,6 @@ const ActionButton = ({
 
 export function MusicTrackMobileMenu({
   track,
-  playlistId,
   open,
   onOpenChange,
   onAddToNextPlay,
@@ -116,74 +95,6 @@ export function MusicTrackMobileMenu({
   const setSearchResults = useMusicStore((s) => s.setSearchResults);
   const setSearchIntent = useMusicStore((s) => s.setSearchIntent);
   const setSearchSource = useMusicStore((s) => s.setSearchSource);
-  const updateTrackInQueue = useMusicStore((s) => s.updateTrackInQueue);
-  const playTrackAsNext = useMusicStore((s) => s.playTrackAsNext);
-  const removeFromQueue = useMusicStore((s) => s.removeFromQueue);
-  const playlists = useMusicStore((s) => s.playlists);
-  const setPlaylistTracks = useMusicStore((s) => s.setPlaylistTracks);
-  const aggregatedSources = useMusicStore((s) => s.aggregatedSources);
-  const favorites = useMusicStore((s) => s.favorites);
-  const setFavorites = useMusicStore((s) => s.setFavorites);
-  const isTrackFavorite = useMusicStore((s) => s.isFavorite);
-
-  const handleMatch = async () => {
-    onOpenChange(false);
-    const toastId = toastUtils.loading("正在搜索完整版...");
-    try {
-      const targetName = normalizeText(track.name);
-      const targetArtist = normalizeText(track.artist[0]);
-
-      const match = await musicApi.searchBestMatch(
-        `${track.name} ${track.artist[0]}`,
-        aggregatedSources,
-        (item) =>
-          normalizeText(item.name) === targetName &&
-          item.artist.some((a) => normalizeText(a).includes(targetArtist)),
-        5,
-      );
-
-      if (!match) {
-        toastUtils.error("未找到匹配的完整版", { id: toastId });
-        return;
-      }
-
-      // 处理播放队列替换
-      playTrackAsNext(match);
-      if (match.id === track.id) {
-        updateTrackInQueue(track.id, match);
-      } else {
-        setTimeout(() => removeFromQueue(track.id), 100);
-      }
-
-      // 处理收藏列表替换
-      if (playlistId === "favorites" || isTrackFavorite(track.id)) {
-        const { replaced, newList } = replaceInList(favorites, track.id, match);
-        if (replaced) setFavorites(newList);
-      }
-
-      // 处理自定义歌单替换
-      if (playlistId && playlistId !== "favorites") {
-        const playlist = playlists.find((p) => p.id === playlistId);
-        if (playlist) {
-          const { replaced, newList } = replaceInList(
-            playlist.tracks,
-            track.id,
-            match,
-          );
-          if (replaced) setPlaylistTracks(playlistId, newList);
-        }
-      }
-
-      toastUtils.success(`完整版音源：${match.source}`, { id: toastId })
-    } catch (e) {
-      logger.error("MusicTrackMobileMenu", "Unlock full source failed", e, {
-        trackId: track.id,
-        source: track.source,
-        playlistId,
-      });
-      toastUtils.error("匹配失败", { id: toastId });
-    }
-  };
 
   const provider = MusicProviderFactory.getProvider(track.source);
 
@@ -191,7 +102,7 @@ export function MusicTrackMobileMenu({
     keyword: string,
     type: SearchIntent["type"] = "",
     artist?: string,
-    id?: string,
+    id?: string
   ) => {
     // 如果支持详情查询，但没有 ID，尝试获取详情
     if (
@@ -363,7 +274,7 @@ export function MusicTrackMobileMenu({
                       track.artist[0],
                       "artist",
                       undefined,
-                      track.artist_ids?.[0],
+                      track.artist_ids?.[0]
                     );
                   }
                 }}
@@ -374,34 +285,21 @@ export function MusicTrackMobileMenu({
 
             {/* 除播客外，有专辑即显示专辑入口 */}
             {track.source !== "podcast" && track.album && (
-                <ActionButton
-                  icon={Disc}
-                  onClick={() => {
-                    handleSearch(
-                      track.album!,
-                      "album",
-                      track.artist[0],
-                      track.album_id,
-                    );
-                  }}
-                >
-                  专辑：{track.album}
-                </ActionButton>
-              )}
+              <ActionButton
+                icon={Disc}
+                onClick={() => {
+                  handleSearch(
+                    track.album!,
+                    "album",
+                    track.artist[0],
+                    track.album_id
+                  );
+                }}
+              >
+                专辑：{track.album}
+              </ActionButton>
+            )}
 
-            {/* 解锁音源选项 */}
-            {provider.canUnlock &&
-              track.privilege &&
-              [1, 4].includes(track.privilege.fee) &&
-              track.privilege.pl <= 0 && (
-                <ActionButton
-                  icon={Zap}
-                  onClick={handleMatch}
-                  className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                >
-                  解锁完整音源
-                </ActionButton>
-              )}
             <Button
               variant="ghost"
               className="justify-start w-full cursor-default text-muted-foreground"
@@ -417,9 +315,7 @@ export function MusicTrackMobileMenu({
                 onClick={() => {
                   onOpenChange(false);
                   if (
-                    window.confirm(
-                      `确定${removeLabel}《${track.name}》吗？`,
-                    )
+                    window.confirm(`确定${removeLabel}《${track.name}》吗？`)
                   ) {
                     onRemove();
                   }
@@ -452,7 +348,7 @@ export function MusicTrackMobileMenu({
                     artist,
                     "artist",
                     undefined,
-                    track.artist_ids?.[index],
+                    track.artist_ids?.[index]
                   )
                 }
               >
