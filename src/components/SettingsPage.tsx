@@ -22,8 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { PlaylistImport } from "./settings/PlaylistImport";
-import { PlaylistUrlImport } from "./settings/PlaylistUrlImport";
 import { DownloadQualitySelect } from "./settings/DownloadQualitySelect";
 import { DownloadSettingToggles } from "./settings/DownloadSettingToggles";
 import { DownloadDirectorySelect } from "./settings/DownloadDirectorySelect";
@@ -103,7 +101,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           />
           <QualitySelect />
           <StreamCacheSetting />
-          <PlaylistUrlImport />
         </SettingsSection>
 
         <SettingsSection title="界面设置">
@@ -155,7 +152,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         <SettingsSection title="账号数据">
           <NeteaseLogin />
           <SyncConfig />
-          <PlaylistImport />
           <SettingItem
             icon={Trash2}
             title="回收站"

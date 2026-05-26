@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ListVideo, Settings, ListMusic, SquarePlus, MoreHorizontal, Trash2, Pencil, HardDriveDownload, History } from "lucide-react";
+import { ListVideo, Settings, ListMusic, SquarePlus, MoreHorizontal, Trash2, Pencil, HardDriveDownload, History, Link2 } from "lucide-react";
 import { PlaylistCover } from "./PlaylistCover";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
@@ -25,6 +25,7 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { useActivePlaylists } from "@/hooks/use-active-playlists";
+import { PlaylistImportDrawer } from "./PlaylistImportDrawer";
 
 interface MinePageProps {
   onSelectPlaylist: (playlistId: string) => void;
@@ -43,6 +44,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
 
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
@@ -121,10 +123,16 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">我的歌单</h2>
-        <Button variant="ghost" size="sm" className="gap-1" onClick={() => setIsCreateOpen(true)}>
-          <SquarePlus className="h-4 w-4" />
-          新建
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="gap-1" onClick={() => setIsImportOpen(true)}>
+            <Link2 className="h-4 w-4" />
+            导入
+          </Button>
+          <Button variant="ghost" size="sm" className="gap-1" onClick={() => setIsCreateOpen(true)}>
+            <SquarePlus className="h-4 w-4" />
+            新建
+          </Button>
+        </div>
         <Drawer open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DrawerContent className="max-h-[80vh]">
             <DrawerHeader>
@@ -144,6 +152,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
             </DrawerFooter>
           </DrawerContent>
         </Drawer>
+        <PlaylistImportDrawer open={isImportOpen} onOpenChange={setIsImportOpen} />
       </div>
 
       {activePlaylists.length === 0 ? (
