@@ -34,9 +34,20 @@ function buildBilibiliAudioProxyUrl(bvid: string, audioUrl: string): string {
   return `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/audio?${params.toString()}`;
 }
 
-export function getBilibiliCoverUrl(coverUrl: string): string | null {
+export async function getBilibiliCoverUrl(coverUrl: string): Promise<string | null> {
   if (!coverUrl) return null;
-  if (IS_NATIVE) return coverUrl;
+
+  if (IS_NATIVE) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const res = await CapacitorHttp.request({
+      method: "GET",
+      url: coverUrl,
+      headers: buildBilibiliHeaders(),
+      responseType: "blob",
+    });
+    if (res.status >= 400) return null;
+    return URL.createObjectURL(res.data as Blob);
+  }
 
   const params = new URLSearchParams({ url: coverUrl });
   if (!IS_WEB_PROD) return `${BILIBILI_DEV_COVER_PROXY}?${params.toString()}`;
@@ -136,9 +147,18 @@ export async function getBilibiliSongUrl(
     );
     const audioUrl = playUrl ? selectBilibiliAudioUrl(playUrl) : null;
     if (!audioUrl) return null;
-    return IS_NATIVE
-      ? audioUrl
-      : buildBilibiliAudioProxyUrl(parsed.bvid, audioUrl);
+    if (IS_NATIVE) {
+      const { CapacitorHttp } = await import("@capacitor/core");
+      const res = await CapacitorHttp.request({
+        method: "GET",
+        url: audioUrl,
+        headers: buildBilibiliHeaders(referer),
+        responseType: "blob",
+      });
+      if (res.status >= 400) return null;
+      return URL.createObjectURL(res.data as Blob);
+    }
+    return buildBilibiliAudioProxyUrl(parsed.bvid, audioUrl);
   } catch {
     return null;
   }

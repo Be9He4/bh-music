@@ -81,7 +81,7 @@ describe("searchBilibiliVideos", () => {
 });
 
 describe("getBilibiliSongUrl", () => {
-  it("resolves native song urls to the direct Bilibili CDN audio url", async () => {
+  it("downloads native audio as blob via CapacitorHttp with Bilibili headers", async () => {
     const request = vi
       .fn()
       .mockResolvedValueOnce({
@@ -101,6 +101,11 @@ describe("getBilibiliSongUrl", () => {
             },
           },
         },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: new Blob(),
+        headers: { "Content-Type": "audio/mp4" },
       });
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout: vi.fn(),
@@ -111,11 +116,12 @@ describe("getBilibiliSongUrl", () => {
     vi.doMock("@capacitor/core", () => ({
       CapacitorHttp: { request },
     }));
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:native-audio");
 
     const { getBilibiliSongUrl } = await import("./bilibili-api");
 
     await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toBe(
-      "https://example.com/audio.m4s"
+      "blob:native-audio"
     );
   });
 
@@ -176,9 +182,9 @@ describe("getBilibiliCoverUrl", () => {
 
     const { getBilibiliCoverUrl } = await import("./bilibili-api");
 
-    expect(
+    await expect(
       getBilibiliCoverUrl("https://i0.hdslb.com/bfs/archive/cover.jpg")
-    ).toBe(
+    ).resolves.toBe(
       "/api/bilibili-cover?url=https%3A%2F%2Fi0.hdslb.com%2Fbfs%2Farchive%2Fcover.jpg"
     );
   });
@@ -193,16 +199,44 @@ describe("getBilibiliCoverUrl", () => {
 
     const { getBilibiliCoverUrl } = await import("./bilibili-api");
 
-    expect(
+    await expect(
       getBilibiliCoverUrl("https://i0.hdslb.com/bfs/archive/cover.jpg")
-    ).toBe(
+    ).resolves.toBe(
       "https://api.example.com/music-api/bilibili/cover?url=https%3A%2F%2Fi0.hdslb.com%2Fbfs%2Farchive%2Fcover.jpg"
     );
+  });
+
+  it("downloads native cover as blob via CapacitorHttp with Bilibili headers", async () => {
+    const request = vi.fn().mockResolvedValue({
+      status: 200,
+      data: new Blob(),
+      headers: { "Content-Type": "image/jpeg" },
+    });
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout: vi.fn(),
+      getApiUrl: () => "https://otter-music.pages.dev",
+      IS_NATIVE: true,
+      IS_WEB_PROD: false,
+    }));
+    vi.doMock("@capacitor/core", () => ({
+      CapacitorHttp: { request },
+    }));
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:native-cover");
+
+    const { getBilibiliCoverUrl } = await import("./bilibili-api");
+
+    await expect(
+      getBilibiliCoverUrl("https://i0.hdslb.com/bfs/archive/cover.jpg")
+    ).resolves.toBe("blob:native-cover");
+
+    const callOptions = request.mock.calls[0][0];
+    expect(callOptions.url).toBe("https://i0.hdslb.com/bfs/archive/cover.jpg");
+    expect(callOptions.headers).toHaveProperty("Referer", "https://www.bilibili.com/");
   });
 
   it("returns null for empty cover urls", async () => {
     const { getBilibiliCoverUrl } = await import("./bilibili-api");
 
-    expect(getBilibiliCoverUrl("")).toBeNull();
+    await expect(getBilibiliCoverUrl("")).resolves.toBeNull();
   });
 });

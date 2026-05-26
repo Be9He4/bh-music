@@ -135,7 +135,7 @@ export const musicApi = {
     source: MusicSource,
     size: number = 800
   ): Promise<string | null> {
-    if (idOrUrl.startsWith("http")) return idOrUrl;
+    if (idOrUrl.startsWith("http") && source !== "bilibili") return idOrUrl;
     const key = `pic:${source}:${idOrUrl}:${size}`;
     return cachedFetch<string | null>(
       key,
