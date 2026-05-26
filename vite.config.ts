@@ -429,6 +429,26 @@ export default defineConfig({
           });
         },
       },
+      "/api/migu-v2": {
+        target: "https://jadeite.migu.cn",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/migu-v2/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.removeHeader("sec-fetch-dest");
+            proxyReq.removeHeader("sec-fetch-mode");
+            proxyReq.removeHeader("sec-fetch-site");
+            proxyReq.removeHeader("sec-fetch-user");
+            proxyReq.removeHeader("referer");
+            proxyReq.removeHeader("origin");
+            proxyReq.setHeader("User-Agent", "okhttp/3.12.12");
+            proxyReq.setHeader("Accept", "application/json, text/plain, */*");
+            proxyReq.setHeader("os", "android");
+            proxyReq.setHeader("platform", "android");
+            proxyReq.setHeader("channel", "0146951");
+          });
+        },
+      },
       "/api/bilibili": {
         target: "https://api.bilibili.com",
         changeOrigin: true,

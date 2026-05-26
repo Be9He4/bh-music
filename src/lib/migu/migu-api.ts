@@ -7,12 +7,14 @@ import {
 } from "@/lib/api/config";
 import {
   buildMiguHeaders,
+  buildMiguSearchHeaders,
   buildMiguSearchPath,
   buildMiguSongUrlPath,
   convertMiguSearchSongToMusicTrack,
   convertMiguSongToMusicTrack,
   fetchMiguPlaylistDetail,
   forceHttps,
+  generateMiguSid,
   MIGU_PAGE_SIZE,
   parseMiguSongUrlResponse,
   parseMiguTrackId,
@@ -246,53 +248,57 @@ export async function searchMiguSongs(
     return res.json();
   }
 
-  const path = buildMiguSearchPath(keyword, page, rows);
+  const sid = generateMiguSid();
+  const path = buildMiguSearchPath(keyword, page, rows, sid);
+  const searchHeaders = buildMiguSearchHeaders(keyword);
 
   if (IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
       method: "GET",
-      url: `https://app.c.nf.migu.cn${path}`,
-      headers: buildMiguHeaders(),
+      url: `https://jadeite.migu.cn${path}`,
+      headers: searchHeaders,
     });
     if (res.status >= 400) return { items: [], hasMore: false };
-    const data =
+    const data: unknown =
       typeof res.data === "object" ? res.data : JSON.parse(res.data as string);
-    return parseAndConvertMiguSearch(data);
+    return parseAndConvertMiguSearch(data, page, rows);
   }
 
   try {
     const res = await fetchWithTimeout(
-      `/api/migu${path}`,
-      { headers: buildMiguHeaders() },
+      `/api/migu-v2${path}`,
+      { headers: searchHeaders },
       NETWORK_TIMEOUT
     );
     if (!res.ok) return { items: [], hasMore: false };
-    return parseAndConvertMiguSearch(await res.json());
+    return parseAndConvertMiguSearch(await res.json(), page, rows);
   } catch {
     return { items: [], hasMore: false };
   }
 }
 
-function parseAndConvertMiguSearch(data: Record<string, unknown>): {
-  items: MusicTrack[];
-  hasMore: boolean;
-} {
-  const resultData = data?.songResultData as
+function parseAndConvertMiguSearch(
+  data: unknown,
+  page: number,
+  rows: number
+): { items: MusicTrack[]; hasMore: boolean } {
+  const obj = data as Record<string, unknown>;
+  const result = obj?.songResultData as
     | { totalCount?: string; result?: Array<Record<string, unknown>> }
     | undefined;
-  const result = resultData?.result;
-  if (!result?.length) return { items: [], hasMore: false };
+  const list = result?.result;
+  if (!list?.length) return { items: [], hasMore: false };
 
-  const total = Number(resultData?.totalCount) || 0;
+  const total = Number(result?.totalCount) || 0;
   return {
-    items: result.map((song) =>
+    items: list.map((song) =>
       convertMiguSearchSongToMusicTrack(
         song as unknown as Parameters<
           typeof convertMiguSearchSongToMusicTrack
         >[0]
       )
     ),
-    hasMore: result.length >= 20,
+    hasMore: total > 0 ? page * rows < total : list.length >= rows,
   };
 }

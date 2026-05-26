@@ -1,16 +1,15 @@
 import {
-  buildMiguPlaylistInfoPath,
-  buildMiguPlaylistSongsPath,
+  buildMiguSearchHeaders,
   buildMiguSearchPath,
   buildMiguSongUrlPath,
   convertMiguSearchSongToMusicTrack,
   convertMiguSongToMusicTrack,
+  fetchMiguPlaylistDetail,
+  generateMiguSid,
   MIGU_PAGE_SIZE,
+  parseMiguSongUrlResponse,
   type MiguPlaylistDetail,
-  type MiguPlaylistInfoResponse,
-  type MiguPlaylistSongsResponse,
   type MiguSearchResponse,
-  type MiguSongRaw,
   type MiguSongUrlResponse,
   type MusicTrack,
 } from "@otter-music/shared";
@@ -18,6 +17,7 @@ import {
 export { MIGU_PAGE_SIZE, convertMiguSongToMusicTrack };
 
 const MIGU_BASE_URL = "https://app.c.nf.migu.cn";
+const MIGU_SEARCH_BASE_URL = "https://jadeite.migu.cn";
 const MIGU_SHORT_LINK_HOST = "c.migu.cn";
 const MIGU_SHARE_PAGE_HOST = "h5.nf.migu.cn";
 const MIGU_SHARE_PLAYLIST_PATH = "/app/v4/p/share/playlist/index.html";
@@ -94,42 +94,11 @@ async function fetchMiguJson<T>(
 export async function fetchMiguPlaylistDetail(
   playlistId: string
 ): Promise<MiguPlaylistDetail> {
-  const infoResponse = await fetchMiguJson<MiguPlaylistInfoResponse>(
-    buildMiguPlaylistInfoPath(playlistId)
-  );
-  if (infoResponse.code !== "000000") {
-    throw new Error(infoResponse.info || "咪咕歌单信息接口返回异常");
-  }
-
-  const info = infoResponse.resource?.[0];
-  const total = info?.musicNum || 0;
-  const songs: MiguSongRaw[] = [];
-  const pageCount = Math.max(1, Math.ceil(total / MIGU_PAGE_SIZE));
-
-  for (let page = 1; page <= pageCount && page <= 100; page += 1) {
-    const songsResponse = await fetchMiguJson<MiguPlaylistSongsResponse>(
-      buildMiguPlaylistSongsPath(playlistId, page)
-    );
-    if (songsResponse.code !== "000000") {
-      throw new Error(songsResponse.info || "咪咕歌单歌曲接口返回异常");
-    }
-    const pageSongs = songsResponse.list || [];
-    if (!pageSongs.length) break;
-    songs.push(...pageSongs);
-    if ((songsResponse.totalCount || total) <= songs.length) break;
-  }
-
-  if (!songs.length) throw new Error("歌单为空，无法导入");
-
-  return {
-    name: info?.title || `咪咕歌单 ${playlistId}`,
-    coverUrl:
-      info?.imgItem?.img ||
-      songs.find((song) => song.albumImgs?.length)?.albumImgs?.[0]?.img ||
-      "",
-    trackCount: total || songs.length,
-    songs,
+  const fetchText = async (path: string) => {
+    const data = await fetchMiguJson<unknown>(path);
+    return JSON.stringify(data);
   };
+  return fetchMiguPlaylistDetail(playlistId, fetchText);
 }
 
 // ============================================================
@@ -148,8 +117,7 @@ export async function fetchMiguSongUrl(
       uid: "1234",
     }
   );
-  const url = response.data?.url || response.data?.playUrl || null;
-  return url ? url.replace(/\+/g, "%2B") : null;
+  return parseMiguSongUrlResponse(response);
 }
 
 // ============================================================
@@ -161,17 +129,24 @@ export async function fetchMiguSearch(
   page: number,
   rows = 20
 ): Promise<{ items: MusicTrack[]; hasMore: boolean }> {
-  const path = buildMiguSearchPath(keyword, page, rows);
-  const data = await fetchMiguJson<MiguSearchResponse>(path, {
-    channel: "0146951",
-    uid: "1234",
+  const sid = generateMiguSid();
+  const path = buildMiguSearchPath(keyword, page, rows, sid);
+  const res = await fetch(`${MIGU_SEARCH_BASE_URL}${path}`, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      ...buildMiguSearchHeaders(keyword),
+    },
   });
+  if (!res.ok) return { items: [], hasMore: false };
+
+  const data = (await res.json()) as unknown as MiguSearchResponse;
   const result = data?.songResultData?.result;
   if (!result?.length) return { items: [], hasMore: false };
 
   const total = Number(data?.songResultData?.totalCount) || 0;
   return {
     items: result.map(convertMiguSearchSongToMusicTrack),
-    hasMore: page * rows < total,
+    hasMore: total > 0 ? page * rows < total : result.length >= rows,
   };
 }
