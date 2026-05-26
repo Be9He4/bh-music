@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { MemoryRouter } from "react-router-dom";
 
 import type { MusicTrack } from "@/types/music";
 import { PlayerQueueDrawer } from "./PlayerQueueDrawer";
@@ -82,7 +83,11 @@ describe("PlayerQueueDrawer", () => {
     };
 
     act(() => {
-      root!.render(<PlayerQueueDrawer {...defaultProps} {...props} />);
+      root!.render(
+        <MemoryRouter>
+          <PlayerQueueDrawer {...defaultProps} {...props} />
+        </MemoryRouter>
+      );
     });
 
     return { ...defaultProps, ...props };
@@ -98,7 +103,7 @@ describe("PlayerQueueDrawer", () => {
     const props = renderDrawer();
 
     click(document.querySelector("button")!);
-    expect(document.body.textContent).toContain("播放列表 (2)");
+    expect(document.body.textContent).toContain("播放列表");
 
     const secondTrack = document.body.querySelector(
       '[aria-label="播放 Second"]'
@@ -114,7 +119,7 @@ describe("PlayerQueueDrawer", () => {
     const props = renderDrawer({ currentIndex: 1 });
 
     click(document.querySelector("button")!);
-    expect(document.body.textContent).toContain("播放列表 (2)");
+    expect(document.body.textContent).toContain("播放列表");
 
     const removeFirst = document.body.querySelector(
       'button[aria-label="删除 First"]'

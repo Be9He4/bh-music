@@ -36,6 +36,7 @@ export const searchOptions: Record<string, string> = {
   netease: "网易云音乐",
   kuwo: "酷我音乐",
   migu: "Migu",
+  bilibili: "B站",
   _netease: "Netease",
 };
 
@@ -44,6 +45,7 @@ export const sourceLabels: Record<string, string> = {
   netease: "网易",
   kuwo: "酷我",
   migu: "Migu",
+  bilibili: "B站",
   _netease: "Netease",
 };
 
@@ -76,7 +78,9 @@ export const sourceBadgeStyles: Record<string, string> = {
 
   qq: "text-yellow-500/70 border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10",
   kugou: "text-sky-500/70 border-sky-500/20 bg-sky-500/5 hover:bg-sky-500/10",
-  migu: "text-pink-500/70 border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10",
+  migu: "text-pink-500 border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10",
+  bilibili:
+    "text-pink-500/70 border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10",
   default:
     "text-muted-foreground/70 border-border bg-muted/30 hover:bg-muted/50",
 };

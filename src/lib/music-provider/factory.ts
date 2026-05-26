@@ -10,6 +10,7 @@ import { MiguApiProvider } from "./providers/migu-api-provider";
 import { NeteaseProvider } from "./providers/netease-provider";
 import { QqApiProvider } from "./providers/qq-api-provider";
 import { NeteaseApiProvider } from "./providers/netease-api-provider";
+import { BilibiliApiProvider } from "./providers/bilibili-api-provider";
 
 export class MusicProviderFactory {
   private static instances = new Map<string, IMusicProvider>();
@@ -52,6 +53,9 @@ export class MusicProviderFactory {
         break;
       case "qq":
         provider = new QqApiProvider();
+        break;
+      case "bilibili":
+        provider = new BilibiliApiProvider();
         break;
       default:
         throw new Error(`不支持的音乐源: ${source}`);

@@ -9,6 +9,86 @@ const pkg = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8")
 ) as { version: string };
 
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+interface BilibiliProxyOptions {
+  validateParams(
+    params: URLSearchParams
+  ): { valid: true } | { valid: false; error: string };
+  buildHeaders(
+    params: URLSearchParams,
+    req: IncomingMessage
+  ): Record<string, string>;
+  exposeHeaders?: string;
+}
+
+function createBilibiliProxyPlugin(
+  name: string,
+  route: string,
+  opts: BilibiliProxyOptions
+) {
+  return {
+    name,
+    configureServer(server: {
+      middlewares: {
+        use(
+          path: string,
+          handler: (req: IncomingMessage, res: ServerResponse) => void
+        ): void;
+      };
+    }) {
+      server.middlewares.use(route, async (req, res) => {
+        try {
+          const requestUrl = new URL(req.url || "", "http://localhost");
+          const validation = opts.validateParams(requestUrl.searchParams);
+          if (!validation.valid) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: validation.error }));
+            return;
+          }
+
+          const fetchRes = await fetch(requestUrl.searchParams.get("url")!, {
+            headers: opts.buildHeaders(requestUrl.searchParams, req),
+          });
+          res.statusCode = fetchRes.status;
+          fetchRes.headers.forEach((value: string, key: string) => {
+            res.setHeader(key, value);
+          });
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          if (opts.exposeHeaders) {
+            res.setHeader("Access-Control-Expose-Headers", opts.exposeHeaders);
+          }
+
+          if (!fetchRes.body) {
+            res.end();
+            return;
+          }
+
+          const reader = fetchRes.body.getReader();
+          const pump = (): void => {
+            reader
+              .read()
+              .then(({ done, value }) => {
+                if (done) {
+                  res.end();
+                  return;
+                }
+                res.write(Buffer.from(value), pump);
+              })
+              .catch(() => {
+                res.end();
+              });
+          };
+          pump();
+        } catch {
+          res.statusCode = 502;
+          res.end(JSON.stringify({ error: `Failed to proxy ${name}` }));
+        }
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -139,6 +219,49 @@ export default defineConfig({
         });
       },
     },
+    createBilibiliProxyPlugin("bilibili-audio", "/api/bilibili-audio", {
+      validateParams(params) {
+        const bvid = params.get("bvid");
+        const url = params.get("url");
+        if (!bvid || !url)
+          return { valid: false, error: "bvid and url required" };
+        return { valid: true };
+      },
+      buildHeaders(params, req) {
+        const headers: Record<string, string> = {
+          Referer: `https://www.bilibili.com/video/${params.get("bvid")}`,
+          Cookie: "buvid3=0",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        };
+        if (req.headers.range) headers.Range = req.headers.range;
+        return headers;
+      },
+      exposeHeaders: "Content-Length, Content-Range, Accept-Ranges",
+    }),
+    createBilibiliProxyPlugin("bilibili-cover", "/api/bilibili-cover", {
+      validateParams(params) {
+        const url = params.get("url");
+        if (!url) return { valid: false, error: "url required" };
+        try {
+          const parsed = new URL(url);
+          if (!/(^|\.)hdslb\.com$/.test(parsed.hostname)) {
+            return { valid: false, error: "invalid cover host" };
+          }
+        } catch {
+          return { valid: false, error: "invalid url" };
+        }
+        return { valid: true };
+      },
+      buildHeaders() {
+        return {
+          Referer: "https://www.bilibili.com/",
+          Cookie: "buvid3=0",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        };
+      },
+    }),
   ],
   resolve: {
     alias: {
@@ -299,6 +422,21 @@ export default defineConfig({
         rewrite: (path: string) => path.replace(/^\/api\/migu/, ""),
         configure: (proxy) => {
           proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader(
+              "User-Agent",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            );
+          });
+        },
+      },
+      "/api/bilibili": {
+        target: "https://api.bilibili.com",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/bilibili/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Referer", "https://www.bilibili.com/");
+            proxyReq.setHeader("Cookie", "buvid3=0");
             proxyReq.setHeader(
               "User-Agent",
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

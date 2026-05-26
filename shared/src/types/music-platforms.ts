@@ -155,6 +155,52 @@ export interface MiguPlaylistDetail {
 }
 
 // ============================================================
+// Bilibili
+// ============================================================
+
+export interface BilibiliSearchVideoRaw {
+  type?: string;
+  bvid?: string;
+  title?: string;
+  author?: string;
+  uname?: string;
+  mid?: number | string;
+  pic?: string;
+}
+
+export interface BilibiliSearchResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    numResults?: number;
+    result?: BilibiliSearchVideoRaw[];
+  };
+}
+
+export interface BilibiliViewResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    cid?: number;
+    pages?: Array<{ cid?: number }>;
+  };
+}
+
+export interface BilibiliPlayUrlResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    dash?: {
+      audio?: Array<{
+        baseUrl?: string;
+        base_url?: string;
+        bandwidth?: number;
+      }>;
+    };
+  };
+}
+
+// ============================================================
 // 咪咕搜索 (Migu Search)
 // ============================================================
 
