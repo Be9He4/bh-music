@@ -1,7 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Encoding } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
-import { musicApi } from "@/lib/music-api";
+import { MusicProviderFactory } from "@/lib/music-provider";
 import {
   AppPaths,
   DOWNLOAD_RECORDS_FILE,
@@ -18,6 +18,31 @@ import { getProxyUrl, isProxyUrl } from "@/lib/api/config";
 import { logger } from "@/lib/logger";
 import { processBatchIO } from "@/lib/utils";
 import { embedMetadata } from "./id3-embed";
+
+/**
+ * 获取当前正在播放的曲目 URL（如果匹配）
+ * @param track 要下载的曲目
+ * @param downloadQuality 下载音质
+ * @returns 匹配且音质相同时返回 URL，否则返回 null
+ */
+function getCurrentPlayingUrl(
+  track: MusicTrack,
+  downloadQuality: number
+): string | null {
+  const state = useMusicStore.getState();
+  const currentTrack = state.queue[state.currentIndex];
+
+  if (!currentTrack || !state.currentAudioUrl) return null;
+
+  const isSameTrack =
+    currentTrack.source === track.source && currentTrack.id === track.id;
+  if (!isSameTrack) return null;
+
+  const currentPlayQuality = parseInt(state.quality) || 192;
+  if (currentPlayQuality !== downloadQuality) return null;
+
+  return state.currentAudioUrl;
+}
 
 /* ================= 主入口 ================= */
 
@@ -48,7 +73,14 @@ async function performDownloadOne(
     if (useDownloadStore.getState().hasRecord(key)) return;
   }
 
-  const url = await musicApi.getUrl(track.url_id || track.id, track.source, br);
+  // 尝试复用当前播放 URL
+  let url = getCurrentPlayingUrl(track, br);
+  const isReusedUrl = !!url;
+
+  if (!url) {
+    url = await MusicProviderFactory.getProvider(track.source).getUrl(track, br);
+  }
+
   if (!url) throw new Error("无法获取下载链接");
 
   const doDownload = async (downloadUrl: string) => {
@@ -60,6 +92,15 @@ async function performDownloadOne(
   try {
     await doDownload(url);
   } catch (err) {
+    // 如果是复用的 URL 失败，回退到重新获取
+    if (isReusedUrl) {
+      logger.warn("Reused URL download failed, falling back to getUrl...", err);
+      const freshUrl = await MusicProviderFactory.getProvider(track.source).getUrl(track, br);
+      if (!freshUrl) throw new Error("无法获取下载链接");
+      await doDownload(freshUrl);
+      return;
+    }
+
     if (isProxyUrl(url)) throw err;
     logger.warn("Direct download failed, retrying with proxy...", err);
     if (toastId) {
