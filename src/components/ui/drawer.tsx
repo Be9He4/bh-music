@@ -4,11 +4,31 @@ import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 
 import { cn } from '@/lib/utils'
+import { useExitLayer } from '@/hooks/useExitLayer'
 
 function Drawer({
+  open,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot="drawer" {...props} />
+  const { register, unregister } = useExitLayer()
+
+  React.useEffect(() => {
+    let id: string | undefined
+    if (open) {
+      id = register({
+        close: () => onOpenChange?.(false),
+        priority: 50,
+      })
+    }
+    return () => {
+      if (id) {
+        unregister(id)
+      }
+    }
+  }, [open, onOpenChange, register, unregister])
+
+  return <DrawerPrimitive.Root data-slot="drawer" open={open} onOpenChange={onOpenChange} {...props} />
 }
 
 function DrawerTrigger({

@@ -43,10 +43,10 @@ export const searchOptions: Record<string, string> = {
 export const sourceLabels: Record<string, string> = {
   joox: "Joox",
   netease: "网易",
+  _netease: "Netease",
   kuwo: "酷我",
   migu: "Migu",
   bilibili: "B站",
-  _netease: "Netease",
 };
 
 export const aggregatedSourceOptions: {

@@ -8,9 +8,10 @@ import { useMusicStore } from "@/store/music-store";
 import toast from "react-hot-toast";
 import { toastUtils } from "@/lib/utils/toast";
 import { useMusicCover } from "@/hooks/useMusicCover";
+import { useExitLayer } from "@/hooks/useExitLayer";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { useRef, useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 
 const ROOT_TAB_PATHS = ["/", "/search", "/favorites", "/mine"] as const;
 
@@ -18,28 +19,35 @@ export function RootLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isFullScreenPlayer, setIsFullScreenPlayer: setStoreFullScreen } = useMusicStore();
+  const { handleExit: handleExitLayer, register, unregister } = useExitLayer();
   
   // Back Button Logic
-  const isFullScreenRef = useRef(isFullScreenPlayer);
   const locationRef = useRef(location);
 
   useEffect(() => {
-    isFullScreenRef.current = isFullScreenPlayer;
     locationRef.current = location;
-  }, [isFullScreenPlayer, location]);
+  }, [location]);
+
+  useEffect(() => {
+    let id: string | undefined;
+    
+    if (isFullScreenPlayer) {
+      id = register({ 
+        close: () => setStoreFullScreen(false), 
+        priority: 100 
+      });
+    }
+    
+    return () => {
+      if (id) {
+        unregister(id);
+      }
+    };
+  }, [isFullScreenPlayer, setStoreFullScreen, register, unregister]);
 
   const isRootTabPath = useCallback((path: string) => {
     return ROOT_TAB_PATHS.includes(path as (typeof ROOT_TAB_PATHS)[number]);
   }, []);
-
-  const handleExitLayer = useCallback(() => {
-    if (isFullScreenRef.current) {
-      setStoreFullScreen(false);
-      return true;
-    }
-
-    return false;
-  }, [setStoreFullScreen]);
 
   const handleBackAction = useCallback(async () => {
     if (handleExitLayer()) return;
