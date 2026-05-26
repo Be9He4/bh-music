@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useMusicStore } from "@/store/music-store";
 import { MediaSession } from "@jofr/capacitor-media-session";
-import { forceHttps } from "@/lib/music-provider/utils";
+import { forceHttps } from "@otter-music/shared";
 
 export function sanitizeMediaSessionArtworkUrl(
   rawUrl: string | null | undefined

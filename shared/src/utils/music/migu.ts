@@ -4,11 +4,10 @@ import type {
   MiguPlaylistDetail,
   MiguPlaylistInfoResponse,
   MiguPlaylistSongsResponse,
-  MiguSearchSongRaw,
   MiguSongRaw,
   MiguSongUrlResponse,
+  MiguV3SearchSongRaw,
 } from "../../types/music-platforms";
-import * as forge from "node-forge";
 
 // ============================================================
 // 常量
@@ -168,85 +167,23 @@ export async function fetchMiguPlaylistDetail(
 }
 
 // ============================================================
-// 搜索（jadeite.migu.cn V2 + Android 应用签名）
+// 搜索 V3（app.u.nf.migu.cn，无需签名）
 // ============================================================
 
-const SIGNATURE_MD5 = "6cdc72a439cef99a3418d2a78aa28c73";
-const APP_ID = "yyapp2";
-const APP_SECRET = "yyapp2d16148780a1dcc7408e06336b98cfd50";
-
-/** 使用 node-forge 计算 MD5 哈希（hex 输出） */
-function md5Hex(input: string): string {
-  return forge.md5.create().update(input).digest().toHex();
-}
-
-function uuidHex(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID().replace(/-/g, "");
-  }
-  return "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
-
-export function generateMiguSid(): string {
-  // 生成 64 位十六进制字符串（与 Listen1 一致）
-  return uuidHex() + uuidHex();
-}
-
-let _deviceId: string | null = null;
-export function generateMiguDeviceId(): string {
-  if (!_deviceId) _deviceId = uuidHex().toUpperCase();
-  return _deviceId;
-}
-
-export function generateMiguSign(
-  keyword: string,
-  deviceId: string,
-  timestamp: number
-): string {
-  return md5Hex(
-    `${keyword}${SIGNATURE_MD5}${APP_SECRET}${deviceId}${timestamp}`
-  );
-}
-
-export function buildMiguSearchHeaders(
-  keyword: string
-): Record<string, string> {
-  const deviceId = generateMiguDeviceId();
-  const timestamp = Date.now();
-  return {
-    appId: APP_ID,
-    deviceId: deviceId,
-    sign: generateMiguSign(keyword, deviceId, timestamp),
-    timestamp: String(timestamp),
-    uiVersion: "A_music_3.3.0",
-    version: "7.0.4",
-  };
-}
-
-export function buildMiguSearchPath(
+export function buildMiguV3SearchPath(
   keyword: string,
   page: number,
-  rows = 20,
-  sid: string
+  rows = 20
 ): string {
   const params = new URLSearchParams();
-  params.set("sid", sid);
-  params.set("isCorrect", "1");
-  params.set("isCopyright", "1");
-  params.set("searchSwitch", '{"song":1}');
-  params.set("pageSize", String(rows));
   params.set("text", keyword);
   params.set("pageNo", String(page));
-  params.set("feature", "1000000000");
-  params.set("sort", "1");
-  return `/music_search/v2/search/searchAll?${params.toString()}`;
+  params.set("pageSize", String(rows));
+  return `/pc/resource/song/item/search/v1.0?${params.toString()}`;
 }
 
-export function convertMiguSearchSongToMusicTrack(
-  song: MiguSearchSongRaw
+export function convertMiguV3SearchSongToMusicTrack(
+  song: MiguV3SearchSongRaw
 ): MusicTrack {
   const copyrightId = song.copyrightId || "unknown";
   const contentId = song.contentId || "";
@@ -256,14 +193,20 @@ export function convertMiguSearchSongToMusicTrack(
 
   return {
     id: encodedId,
-    name: song.name || "未知歌曲",
-    artist: (song.singers || []).map((s) => s.name || "").filter(Boolean),
-    album: song.albums?.[0]?.name || "",
-    pic_id: forceHttps(song.imgItems?.[0]?.img || ""),
+    name: song.songName || "未知歌曲",
+    artist: (song.singerList || [])
+      .map((s) => s.name || "")
+      .filter(Boolean),
+    album: song.album || "",
+    pic_id: forceHttps(song.img1 || ""),
     url_id: encodedId,
-    lyric_id: forceHttps(song.lyricUrl || ""),
+    lyric_id: forceHttps(song.ext?.lrcUrl || ""),
     source: "migu",
-    artist_ids: (song.singers || []).map((s) => s.id || "").filter(Boolean),
-    album_id: song.albums?.[0]?.id,
+    artist_ids: (song.singerList || [])
+      .map((s) => s.id || "")
+      .filter(Boolean),
+    album_id: typeof song.albumId === "number" ? String(song.albumId) : song.albumId,
   };
 }
+
+export { type MiguV3SearchSongRaw };

@@ -1,26 +1,27 @@
 import {
-  buildMiguSearchHeaders,
-  buildMiguSearchPath,
+  buildMiguHeaders,
   buildMiguSongUrlPath,
-  convertMiguSearchSongToMusicTrack,
+  buildMiguV3SearchPath,
   convertMiguSongToMusicTrack,
+  convertMiguV3SearchSongToMusicTrack,
   fetchMiguPlaylistDetail,
-  generateMiguSid,
   MIGU_PAGE_SIZE,
   parseMiguSongUrlResponse,
   type MiguPlaylistDetail,
-  type MiguSearchResponse,
   type MiguSongUrlResponse,
+  type MiguV3SearchSongRaw,
   type MusicTrack,
 } from "@otter-music/shared";
 
 export { MIGU_PAGE_SIZE, convertMiguSongToMusicTrack };
 
 const MIGU_BASE_URL = "https://app.c.nf.migu.cn";
-const MIGU_SEARCH_BASE_URL = "https://jadeite.migu.cn";
+const MIGU_SEARCH_BASE_URL = "https://app.u.nf.migu.cn";
 const MIGU_SHORT_LINK_HOST = "c.migu.cn";
 const MIGU_SHARE_PAGE_HOST = "h5.nf.migu.cn";
 const MIGU_SHARE_PLAYLIST_PATH = "/app/v4/p/share/playlist/index.html";
+const MIGU_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // ============================================================
 // 短链解析
@@ -65,7 +66,7 @@ export async function resolveMiguShortPlaylistId(
     redirect: "manual",
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        MIGU_USER_AGENT,
     },
   });
   const redirectUrl = response.headers.get("Location") || response.url;
@@ -83,7 +84,7 @@ async function fetchMiguJson<T>(
   const res = await fetch(`${MIGU_BASE_URL}${path}`, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        MIGU_USER_AGENT,
       ...headers,
     },
   });
@@ -112,10 +113,7 @@ export async function fetchMiguSongUrl(
 ): Promise<string | null> {
   const response = await fetchMiguJson<MiguSongUrlResponse>(
     buildMiguSongUrlPath(copyrightId, contentId, br),
-    {
-      channel: "0146951",
-      uid: "1234",
-    }
+    buildMiguHeaders()
   );
   return parseMiguSongUrlResponse(response);
 }
@@ -129,24 +127,23 @@ export async function fetchMiguSearch(
   page: number,
   rows = 20
 ): Promise<{ items: MusicTrack[]; hasMore: boolean }> {
-  const sid = generateMiguSid();
-  const path = buildMiguSearchPath(keyword, page, rows, sid);
+  const path = buildMiguV3SearchPath(keyword, page, rows);
   const res = await fetch(`${MIGU_SEARCH_BASE_URL}${path}`, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      ...buildMiguSearchHeaders(keyword),
+        MIGU_USER_AGENT,
+      ...buildMiguHeaders(),
     },
   });
   if (!res.ok) return { items: [], hasMore: false };
 
-  const data = (await res.json()) as unknown as MiguSearchResponse;
-  const result = data?.songResultData?.result;
-  if (!result?.length) return { items: [], hasMore: false };
+  const data = (await res.json()) as MiguV3SearchSongRaw[];
+  if (!Array.isArray(data) || !data.length) {
+    return { items: [], hasMore: false };
+  }
 
-  const total = Number(data?.songResultData?.totalCount) || 0;
   return {
-    items: result.map(convertMiguSearchSongToMusicTrack),
-    hasMore: total > 0 ? page * rows < total : result.length >= rows,
+    items: data.map(convertMiguV3SearchSongToMusicTrack),
+    hasMore: data.length >= rows,
   };
 }

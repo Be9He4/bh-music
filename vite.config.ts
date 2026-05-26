@@ -429,22 +429,16 @@ export default defineConfig({
           });
         },
       },
-      "/api/migu-v2": {
-        target: "https://jadeite.migu.cn",
+      "/api/migu-v3": {
+        target: "https://app.u.nf.migu.cn",
         changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api\/migu-v2/, ""),
+        rewrite: (path: string) => path.replace(/^\/api\/migu-v3/, ""),
         configure: (proxy) => {
           proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.removeHeader("sec-fetch-dest");
-            proxyReq.removeHeader("sec-fetch-mode");
-            proxyReq.removeHeader("sec-fetch-site");
-            proxyReq.removeHeader("sec-fetch-user");
-            proxyReq.removeHeader("referer");
-            proxyReq.removeHeader("origin");
-            proxyReq.setHeader("User-Agent", "okhttp/3.12.12");
-            proxyReq.setHeader("Accept", "application/json, text/plain, */*");
-            proxyReq.setHeader("os", "android");
-            proxyReq.setHeader("platform", "android");
+            proxyReq.setHeader(
+              "User-Agent",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            );
             proxyReq.setHeader("channel", "0146951");
           });
         },

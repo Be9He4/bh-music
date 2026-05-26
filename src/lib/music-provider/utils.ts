@@ -2,13 +2,9 @@ import { MusicSource, MusicTrack } from "@/types/music";
 import { getOrderedMusicApiUrls, markMusicApiUrlFailure, markMusicApiUrlSuccess } from "../api/config";
 import { RawApiTrack } from "./types";
 import { logger } from "@/lib/logger";
+import { forceHttps } from "@otter-music/shared";
 
 const REQUEST_TIMEOUT_MS = 10000;
-
-export const forceHttps = (url: string | undefined | null) => {
-  if (!url) return '';
-  return url.replace(/^http:\/\//i, 'https://');
-};
 
 export const normalizeTrack = (t: RawApiTrack, source: MusicSource): MusicTrack => ({
   id: String(t.id),

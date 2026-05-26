@@ -201,23 +201,22 @@ export interface BilibiliPlayUrlResponse {
 }
 
 // ============================================================
-// 咪咕搜索 (Migu Search)
+// 咪咕搜索 V3 (Migu Search V3)
 // ============================================================
 
-export interface MiguSearchResponse {
-  code?: string;
-  songResultData?: {
-    totalCount?: string;
-    result?: MiguSearchSongRaw[];
-  };
-}
-
-export interface MiguSearchSongRaw {
+export interface MiguV3SearchSongRaw {
   copyrightId?: string;
   contentId?: string;
-  name?: string;
-  singers?: Array<{ id?: string; name?: string }>;
-  albums?: Array<{ id?: string; name?: string }>;
-  lyricUrl?: string;
-  imgItems?: Array<{ imgSizeType?: string; img?: string }>;
+  songId?: string;
+  songName?: string;
+  singerList?: Array<{ id?: string; name?: string }>;
+  albumId?: number | string;
+  album?: string;
+  img1?: string;
+  ext?: {
+    lrcUrl?: string;
+    trcUrl?: string;
+  };
+  toneControl?: string;
+  copyright?: number;
 }

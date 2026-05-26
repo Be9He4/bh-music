@@ -10,7 +10,7 @@ import {
   getAlbum,
   getMusicComments
 } from "@/lib/netease/netease-api";
-import { forceHttps } from "../utils";
+import { forceHttps } from "@otter-music/shared";
 
 export class NeteaseApiProvider implements IMusicProvider {
   source = '_netease';

@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 import { formatDateZN } from "@/lib/utils";
 import { parsePodcastRss } from "@/lib/api/podcast";
 import { usePodcastStore } from "@/store/podcast-store";
-import { forceHttps } from "@/lib/music-provider/utils";
+import { forceHttps } from "@otter-music/shared";
 import { MusicTrack } from "@/types/music";
 
 interface PodcastDetailPageProps {

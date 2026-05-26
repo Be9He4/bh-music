@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Music2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { forceHttps } from "@/lib/music-provider";
+import { forceHttps } from "@otter-music/shared";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";

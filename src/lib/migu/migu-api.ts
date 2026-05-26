@@ -7,18 +7,17 @@ import {
 } from "@/lib/api/config";
 import {
   buildMiguHeaders,
-  buildMiguSearchHeaders,
-  buildMiguSearchPath,
   buildMiguSongUrlPath,
-  convertMiguSearchSongToMusicTrack,
+  buildMiguV3SearchPath,
   convertMiguSongToMusicTrack,
+  convertMiguV3SearchSongToMusicTrack,
   fetchMiguPlaylistDetail,
   forceHttps,
-  generateMiguSid,
   MIGU_PAGE_SIZE,
   parseMiguSongUrlResponse,
   parseMiguTrackId,
   type MiguPlaylistDetail,
+  type MiguV3SearchSongRaw,
   type MusicTrack,
   type MiguSongUrlResponse,
 } from "@otter-music/shared";
@@ -97,22 +96,29 @@ export async function getMiguPlaylistDetail(
   playlistId: string
 ): Promise<MiguPlaylistDetail> {
   if (IS_WEB_PROD) {
-    const res = await fetchWithTimeout(
-      `${getApiUrl()}${MIGU_PROXY_PREFIX}/playlist`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlistId }),
-      },
-      NETWORK_TIMEOUT
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        (err as { error?: string }).error || `API error: ${res.status}`
+    try {
+      const res = await fetchWithTimeout(
+        `${getApiUrl()}${MIGU_PROXY_PREFIX}/playlist`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlistId }),
+        },
+        NETWORK_TIMEOUT
       );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          (err as { error?: string }).error || `API error: ${res.status}`
+        );
+      }
+      return res.json();
+    } catch (e) {
+      if (e instanceof Error && !e.message.startsWith("API error:")) {
+        throw new Error("Migu playlist request timed out");
+      }
+      throw e;
     }
-    return res.json();
   }
 
   if (IS_NATIVE) {
@@ -146,22 +152,26 @@ export async function getMiguSongUrl(
   if (!ids) return null;
 
   if (IS_WEB_PROD) {
-    const res = await fetchWithTimeout(
-      `${getApiUrl()}${MIGU_PROXY_PREFIX}/song-url`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          copyrightId: ids.copyrightId,
-          contentId: ids.contentId,
-          br,
-        }),
-      },
-      NETWORK_TIMEOUT
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { url?: string | null };
-    return data.url || null;
+    try {
+      const res = await fetchWithTimeout(
+        `${getApiUrl()}${MIGU_PROXY_PREFIX}/song-url`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            copyrightId: ids.copyrightId,
+            contentId: ids.contentId,
+            br,
+          }),
+        },
+        NETWORK_TIMEOUT
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as { url?: string | null };
+      return data.url || null;
+    } catch {
+      return null;
+    }
   }
 
   const path = buildMiguSongUrlPath(ids.copyrightId, ids.contentId, br);
@@ -184,7 +194,11 @@ export async function getMiguSongUrl(
     return res.json();
   };
 
-  return parseMiguSongUrlResponse(await fetchJson());
+  try {
+    return parseMiguSongUrlResponse(await fetchJson());
+  } catch {
+    return null;
+  }
 }
 
 // ============================================================
@@ -226,7 +240,7 @@ export async function getMiguLyric(
 }
 
 // ============================================================
-// 搜索（环境路由）
+// 搜索 V3（环境路由）
 // ============================================================
 
 export async function searchMiguSongs(
@@ -248,57 +262,46 @@ export async function searchMiguSongs(
     return res.json();
   }
 
-  const sid = generateMiguSid();
-  const path = buildMiguSearchPath(keyword, page, rows, sid);
-  const searchHeaders = buildMiguSearchHeaders(keyword);
+  const path = buildMiguV3SearchPath(keyword, page, rows);
+  const headers = buildMiguHeaders();
 
   if (IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
       method: "GET",
-      url: `https://jadeite.migu.cn${path}`,
-      headers: searchHeaders,
+      url: `https://app.u.nf.migu.cn${path}`,
+      headers,
     });
     if (res.status >= 400) return { items: [], hasMore: false };
     const data: unknown =
       typeof res.data === "object" ? res.data : JSON.parse(res.data as string);
-    return parseAndConvertMiguSearch(data, page, rows);
+    return parseAndConvertMiguV3Search(data, rows);
   }
 
   try {
     const res = await fetchWithTimeout(
-      `/api/migu-v2${path}`,
-      { headers: searchHeaders },
+      `/api/migu-v3${path}`,
+      { headers },
       NETWORK_TIMEOUT
     );
     if (!res.ok) return { items: [], hasMore: false };
-    return parseAndConvertMiguSearch(await res.json(), page, rows);
+    return parseAndConvertMiguV3Search(await res.json(), rows);
   } catch {
     return { items: [], hasMore: false };
   }
 }
 
-function parseAndConvertMiguSearch(
+function parseAndConvertMiguV3Search(
   data: unknown,
-  page: number,
   rows: number
 ): { items: MusicTrack[]; hasMore: boolean } {
-  const obj = data as Record<string, unknown>;
-  const result = obj?.songResultData as
-    | { totalCount?: string; result?: Array<Record<string, unknown>> }
-    | undefined;
-  const list = result?.result;
-  if (!list?.length) return { items: [], hasMore: false };
+  const list = data as MiguV3SearchSongRaw[];
+  if (!Array.isArray(list) || !list.length) {
+    return { items: [], hasMore: false };
+  }
 
-  const total = Number(result?.totalCount) || 0;
   return {
-    items: list.map((song) =>
-      convertMiguSearchSongToMusicTrack(
-        song as unknown as Parameters<
-          typeof convertMiguSearchSongToMusicTrack
-        >[0]
-      )
-    ),
-    hasMore: total > 0 ? page * rows < total : list.length >= rows,
+    items: list.map(convertMiguV3SearchSongToMusicTrack),
+    hasMore: list.length >= rows,
   };
 }
