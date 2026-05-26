@@ -28,7 +28,10 @@ export function parseKuwoPlaylistUrl(urlStr: string): string | null {
     const pathMatch = url.pathname.match(/playlist_detail\/(\d+)/);
     if (pathMatch) return pathMatch[1];
 
-    const idParam = url.searchParams.get("pid") || url.searchParams.get("id");
+    const idParam =
+      url.searchParams.get("pid") ||
+      url.searchParams.get("id") ||
+      url.searchParams.get("playlistId");
     return idParam && /^\d+$/.test(idParam) ? idParam : null;
   } catch {
     return null;
