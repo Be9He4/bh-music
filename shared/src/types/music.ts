@@ -66,6 +66,7 @@ export const aggregatedSourceOptions: {
   },
   { value: "_netease", label: "Netease", description: "网易云官方，稳定高速" },
   { value: "kuwo", label: "酷我音乐", description: "版权丰富，但稳定性一般" },
+  { value: "bilibili", label: "B站", description: "Bilibili官方, 用户上传资源丰富" },
   { value: "migu", label: "Migu", description: "咪咕音乐官方" },
 ];
 

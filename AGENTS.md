@@ -34,6 +34,7 @@ Otter Music 是一款 Capacitor 混合架构音乐播放器——同一套 React
 - **API 层**：`src/lib/api/config.ts` 已封装平台感知的 URL 选择和超时逻辑，新增 API 调用应复用该层而非自行判断平台。
 - **原生插件**：修改 `LocalMusicPlugin.java` 或新增 Capacitor 插件方法后，必须同步更新 `src/plugins/local-music/index.ts` 的接口定义。运行 `npm run cap:sync:android` 同步 Web 资源到 Android 项目后才能真机验证。
 - **新增依赖**：优先用 JS/TS 方案解决。只有涉及文件系统、蓝牙、通知等必须原生 API 的场景才引入 Capacitor 插件。
+- **音乐API**：在 Android 端，APP 优先直连，Web端才需要做functions代理。严禁自己实现加密算法，优先使用已有的加密库`node-forge`。
 
 ## 编码约定
 

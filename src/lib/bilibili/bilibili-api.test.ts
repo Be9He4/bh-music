@@ -81,6 +81,44 @@ describe("searchBilibiliVideos", () => {
 });
 
 describe("getBilibiliSongUrl", () => {
+  it("resolves native song urls to the direct Bilibili CDN audio url", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          code: 0,
+          data: { pages: [{ cid: 62131 }] },
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          code: 0,
+          data: {
+            dash: {
+              audio: [{ baseUrl: "https://example.com/audio.m4s" }],
+            },
+          },
+        },
+      });
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout: vi.fn(),
+      getApiUrl: () => "https://otter-music.pages.dev",
+      IS_NATIVE: true,
+      IS_WEB_PROD: false,
+    }));
+    vi.doMock("@capacitor/core", () => ({
+      CapacitorHttp: { request },
+    }));
+
+    const { getBilibiliSongUrl } = await import("./bilibili-api");
+
+    await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toBe(
+      "https://example.com/audio.m4s"
+    );
+  });
+
   it("resolves dev song urls through view and playurl", async () => {
     const fetchWithTimeout = vi
       .fn()

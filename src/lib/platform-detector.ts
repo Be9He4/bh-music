@@ -1,5 +1,5 @@
 /**
- * 根据 URL hostname 识别音乐平台。
+ * 根据 URL hostname 识别音乐平台，主要用于通过链接导入歌单。
  * 返回平台标识符或 null (不支持的链接)。
  */
 export type Platform = 'netease' | 'qq' | 'kugou' | 'kuwo' | 'migu';

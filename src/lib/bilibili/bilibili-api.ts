@@ -28,7 +28,9 @@ const NETWORK_TIMEOUT = 12000;
 
 function buildBilibiliAudioProxyUrl(bvid: string, audioUrl: string): string {
   const params = new URLSearchParams({ bvid, url: audioUrl });
-  if (!IS_WEB_PROD) return `${BILIBILI_DEV_AUDIO_PROXY}?${params.toString()}`;
+  if (!IS_NATIVE && !IS_WEB_PROD) {
+    return `${BILIBILI_DEV_AUDIO_PROXY}?${params.toString()}`;
+  }
   return `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/audio?${params.toString()}`;
 }
 
@@ -133,7 +135,10 @@ export async function getBilibiliSongUrl(
       referer
     );
     const audioUrl = playUrl ? selectBilibiliAudioUrl(playUrl) : null;
-    return audioUrl ? buildBilibiliAudioProxyUrl(parsed.bvid, audioUrl) : null;
+    if (!audioUrl) return null;
+    return IS_NATIVE
+      ? audioUrl
+      : buildBilibiliAudioProxyUrl(parsed.bvid, audioUrl);
   } catch {
     return null;
   }

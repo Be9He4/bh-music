@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { musicApi } from "@/lib/music-api";
@@ -283,9 +284,12 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
   }, [activeIndex, isUserScrolling]);
 
   // 监听 seek 操作，重置用户滚动状态，使歌词立即跳转到对应位置
+  // 使用 flushSync 避免级联渲染警告，确保状态同步更新
   useEffect(() => {
-    setIsUserScrolling(false);
-    setCenterLineIndex(-1);
+    flushSync(() => {
+      setIsUserScrolling(false);
+      setCenterLineIndex(-1);
+    });
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = null;
