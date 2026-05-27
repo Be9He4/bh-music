@@ -30,15 +30,37 @@ if (IS_BROWSER) {
   }
 }
 
-const persistLogs = () => {
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+const writeToStorage = () => {
   if (!IS_BROWSER) return;
   try {
     window.localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logsCache));
   } catch (e) {
     console.error("Failed to persist logs to localStorage:", e);
-    return;
   }
 };
+
+const schedulePersist = () => {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    writeToStorage();
+  }, 2000);
+};
+
+const flushPersist = () => {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  writeToStorage();
+};
+
+// 页面卸载时确保写入
+if (IS_BROWSER) {
+  window.addEventListener("beforeunload", flushPersist);
+}
 
 // 2. 优化调用栈解析逻辑
 const getSource = () => {
@@ -74,10 +96,14 @@ const createAndSaveLog = (level: LogLevel, args: any[]): LogEntry => {
     context: context ?? undefined,
   };
 
-  // 维护内存队列并同步（仅 WARN/ERROR 持久化，INFO 仅 console）
+  // 维护内存队列并同步
+  // INFO: 仅 console（不持久化）
+  // WARN: debounce 写入（2s 合并）
+  // ERROR: 立即写入
   logsCache.push(entry);
   if (logsCache.length > MAX_LOG_ENTRIES) logsCache.shift();
-  if (level !== "info") persistLogs();
+  if (level === "error") flushPersist();
+  else if (level === "warn") schedulePersist();
 
   if (import.meta.env?.DEV) {
     console[level](`[${source}] ${entry.message}`, context ?? entry.stack ?? "");
@@ -92,7 +118,7 @@ export const logger = {
   getLogs: () => [...logsCache],
   getRecentLogs: () => logsCache.filter(e => e.time >= APP_START_TIME),
   getLastNLogs: (n: number) => logsCache.slice(-n),
-  clear: () => { logsCache = []; persistLogs(); },
+  clear: () => { logsCache = []; flushPersist(); },
   exportText: (filter?: { recent?: boolean; lastN?: number }) => {
     let res = logsCache.filter(e => e.level !== "info");
     if (filter?.recent) res = res.filter(e => e.time >= APP_START_TIME);
