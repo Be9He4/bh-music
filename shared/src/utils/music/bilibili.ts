@@ -1,5 +1,6 @@
 import type { MusicTrack, SearchPageResult } from "../../types/music";
 import type {
+  BilibiliDurlResponse,
   BilibiliPlayUrlResponse,
   BilibiliSearchResponse,
   BilibiliSearchVideoRaw,
@@ -60,6 +61,16 @@ export function buildBilibiliViewPath(bvid: string): string {
  */
 export function buildBilibiliPlayUrlPath(bvid: string, cid: number): string {
   return `/x/player/playurl?fnval=16&bvid=${encodeURIComponent(bvid)}&cid=${cid}`;
+}
+
+/**
+ * 构建 B 站 durl (FLV 分段) 播放地址接口路径，用于 DASH 不可用时的降级。
+ */
+export function buildBilibiliDurlPlayUrlPath(
+  bvid: string,
+  cid: number
+): string {
+  return `/x/player/playurl?fnval=0&bvid=${encodeURIComponent(bvid)}&cid=${cid}`;
 }
 
 /**
@@ -136,8 +147,25 @@ export function selectBilibiliCid(
   return typeof cid === "number" ? cid : null;
 }
 
+const AUDIO_URL_FIELDS = [
+  "baseUrl",
+  "base_url",
+  "backupUrl",
+  "backup_url",
+  "url",
+] as const;
+
+function pickAudioUrl(entry: Record<string, unknown>): string | null {
+  for (const field of AUDIO_URL_FIELDS) {
+    const val = entry[field];
+    if (typeof val === "string" && val.length > 0) return val;
+  }
+  return null;
+}
+
 /**
  * 从 B 站播放地址响应中选择最高带宽音频地址。
+ * 按优先级匹配多个已知字段名：baseUrl → base_url → backupUrl → backup_url → url
  */
 export function selectBilibiliAudioUrl(
   response: BilibiliPlayUrlResponse
@@ -146,6 +174,62 @@ export function selectBilibiliAudioUrl(
   const selected = [...audio].sort(
     (a, b) => (b.bandwidth || 0) - (a.bandwidth || 0)
   )[0];
-  const url = selected?.baseUrl || selected?.base_url || null;
+  if (!selected) return null;
+  const url = pickAudioUrl(selected as unknown as Record<string, unknown>);
+  return url ? normalizeResourceUrl(url) : null;
+}
+
+/**
+ * 生成 playurl 响应的结构诊断信息，用于定位音频 URL 选择失败原因。
+ */
+export function describePlayurlResponse(
+  response: BilibiliPlayUrlResponse
+): string {
+  const data = response.data;
+  if (!data) return "response.data is null/undefined";
+
+  const parts: string[] = [];
+  parts.push(`data keys: [${Object.keys(data).join(", ")}]`);
+
+  const dash = data.dash;
+  if (!dash) {
+    parts.push("dash: missing");
+    return parts.join(", ");
+  }
+
+  parts.push(`dash keys: [${Object.keys(dash).join(", ")}]`);
+
+  const audio = dash.audio;
+  if (!audio) {
+    parts.push("dash.audio: missing");
+    return parts.join(", ");
+  }
+
+  parts.push(`dash.audio.length: ${audio.length}`);
+
+  if (audio.length > 0) {
+    const entryKeys = Object.keys(audio[0] as Record<string, unknown>);
+    parts.push(`first entry keys: [${entryKeys.join(", ")}]`);
+    parts.push(
+      `first entry mimeType: ${(audio[0] as Record<string, unknown>).mimeType || "none"}`
+    );
+    parts.push(
+      `first entry bandwidth: ${(audio[0] as Record<string, unknown>).bandwidth || "none"}`
+    );
+  }
+
+  return parts.join(", ");
+}
+
+/**
+ * 从 B 站 durl (FLV 分段) 响应中提取第一个 URL。
+ * 当 DASH 音频不可用时作为降级方案。
+ */
+export function selectBilibiliDurlUrl(
+  response: BilibiliDurlResponse
+): string | null {
+  const durl = response.data?.durl;
+  if (!durl || durl.length === 0) return null;
+  const url = durl[0].url;
   return url ? normalizeResourceUrl(url) : null;
 }

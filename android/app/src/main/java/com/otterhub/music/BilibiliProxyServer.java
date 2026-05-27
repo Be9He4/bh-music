@@ -1,9 +1,9 @@
 package com.otterhub.music;
 
-import org.nanohttpd.protocols.http.IHTTPSession;
-import org.nanohttpd.protocols.http.NanoHTTPD;
-import org.nanohttpd.protocols.http.response.Response;
-import org.nanohttpd.protocols.http.response.Status;
+import fi.iki.elonen.NanoHTTPD;
+import fi.iki.elonen.NanoHTTPD.IHTTPSession;
+import fi.iki.elonen.NanoHTTPD.Response;
+import fi.iki.elonen.NanoHTTPD.Response.Status;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,20 +36,20 @@ public class BilibiliProxyServer extends NanoHTTPD {
 
         // 只处理/proxy路径
         if (!"/proxy".equals(uri)) {
-            return Response.newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not Found");
+            return newFixedLengthResponse(Status.NOT_FOUND, "text/plain", "Not Found");
         }
 
         String audioUrl = params.get("url");
         String bvid = params.get("bvid");
 
         if (audioUrl == null || bvid == null) {
-            return Response.newFixedLengthResponse(Status.BAD_REQUEST, "text/plain", "Missing url or bvid parameter");
+            return newFixedLengthResponse(Status.BAD_REQUEST, "text/plain", "Missing url or bvid parameter");
         }
 
         try {
             return proxyBilibiliAudio(audioUrl, bvid, session);
         } catch (Exception e) {
-            return Response.newFixedLengthResponse(Status.INTERNAL_ERROR, "text/plain", "Proxy error: " + e.getMessage());
+            return newFixedLengthResponse(Status.INTERNAL_ERROR, "text/plain", "Proxy error: " + e.getMessage());
         }
     }
 
@@ -118,14 +118,14 @@ public class BilibiliProxyServer extends NanoHTTPD {
 
             Response response;
             if (contentLength > 0) {
-                response = Response.newFixedLengthResponse(
+                response = newFixedLengthResponse(
                     Status.lookup(responseCode),
                     contentType,
                     wrappedStream,
                     contentLength
                 );
             } else {
-                response = Response.newChunkedResponse(
+                response = newChunkedResponse(
                     Status.lookup(responseCode),
                     contentType,
                     wrappedStream

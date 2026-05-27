@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBilibiliDurlPlayUrlPath,
   buildBilibiliPlayUrlPath,
   buildBilibiliSearchPath,
   buildBilibiliViewPath,
   convertBilibiliSearchVideoToMusicTrack,
+  describePlayurlResponse,
   parseBilibiliSearchResponse,
   parseBilibiliTrackId,
   selectBilibiliAudioUrl,
+  selectBilibiliDurlUrl,
 } from "./bilibili";
 
 describe("bilibili music utilities", () => {
@@ -90,5 +93,176 @@ describe("bilibili music utilities", () => {
         },
       })
     ).toBe("https://example.com/high.m4s");
+  });
+
+  describe("selectBilibiliAudioUrl extended field matching", () => {
+    it("selects backup_url when baseUrl and base_url are missing", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [
+                { backup_url: "https://example.com/backup.m4s", bandwidth: 1 },
+              ],
+            },
+          },
+        })
+      ).toBe("https://example.com/backup.m4s");
+    });
+
+    it("selects backupUrl (camelCase) when snake_case is missing", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [
+                {
+                  backupUrl: "https://example.com/backup-camel.m4s",
+                  bandwidth: 1,
+                },
+              ],
+            },
+          },
+        })
+      ).toBe("https://example.com/backup-camel.m4s");
+    });
+
+    it("selects url field when all other fields are missing", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [
+                { url: "https://example.com/plain-url.m4s", bandwidth: 1 },
+              ],
+            },
+          },
+        })
+      ).toBe("https://example.com/plain-url.m4s");
+    });
+
+    it("prefers baseUrl over backup_url when both present", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [
+                {
+                  baseUrl: "https://example.com/primary.m4s",
+                  backup_url: "https://example.com/backup.m4s",
+                  bandwidth: 1,
+                },
+              ],
+            },
+          },
+        })
+      ).toBe("https://example.com/primary.m4s");
+    });
+
+    it("returns null when audio array is empty", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: { dash: { audio: [] } },
+        })
+      ).toBeNull();
+    });
+
+    it("returns null when no recognizable URL field exists", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [{ bandwidth: 320, codecs: "mp4a.40.2" }],
+            },
+          },
+        })
+      ).toBeNull();
+    });
+
+    it("returns null when dash is missing", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {},
+        } as any)
+      ).toBeNull();
+    });
+  });
+
+  describe("selectBilibiliDurlUrl", () => {
+    it("extracts the first durl entry url", () => {
+      expect(
+        selectBilibiliDurlUrl({
+          data: {
+            durl: [
+              { url: "https://example.com/segment1.flv", length: 1000 },
+              { url: "https://example.com/segment2.flv", length: 1000 },
+            ],
+          },
+        })
+      ).toBe("https://example.com/segment1.flv");
+    });
+
+    it("returns null when durl array is empty", () => {
+      expect(
+        selectBilibiliDurlUrl({
+          data: { durl: [] },
+        })
+      ).toBeNull();
+    });
+
+    it("returns null when data is missing", () => {
+      expect(selectBilibiliDurlUrl({} as any)).toBeNull();
+    });
+
+    it("normalizes protocol-relative URLs", () => {
+      expect(
+        selectBilibiliDurlUrl({
+          data: {
+            durl: [{ url: "//example.com/audio.flv" }],
+          },
+        })
+      ).toBe("https://example.com/audio.flv");
+    });
+  });
+
+  describe("describePlayurlResponse", () => {
+    it("reports missing data", () => {
+      expect(describePlayurlResponse({})).toContain(
+        "response.data is null/undefined"
+      );
+    });
+
+    it("reports missing dash", () => {
+      expect(describePlayurlResponse({ data: {} } as any)).toContain(
+        "dash: missing"
+      );
+    });
+
+    it("reports empty audio array", () => {
+      const desc = describePlayurlResponse({
+        data: { dash: { audio: [] } },
+      } as any);
+      expect(desc).toContain("dash.audio.length: 0");
+    });
+
+    it("reports entry field keys", () => {
+      const desc = describePlayurlResponse({
+        data: {
+          dash: {
+            audio: [{ mimeType: "audio/mp4", codecs: "mp4a" }],
+          },
+        },
+      } as any);
+      expect(desc).toContain("first entry keys:");
+      expect(desc).toContain("audio/mp4");
+    });
+  });
+
+  describe("buildBilibiliDurlPlayUrlPath", () => {
+    it("builds durl path with fnval=0", () => {
+      expect(buildBilibiliDurlPlayUrlPath("BV1xx411c7mD", 62131)).toBe(
+        "/x/player/playurl?fnval=0&bvid=BV1xx411c7mD&cid=62131"
+      );
+    });
   });
 });

@@ -191,12 +191,36 @@ export interface BilibiliPlayUrlResponse {
   message?: string;
   data?: {
     dash?: {
-      audio?: Array<{
-        baseUrl?: string;
-        base_url?: string;
-        bandwidth?: number;
-      }>;
+      audio?: Array<BilibiliDashAudioEntry>;
     };
+    durl?: Array<{
+      url?: string;
+      length?: number;
+      size?: number;
+    }>;
+  };
+}
+
+export interface BilibiliDashAudioEntry {
+  baseUrl?: string;
+  base_url?: string;
+  backupUrl?: string;
+  backup_url?: string;
+  url?: string;
+  bandwidth?: number;
+  mimeType?: string;
+  codecs?: string;
+}
+
+export interface BilibiliDurlResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    durl?: Array<{
+      url?: string;
+      length?: number;
+      size?: number;
+    }>;
   };
 }
 
