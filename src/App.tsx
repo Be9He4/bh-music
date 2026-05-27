@@ -7,6 +7,9 @@ import { useSyncStore } from "@/store/sync-store";
 import { checkAndSync } from "@/lib/sync";
 import { cleanupCache } from "@/lib/utils/cache";
 import { revokeAll } from "@/lib/utils/blob-registry";
+import { stopBilibiliProxyServer } from "@/lib/bilibili/bilibili-native-player";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 
 export default function App() {
   // Sync Logic
@@ -39,6 +42,39 @@ export default function App() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       revokeAll();
+    };
+  }, []);
+
+  // Bilibili代理服务器生命周期管理
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    // 应用状态变化监听
+    const handleAppStateChange = ({ isActive }: { isActive: boolean }) => {
+      if (!isActive) {
+        // 应用进入后台，停止代理服务器节省资源
+        stopBilibiliProxyServer();
+      }
+    };
+
+    // 应用暂停监听
+    const handlePause = () => {
+      // 应用暂停时停止代理服务器
+      stopBilibiliProxyServer();
+    };
+
+    // 应用恢复监听
+    const handleResume = async () => {
+      // 应用恢复时，代理服务器会在下次播放时自动启动
+    };
+
+    CapacitorApp.addListener("appStateChange", handleAppStateChange);
+    CapacitorApp.addListener("pause", handlePause);
+    CapacitorApp.addListener("resume", handleResume);
+
+    return () => {
+      CapacitorApp.removeAllListeners();
+      stopBilibiliProxyServer();
     };
   }, []);
 

@@ -150,31 +150,62 @@ export async function searchBilibiliVideos(
   }
 }
 
-export async function getBilibiliSongUrl(
-  trackId: string
-): Promise<string | null> {
-  const parsed = parseBilibiliTrackId(trackId);
-  if (!parsed) return null;
-
+/**
+ * Web端获取B站音频URL
+ * 返回代理URL，浏览器原生流式播放
+ */
+async function getBilibiliSongUrlWeb(bvid: string): Promise<string | null> {
   if (IS_WEB_PROD) {
     const res = await fetchWithTimeout(
       `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/song-url`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bvid: parsed.bvid }),
+        body: JSON.stringify({ bvid }),
       },
       NETWORK_TIMEOUT
     );
     if (!res.ok) return null;
     const data = (await res.json()) as { url?: string | null };
-    return data.url || null;
+    if (!data.url) return null;
+    // 返回代理URL，支持Range请求，浏览器原生流式播放
+    return buildBilibiliAudioProxyUrl(bvid, data.url);
   }
 
+  // 开发环境直接获取
   try {
-    const referer = `https://www.bilibili.com/video/${parsed.bvid}`;
+    const referer = `https://www.bilibili.com/video/${bvid}`;
     const view = await fetchBilibiliJson<BilibiliViewResponse>(
-      buildBilibiliViewPath(parsed.bvid),
+      buildBilibiliViewPath(bvid),
+      referer
+    );
+    if (!view) return null;
+    const cid = selectBilibiliCid(view);
+    if (!cid) return null;
+    const playUrl = await fetchBilibiliJson<BilibiliPlayUrlResponse>(
+      buildBilibiliPlayUrlPath(bvid, cid),
+      referer
+    );
+    const audioUrl = playUrl ? selectBilibiliAudioUrl(playUrl) : null;
+    if (!audioUrl) return null;
+    return buildBilibiliAudioProxyUrl(bvid, audioUrl);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Android端获取B站音频URL
+ * 使用本地代理实现真正的流式播放
+ */
+async function getBilibiliSongUrlNative(bvid: string): Promise<string | null> {
+  try {
+    const { getNativeBilibiliStreamUrl } = await import("./bilibili-native-player");
+    const referer = `https://www.bilibili.com/video/${bvid}`;
+
+    // 获取B站音频URL
+    const view = await fetchBilibiliJson<BilibiliViewResponse>(
+      buildBilibiliViewPath(bvid),
       referer
     );
     if (!view) return null;
@@ -183,28 +214,31 @@ export async function getBilibiliSongUrl(
     if (!cid) return null;
 
     const playUrl = await fetchBilibiliJson<BilibiliPlayUrlResponse>(
-      buildBilibiliPlayUrlPath(parsed.bvid, cid),
+      buildBilibiliPlayUrlPath(bvid, cid),
       referer
     );
     const audioUrl = playUrl ? selectBilibiliAudioUrl(playUrl) : null;
     if (!audioUrl) return null;
-    if (IS_NATIVE) {
-      const { CapacitorHttp } = await import("@capacitor/core");
-      const res = await CapacitorHttp.request({
-        method: "GET",
-        url: audioUrl,
-        headers: buildBilibiliHeaders(referer),
-        responseType: "blob",
-      });
-      if (res.status >= 400) return null;
-      const blob = ensureBlob(res.data, res.headers?.["Content-Type"] || "audio/mp4");
-      if (!blob) return null;
-      const blobUrl = URL.createObjectURL(blob);
-      registerBlobUrl(blobUrl);
-      return blobUrl;
-    }
-    return buildBilibiliAudioProxyUrl(parsed.bvid, audioUrl);
-  } catch {
+
+    // 使用本地代理实现流式播放
+    return getNativeBilibiliStreamUrl(audioUrl, bvid);
+  } catch (e) {
+    logger.error("[bilibili] Error getting native song URL:", e);
     return null;
   }
+}
+
+export async function getBilibiliSongUrl(
+  trackId: string
+): Promise<string | null> {
+  const parsed = parseBilibiliTrackId(trackId);
+  if (!parsed) return null;
+
+  // Web端：返回代理URL，浏览器原生流式播放
+  if (!IS_NATIVE) {
+    return getBilibiliSongUrlWeb(parsed.bvid);
+  }
+
+  // Android端：使用本地代理
+  return getBilibiliSongUrlNative(parsed.bvid);
 }
