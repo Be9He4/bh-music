@@ -10,12 +10,30 @@ import { buildDownloadKey } from "@/lib/utils/download";
 import type { MusicSource } from "@/types/music";
 import toast from "react-hot-toast";
 import { handleAutoMatch } from "@/lib/audio-match";
+import { revokeBlobUrl } from "@/lib/utils/blob-registry";
 import { logger } from "@/lib/logger";
 
 const AUDIO_READY_TIMEOUT = 8000;
 
 // 模块级 URL 缓存：跨渲染保持已解析的音频 URL，离线时复用
-const urlMemoryCache = new Map<string, string>();
+const _urlMemoryCache = new Map<string, string>();
+const urlMemoryCache = {
+  get: (key: string) => _urlMemoryCache.get(key),
+  set: (key: string, value: string) => {
+    const old = _urlMemoryCache.get(key);
+    if (old && old !== value && old.startsWith("blob:")) {
+      revokeBlobUrl(old);
+    }
+    _urlMemoryCache.set(key, value);
+  },
+  delete: (key: string) => {
+    const old = _urlMemoryCache.get(key);
+    if (old?.startsWith("blob:")) {
+      revokeBlobUrl(old);
+    }
+    _urlMemoryCache.delete(key);
+  },
+};
 
 type FallbackStage = "none" | "proxy" | "final";
 

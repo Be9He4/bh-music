@@ -6,6 +6,7 @@ import { useAppStore, useDownloadStore } from "./store";
 import { useSyncStore } from "@/store/sync-store";
 import { checkAndSync } from "@/lib/sync";
 import { cleanupCache } from "@/lib/utils/cache";
+import { revokeAll } from "@/lib/utils/blob-registry";
 
 export default function App() {
   // Sync Logic
@@ -32,6 +33,13 @@ export default function App() {
     } else {
       setTimeout(() => cleanupCache(), 5000);
     }
+
+    const handleBeforeUnload = () => revokeAll();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      revokeAll();
+    };
   }, []);
 
   return <RouterProvider router={router} />;

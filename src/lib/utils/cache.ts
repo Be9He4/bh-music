@@ -114,7 +114,9 @@ export async function cachedFetch<T>(
     async () => {
       const fresh = await fetcher();
       if (fresh !== null) {
-        await saveToDisk(key, fresh, ttl);
+        if (typeof fresh !== "string" || !fresh.startsWith("blob:")) {
+          await saveToDisk(key, fresh, ttl);
+        }
       }
       return fresh;
     },
