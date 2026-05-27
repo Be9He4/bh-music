@@ -39,15 +39,9 @@ function ensureBlob(data: unknown, mimeType: string): Blob | null {
     }
     try {
       return base64ToBlob(base64, mimeType);
-    } catch (e) {
-      if (import.meta.env.DEV) {
-        logger.error("[bilibili-blob] base64ToBlob failed:", e);
-      }
+    } catch {
       return null;
     }
-  }
-  if (import.meta.env.DEV) {
-    logger.info("[bilibili-blob] unexpected typeof:", typeof data);
   }
   return null;
 }

@@ -74,10 +74,10 @@ const createAndSaveLog = (level: LogLevel, args: any[]): LogEntry => {
     context: context ?? undefined,
   };
 
-  // 维护内存队列并同步
+  // 维护内存队列并同步（仅 WARN/ERROR 持久化，INFO 仅 console）
   logsCache.push(entry);
   if (logsCache.length > MAX_LOG_ENTRIES) logsCache.shift();
-  persistLogs();
+  if (level !== "info") persistLogs();
 
   if (import.meta.env?.DEV) {
     console[level](`[${source}] ${entry.message}`, context ?? entry.stack ?? "");
@@ -94,7 +94,7 @@ export const logger = {
   getLastNLogs: (n: number) => logsCache.slice(-n),
   clear: () => { logsCache = []; persistLogs(); },
   exportText: (filter?: { recent?: boolean; lastN?: number }) => {
-    let res = logsCache;
+    let res = logsCache.filter(e => e.level !== "info");
     if (filter?.recent) res = res.filter(e => e.time >= APP_START_TIME);
     if (filter?.lastN) res = res.slice(-filter.lastN);
     
