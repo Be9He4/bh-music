@@ -35,4 +35,12 @@ export class BilibiliApiProvider implements IMusicProvider {
   async getLyric(_track: MusicTrack): Promise<SongLyric | null> {
     return null;
   }
+
+  async searchArtist(
+    query: string,
+    page: number,
+    count: number,
+  ): Promise<SearchPageResult<MusicTrack>> {
+    return this.search(query, page, count);
+  }
 }
