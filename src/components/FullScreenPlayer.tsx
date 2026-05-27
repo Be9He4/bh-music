@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LyricsPanel } from "./LyricsPanel";
@@ -167,15 +167,13 @@ export function FullScreenPlayer({
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
-  const [hslColor, setHslColor] = useState<[number, number, number] | null>(
-    null
-  );
-  const [prevCoverUrl, setPrevCoverUrl] = useState(coverUrl);
+  const [colorInfo, setColorInfo] = useState<{
+    coverUrl: string | null;
+    hslColor: [number, number, number] | null;
+  }>({ coverUrl: null, hslColor: null });
 
-  if (coverUrl !== prevCoverUrl) {
-    setPrevCoverUrl(coverUrl);
-    setHslColor(null);
-  }
+  const hslColor =
+    colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
 
   useEffect(() => {
     if (!isFullScreen) {
@@ -211,6 +209,10 @@ export function FullScreenPlayer({
   );
 
   const playTrack = (index: number) => setCurrentIndexAndPlay(index);
+
+  const handleDrawerOpenChange = useCallback((open: boolean) => {
+    setMoreDrawerOpen(open);
+  }, []);
 
   const handleClearQueue = () => {
     if (confirm("确定要清空播放列表吗？")) {
@@ -261,8 +263,10 @@ export function FullScreenPlayer({
           <ColorExtractor
             src={coverUrl}
             maxColors={10}
-            getColors={(colors: string[]) => setHslColor(pickBestColor(colors))}
-            onError={() => setHslColor(null)}
+            getColors={(colors: string[]) =>
+              setColorInfo({ coverUrl, hslColor: pickBestColor(colors) })
+            }
+            onError={() => setColorInfo({ coverUrl, hslColor: null })}
           />
         </div>
       )}
@@ -365,9 +369,7 @@ export function FullScreenPlayer({
                 <MusicTrackMobileMenu
                   track={currentTrack}
                   open={moreDrawerOpen}
-                  onOpenChange={(open) => {
-                    setMoreDrawerOpen(open);
-                  }}
+                  onOpenChange={handleDrawerOpenChange}
                   onAddToPlaylist={() => {
                     setIsAddToPlaylistOpen(true);
                   }}

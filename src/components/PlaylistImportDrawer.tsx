@@ -105,17 +105,18 @@ export function PlaylistImportDrawer({ open, onOpenChange }: PlaylistImportDrawe
 
   // 自动读取剪贴板
   useEffect(() => {
-    if (!open) return;
+    if (!open || url) return;
     navigator.clipboard?.readText?.()
       .then((text) => {
         const extractedUrl = parseInput(text);
-        if (extractedUrl && detectPlatform(extractedUrl)) {
+        const platform = detectPlatform(extractedUrl);
+        if (extractedUrl && platform) {
           setUrl(extractedUrl);
-          toastUtils.success("已自动填充链接", { id: "clipboard-import" });
+          toastUtils.success(`已识别${PLATFORM_LABELS[platform]}歌单链接`, { id: "clipboard-import" });
         }
       })
       .catch(() => {});
-  }, [open]);
+  }, [open, url]);
 
   // 统一的核心获取逻辑
   const handleFetch = async () => {

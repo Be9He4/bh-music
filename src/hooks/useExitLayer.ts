@@ -16,7 +16,7 @@ interface ExitLayerStore {
   handleExit: () => boolean;
 }
 
-const useExitLayerStore = create<ExitLayerStore>((set, get) => ({
+export const useExitLayerStore = create<ExitLayerStore>((set, get) => ({
   layers: [],
 
   register: (layer) => {

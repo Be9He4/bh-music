@@ -4,14 +4,15 @@ import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 
 import { cn } from '@/lib/utils'
-import { useExitLayer } from '@/hooks/useExitLayer'
+import { useExitLayerStore } from '@/hooks/useExitLayer'
 
 function Drawer({
   open,
   onOpenChange,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  const { register, unregister } = useExitLayer()
+  const register = useExitLayerStore((s) => s.register)
+  const unregister = useExitLayerStore((s) => s.unregister)
 
   React.useEffect(() => {
     let id: string | undefined

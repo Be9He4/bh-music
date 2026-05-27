@@ -67,7 +67,8 @@ const ActionButton = ({
     className={cn("justify-start w-full", className)}
     onClick={onClick}
   >
-    <Icon className="mr-2 h-4 w-4" /> {children}
+    <Icon className="mr-2 h-4 w-4 shrink-0" />
+    <span className="truncate">{children}</span>
   </Button>
 );
 
