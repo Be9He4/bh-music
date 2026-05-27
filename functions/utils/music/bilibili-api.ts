@@ -67,12 +67,30 @@ export async function proxyBilibiliAudio(
   if (range) headers.Range = range;
 
   const response = await fetch(url, { headers });
-  const responseHeaders = new Headers(response.headers);
+
+  // 透传关键响应头，确保Range请求正常工作
+  const responseHeaders = new Headers();
+  const headersToPass = [
+    "Content-Type",
+    "Content-Length",
+    "Content-Range",
+    "Accept-Ranges",
+    "ETag",
+    "Last-Modified",
+    "Cache-Control"
+  ];
+
+  for (const h of headersToPass) {
+    const val = response.headers.get(h);
+    if (val) responseHeaders.set(h, val);
+  }
+
   responseHeaders.set("Access-Control-Allow-Origin", "*");
   responseHeaders.set(
     "Access-Control-Expose-Headers",
-    "Content-Length, Content-Range, Accept-Ranges"
+    "Content-Length, Content-Range, Accept-Ranges, ETag"
   );
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
