@@ -10,6 +10,7 @@ import {
 } from "@/lib/storage-manager";
 import { MusicSource, MusicTrack } from "@/types/music";
 import toast from "react-hot-toast";
+import { base64ToBlob } from "@/lib/utils/base64";
 import { LocalMusicFile } from "@/plugins/local-music";
 import { useDownloadStore } from "@/store/download-store";
 import { useMusicStore } from "@/store/music-store";
@@ -278,15 +279,6 @@ async function embedMetadataNative(
   } catch (e) {
     logger.warn("download", "Native 元数据嵌入失败", e);
   }
-}
-
-function base64ToBlob(base64: string, mimeType: string): Blob {
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  return new Blob([bytes.buffer], { type: mimeType });
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {

@@ -20,6 +20,7 @@ import {
   type SearchPageResult,
 } from "@otter-music/shared";
 import { registerBlobUrl } from "@/lib/utils/blob-registry";
+import { base64ToBlob } from "@/lib/utils/base64";
 import { logger } from "../logger";
 
 const BILIBILI_API_BASE = "https://api.bilibili.com";
@@ -27,17 +28,6 @@ const BILIBILI_PROXY_PREFIX = "/music-api/bilibili";
 const BILIBILI_DEV_AUDIO_PROXY = "/api/bilibili-audio";
 const BILIBILI_DEV_COVER_PROXY = "/api/bilibili-cover";
 const NETWORK_TIMEOUT = 12000;
-
-function base64ToBlob(base64: string, mimeType: string): Blob {
-  // Android Base64.DEFAULT inserts \r\n every 76 chars — strip before atob()
-  const cleaned = base64.replace(/[\s\r\n]+/g, "");
-  const binaryStr = atob(cleaned);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  return new Blob([bytes.buffer], { type: mimeType });
-}
 
 function ensureBlob(data: unknown, mimeType: string): Blob | null {
   if (data instanceof Blob) return data;
@@ -47,19 +37,18 @@ function ensureBlob(data: unknown, mimeType: string): Blob | null {
       const commaIdx = data.indexOf(",");
       base64 = commaIdx >= 0 ? data.substring(commaIdx + 1) : data;
     }
-    logger.info("bilibili-blob] typeof=data:string, len=" + data.length +
-      ", hasNewlines=" + /[\r\n]/.test(data) +
-      ", first80=" + JSON.stringify(data.substring(0, 80)));
     try {
-      const blob = base64ToBlob(base64, mimeType);
-      logger.info("bilibili-blob] blob created, size=" + blob.size);
-      return blob;
+      return base64ToBlob(base64, mimeType);
     } catch (e) {
-      logger.error("bilibili-blob] base64ToBlob failed:", e);
+      if (import.meta.env.DEV) {
+        logger.error("[bilibili-blob] base64ToBlob failed:", e);
+      }
       return null;
     }
   }
-  logger.info("bilibili-blob] unexpected typeof:", typeof data);
+  if (import.meta.env.DEV) {
+    logger.info("[bilibili-blob] unexpected typeof:", typeof data);
+  }
   return null;
 }
 

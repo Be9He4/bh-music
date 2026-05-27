@@ -55,83 +55,101 @@ public class BilibiliProxyServer extends NanoHTTPD {
 
     private Response proxyBilibiliAudio(String audioUrl, String bvid, IHTTPSession session) throws IOException {
         URL url = new URL(audioUrl);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-        // 设置请求方法
-        String method = session.getMethod().name();
-        connection.setRequestMethod(method);
+        try {
+            // 设置请求方法
+            String method = session.getMethod().name();
+            connection.setRequestMethod(method);
 
-        // 透传Range请求头
-        Map<String, String> headers = session.getHeaders();
-        String rangeHeader = headers.get("range");
-        if (rangeHeader != null) {
-            connection.setRequestProperty("Range", rangeHeader);
-        }
-
-        // 设置B站必需的header
-        connection.setRequestProperty("User-Agent", USER_AGENT);
-        connection.setRequestProperty("Referer", "https://www.bilibili.com/video/" + bvid);
-        connection.setRequestProperty("Origin", "https://www.bilibili.com");
-
-        // 透传其他相关header
-        String[] headersToPass = {"Accept", "Accept-Encoding", "Accept-Language", "Connection"};
-        for (String h : headersToPass) {
-            String val = headers.get(h.toLowerCase());
-            if (val != null) {
-                connection.setRequestProperty(h, val);
+            // 透传Range请求头
+            Map<String, String> headers = session.getHeaders();
+            String rangeHeader = headers.get("range");
+            if (rangeHeader != null) {
+                connection.setRequestProperty("Range", rangeHeader);
             }
-        }
 
-        connection.setConnectTimeout(10000);
-        connection.setReadTimeout(30000);
-        connection.setDoInput(true);
-        connection.setDoOutput(false);
+            // 设置B站必需的header
+            connection.setRequestProperty("User-Agent", USER_AGENT);
+            connection.setRequestProperty("Referer", "https://www.bilibili.com/video/" + bvid);
+            connection.setRequestProperty("Origin", "https://www.bilibili.com");
 
-        connection.connect();
-
-        int responseCode = connection.getResponseCode();
-        String contentType = connection.getContentType();
-        long contentLength = connection.getContentLengthLong();
-
-        // 构建响应
-        Response response;
-        InputStream inputStream;
-
-        if (responseCode >= 200 && responseCode < 300) {
-            inputStream = connection.getInputStream();
-        } else {
-            inputStream = connection.getErrorStream();
-        }
-
-        if (contentLength > 0) {
-            response = Response.newFixedLengthResponse(
-                Status.lookup(responseCode),
-                contentType,
-                inputStream,
-                contentLength
-            );
-        } else {
-            response = Response.newChunkedResponse(
-                Status.lookup(responseCode),
-                contentType,
-                inputStream
-            );
-        }
-
-        // 透传关键响应头到客户端
-        String[] headersToPassBack = {"Content-Range", "Accept-Ranges", "ETag", "Last-Modified", "Cache-Control"};
-        for (String h : headersToPassBack) {
-            String val = connection.getHeaderField(h);
-            if (val != null) {
-                response.addHeader(h, val);
+            // 透传其他相关header
+            String[] headersToPass = {"Accept", "Accept-Encoding", "Accept-Language", "Connection"};
+            for (String h : headersToPass) {
+                String val = headers.get(h.toLowerCase());
+                if (val != null) {
+                    connection.setRequestProperty(h, val);
+                }
             }
+
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(30000);
+            connection.setDoInput(true);
+            connection.setDoOutput(false);
+
+            connection.connect();
+
+            int responseCode = connection.getResponseCode();
+            String contentType = connection.getContentType();
+            long contentLength = connection.getContentLengthLong();
+
+            InputStream inputStream;
+            if (responseCode >= 200 && responseCode < 300) {
+                inputStream = connection.getInputStream();
+            } else {
+                inputStream = connection.getErrorStream();
+            }
+
+            // 包装 InputStream：当流关闭时断开连接
+            final InputStream stream = inputStream;
+            InputStream wrappedStream = new InputStream() {
+                @Override
+                public int read() throws IOException { return stream.read(); }
+                @Override
+                public int read(byte[] b, int off, int len) throws IOException { return stream.read(b, off, len); }
+                @Override
+                public void close() throws IOException {
+                    try { stream.close(); } finally { connection.disconnect(); }
+                }
+                @Override
+                public int available() throws IOException { return stream.available(); }
+            };
+
+            Response response;
+            if (contentLength > 0) {
+                response = Response.newFixedLengthResponse(
+                    Status.lookup(responseCode),
+                    contentType,
+                    wrappedStream,
+                    contentLength
+                );
+            } else {
+                response = Response.newChunkedResponse(
+                    Status.lookup(responseCode),
+                    contentType,
+                    wrappedStream
+                );
+            }
+
+            // 透传关键响应头到客户端
+            String[] headersToPassBack = {"Content-Range", "Accept-Ranges", "ETag", "Last-Modified", "Cache-Control"};
+            for (String h : headersToPassBack) {
+                String val = connection.getHeaderField(h);
+                if (val != null) {
+                    response.addHeader(h, val);
+                }
+            }
+
+            // 添加CORS头
+            response.addHeader("Access-Control-Allow-Origin", "*");
+            response.addHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
+
+            return response;
+        } catch (Exception e) {
+            connection.disconnect();
+            throw e;
         }
-
-        // 添加CORS头
-        response.addHeader("Access-Control-Allow-Origin", "*");
-        response.addHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
-
-        return response;
     }
 
     /**

@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 let serverStarted = false;
 let serverStartPromise: Promise<void> | null = null;
 
+const SERVER_START_TIMEOUT = 8000;
+
 /**
  * 确保本地代理服务器已启动
  */
@@ -17,7 +19,6 @@ async function ensureServerRunning(): Promise<void> {
 
   serverStartPromise = (async () => {
     try {
-      // 检查是否已在运行
       const status = await BilibiliProxy.isRunning();
       if (status.running) {
         serverStarted = true;
@@ -25,8 +26,13 @@ async function ensureServerRunning(): Promise<void> {
         return;
       }
 
-      // 启动服务器
-      const result = await BilibiliProxy.startServer();
+      const result = await Promise.race([
+        BilibiliProxy.startServer(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Server start timeout")), SERVER_START_TIMEOUT)
+        ),
+      ]);
+
       if (result.success) {
         serverStarted = true;
         logger.info("[bilibili-native] Proxy server started on port", result.port);
