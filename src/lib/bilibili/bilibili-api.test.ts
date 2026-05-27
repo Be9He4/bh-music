@@ -6,6 +6,7 @@ afterEach(() => {
   vi.doUnmock("@/lib/api/config");
   vi.doUnmock("@capacitor/core");
   vi.doUnmock("@/lib/utils/blob-registry");
+  vi.doUnmock("@/plugins/bilibili-proxy");
   vi.resetModules();
 });
 
@@ -82,88 +83,112 @@ describe("searchBilibiliVideos", () => {
 });
 
 describe("getBilibiliSongUrl", () => {
-  it("downloads native audio as blob via CapacitorHttp with Bilibili headers", async () => {
+  it("returns proxy url via BilibiliProxy on native platform", async () => {
+    const getProxyUrl = vi.fn().mockResolvedValue({
+      success: true,
+      url: "http://localhost:8080/stream",
+    });
+    const isRunning = vi.fn().mockResolvedValue({ running: false });
+    const startServer = vi
+      .fn()
+      .mockResolvedValue({ success: true, port: 8080 });
+    vi.doMock("@/plugins/bilibili-proxy", () => ({
+      BilibiliProxy: {
+        getProxyUrl,
+        isRunning,
+        startServer,
+      },
+    }));
     const request = vi
       .fn()
       .mockResolvedValueOnce({
         status: 200,
-        data: {
+        data: JSON.stringify({
           code: 0,
           data: { pages: [{ cid: 62131 }] },
-        },
+        }),
       })
       .mockResolvedValueOnce({
         status: 200,
-        data: {
+        data: JSON.stringify({
           code: 0,
           data: {
             dash: {
               audio: [{ baseUrl: "https://example.com/audio.m4s" }],
             },
           },
-        },
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        data: "ZHVtbXk=",
-        headers: { "Content-Type": "audio/mp4" },
+        }),
       });
+    vi.doMock("@capacitor/core", () => ({
+      Capacitor: { isNativePlatform: () => true },
+      CapacitorHttp: { request },
+    }));
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout: vi.fn(),
       getApiUrl: () => "https://otter-music.pages.dev",
       IS_NATIVE: true,
       IS_WEB_PROD: false,
     }));
-    vi.doMock("@capacitor/core", () => ({
-      CapacitorHttp: { request },
-    }));
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:native-audio");
 
     const { getBilibiliSongUrl } = await import("./bilibili-api");
 
     await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toBe(
-      "blob:native-audio"
+      "http://localhost:8080/stream"
     );
   });
 
-  it("returns null on native when audio download fails", async () => {
+  it("returns null on native when proxy fails to get stream url", async () => {
+    const getProxyUrl = vi.fn().mockResolvedValue({
+      success: false,
+      url: "",
+    });
+    const isRunning = vi.fn().mockResolvedValue({ running: false });
+    const startServer = vi
+      .fn()
+      .mockResolvedValue({ success: true, port: 8080 });
+    vi.doMock("@/plugins/bilibili-proxy", () => ({
+      BilibiliProxy: {
+        getProxyUrl,
+        isRunning,
+        startServer,
+      },
+    }));
     const request = vi
       .fn()
       .mockResolvedValueOnce({
         status: 200,
-        data: {
+        data: JSON.stringify({
           code: 0,
           data: { pages: [{ cid: 62131 }] },
-        },
+        }),
       })
       .mockResolvedValueOnce({
         status: 200,
-        data: {
+        data: JSON.stringify({
           code: 0,
           data: {
             dash: {
               audio: [{ baseUrl: "https://example.com/audio.m4s" }],
             },
           },
-        },
-      })
-      .mockResolvedValueOnce({
-        status: 404,
-        data: null,
+        }),
       });
+    vi.doMock("@capacitor/core", () => ({
+      Capacitor: { isNativePlatform: () => true },
+      CapacitorHttp: { request },
+    }));
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout: vi.fn(),
       getApiUrl: () => "https://otter-music.pages.dev",
       IS_NATIVE: true,
       IS_WEB_PROD: false,
     }));
-    vi.doMock("@capacitor/core", () => ({
-      CapacitorHttp: { request },
-    }));
 
     const { getBilibiliSongUrl } = await import("./bilibili-api");
 
-    await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toBeNull();
+    await expect(
+      getBilibiliSongUrl("bilibili_BV1xx411c7mD")
+    ).resolves.toBeNull();
   });
 
   it("resolves dev song urls through view and playurl", async () => {
@@ -272,7 +297,10 @@ describe("getBilibiliCoverUrl", () => {
 
     const callOptions = request.mock.calls[0][0];
     expect(callOptions.url).toBe("https://i0.hdslb.com/bfs/archive/cover.jpg");
-    expect(callOptions.headers).toHaveProperty("Referer", "https://www.bilibili.com/");
+    expect(callOptions.headers).toHaveProperty(
+      "Referer",
+      "https://www.bilibili.com/"
+    );
   });
 
   it("converts base64 data to blob on native when cover request returns string", async () => {
@@ -290,7 +318,9 @@ describe("getBilibiliCoverUrl", () => {
     vi.doMock("@capacitor/core", () => ({
       CapacitorHttp: { request },
     }));
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:native-cover-base64");
+    vi.spyOn(URL, "createObjectURL").mockReturnValue(
+      "blob:native-cover-base64"
+    );
 
     const { getBilibiliCoverUrl } = await import("./bilibili-api");
 
