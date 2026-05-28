@@ -35,6 +35,7 @@ import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
 import { ColorExtractor } from "react-color-extractor";
 import { pickBestColor } from "@/lib/utils/color";
+import { getCanonicalShareUrl } from "@/lib/share-url";
 
 interface ModeIconProps {
   isRepeat: boolean;
@@ -172,8 +173,7 @@ export function FullScreenPlayer({
     hslColor: [number, number, number] | null;
   }>({ coverUrl: null, hslColor: null });
 
-  const hslColor =
-    colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
+  const hslColor = colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
 
   useEffect(() => {
     if (!isFullScreen) {
@@ -226,13 +226,16 @@ export function FullScreenPlayer({
   };
 
   const handleShare = async () => {
-    if (!currentTrack || !currentAudioUrl)
-      return toast.error("暂无歌曲或音频链接");
+    if (!currentTrack) return toast.error("暂无歌曲信息");
+
+    const shareUrl = getCanonicalShareUrl(currentTrack) || currentAudioUrl;
+    if (!shareUrl) return toast.error("该音源暂不支持分享");
+
     try {
       await navigator.clipboard.writeText(
         `【OtterMusic】${currentTrack.name} - ${currentTrack.artist.join(
           ", "
-        )}\n${currentAudioUrl}`
+        )}\n${shareUrl}`
       );
       toast.success("已复制到剪贴板");
     } catch {

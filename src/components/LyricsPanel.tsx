@@ -230,8 +230,14 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
   }, [handleScroll]);
 
   useEffect(() => {
-    if (!trackId || !lyricId || !source) return;
-    if (!active) return;
+    if (!trackId || !source || !active) return;
+
+    if (!lyricId) {
+      setLoading(false);
+      setError("暂无歌词");
+      setLyrics([]);
+      return;
+    }
 
     let cancelled = false;
 
@@ -312,6 +318,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     );
   }
 
+  // TODO: 为什么 B 站音源应该返回的是 null 还显示加载中？
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-white/40 tracking-widest">

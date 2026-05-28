@@ -22,3 +22,26 @@ export async function readClipboardText(): Promise<string> {
     return "";
   }
 }
+
+/**
+ * 跨平台写入剪贴板文本
+ * - Web 端使用 navigator.clipboard.writeText()
+ * - Capacitor APP 端使用 @capacitor/clipboard 插件
+ *
+ * @param text 要写入剪贴板的文本内容
+ * @returns 是否写入成功
+ */
+export async function writeClipboardText(text: string): Promise<boolean> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Clipboard.write({ string: text });
+      return true;
+    } else {
+      await navigator.clipboard?.writeText?.(text);
+      return true;
+    }
+  } catch (error) {
+    logger.warn("clipboard", "Failed to write clipboard", error);
+    return false;
+  }
+}
