@@ -44,7 +44,6 @@ Otter Music 是一款 Capacitor 混合架构音乐播放器——同一套 React
 
 - 使用 TypeScript，`@/` 路径别名指向 `src/`
 - Zustand store 放在 `src/store/`，新增持久化字段需在 `partialize` 中声明
-- 测试文件与源文件同目录，命名 `*.test.ts` 或 `*.test.tsx`（Vitest + jsdom，`src/test/setup.ts` 加载 `@testing-library/jest-dom`）
 - 保持改动最小，不引入无必要的抽象或依赖
 - 修改播放、同步、Store 逻辑时，补充或更新对应测试
 - 重要业务逻辑应使用 `src/lib/logger.ts` 记录日志 info、error、warn 等
