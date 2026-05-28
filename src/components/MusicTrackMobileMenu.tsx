@@ -32,6 +32,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  buildBilibiliSeriesAlbumId,
+  buildBilibiliMultiPAlbumId,
+  parseBilibiliTrackId,
+} from "@otter-music/shared";
 
 interface MusicTrackMobileMenuProps {
   track: MusicTrack;
@@ -121,6 +126,24 @@ export function MusicTrackMobileMenu({
           } else if (type === "album" && detail.al?.id) {
             id = String(detail.al.id);
           }
+
+          // B站音源：从详情中提取合集/分P 信息
+          if (type === "album" && track.source === "bilibili") {
+            // 优先使用已有的 album_id
+            if (track.album_id?.startsWith("bilibili_")) {
+              id = track.album_id;
+            } else if (detail.ugc_season?.id) {
+              // 从 ugc_season 构建专辑 ID
+              const ownerMid = detail.owner?.mid;
+              id = buildBilibiliSeriesAlbumId(detail.ugc_season.id, ownerMid);
+            } else if (detail.pages && detail.pages.length > 1) {
+              // 多分P 视频，构建分P 专辑 ID
+              const parsed = parseBilibiliTrackId(track.id);
+              if (parsed?.bvid) {
+                id = buildBilibiliMultiPAlbumId(parsed.bvid);
+              }
+            }
+          }
         }
       } catch (e) {
         console.error("Failed to get song detail", e);
@@ -140,7 +163,14 @@ export function MusicTrackMobileMenu({
         return;
       }
       if (type === "album" && provider.getAlbumDetail) {
-        navigate(`/netease-album/${id}`);
+        const targetPath =
+          track.source === "bilibili" &&
+          (id?.startsWith("bilibili_S_") ||
+            id?.startsWith("bilibili_O_") ||
+            id?.startsWith("bilibili_V_"))
+            ? `/bilibili-collection/${id}`
+            : `/netease-album/${id}`;
+        navigate(targetPath);
         onOpenChange(false);
         onNavigate?.();
         return;

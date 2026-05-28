@@ -66,7 +66,7 @@ describe("bilibili music utilities", () => {
       const track = convertBilibiliSearchVideoToMusicTrack({
         bvid: "BV1xx411c7mD",
         title: "歌曲标题",
-        author: "UP主",
+        author: "",
         pic: "https://example.com/cover.jpg",
         season_id: 67890,
       });
@@ -79,7 +79,7 @@ describe("bilibili music utilities", () => {
       const track = convertBilibiliSearchVideoToMusicTrack({
         bvid: "BV1xx411c7mD",
         title: "歌曲标题",
-        author: "UP主",
+        author: "",
         pic: "https://example.com/cover.jpg",
       });
 
@@ -373,7 +373,7 @@ describe("bilibili music utilities", () => {
         series_id: 1,
         name: "Untitled",
       });
-      expect(track.artist).toEqual(["UP主"]);
+      expect(track.artist).toEqual([""]);
       expect(track.artist_ids).toBeUndefined();
     });
 

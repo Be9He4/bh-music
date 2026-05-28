@@ -40,6 +40,7 @@ import {
   type MusicTrack,
   type SearchPageResult,
 } from "@otter-music/shared";
+
 import { registerBlobUrl } from "@/lib/utils/blob-registry";
 import { base64ToBlob } from "@/lib/utils/base64";
 import { logger } from "../logger";
@@ -374,6 +375,38 @@ export async function getBilibiliCollectionDetail(
   const mid = parsed.mid ? Number(parsed.mid) : undefined;
 
   try {
+    // 如果有 mid，直接调用 seasons_archives_list
+    if (mid !== undefined && !isNaN(mid)) {
+      const seasonsData =
+        await fetchBilibiliJson<BilibiliSeasonsArchivesListResponse>(
+          buildBilibiliSeasonsArchivesListPath(mid, seriesId, page, pageSize)
+        );
+      if (seasonsData) {
+        const seasonsResult = parseBilibiliSeasonsArchivesList(seasonsData);
+        if (seasonsResult.meta) {
+          const upName = "";
+
+          // 更新 meta 中的 creator name
+          const metaWithCreator: BilibiliSeriesMetaRaw = {
+            ...seasonsResult.meta,
+            creator: seasonsResult.meta.creator
+              ? { ...seasonsResult.meta.creator, name: upName }
+              : undefined,
+          };
+
+          return {
+            meta: metaWithCreator,
+            tracks: seasonsResult.archives.map((archive) =>
+              convertSeasonArchiveToMusicTrack(archive, upName)
+            ),
+            total: seasonsResult.total,
+          };
+        }
+      }
+      // 如果 seasons_archives_list 失败，fallback 到 series API
+    }
+
+    // 没有 mid 或 seasons_archives_list 失败，尝试 series API
     const [detailData, archivesData] = await Promise.all([
       fetchBilibiliJson<BilibiliSeriesResponse>(
         buildBilibiliSeriesDetailPath(seriesId)
@@ -394,23 +427,6 @@ export async function getBilibiliCollectionDetail(
         meta,
         tracks: parsed.archives.map(convertSeriesArchiveToMusicTrack),
         total: parsed.total,
-      };
-    }
-
-    if (mid !== undefined && !isNaN(mid)) {
-      const seasonsData =
-        await fetchBilibiliJson<BilibiliSeasonsArchivesListResponse>(
-          buildBilibiliSeasonsArchivesListPath(mid, seriesId, page, pageSize)
-        );
-      if (!seasonsData) return null;
-
-      const seasonsResult = parseBilibiliSeasonsArchivesList(seasonsData);
-      if (!seasonsResult.meta) return null;
-
-      return {
-        meta: seasonsResult.meta,
-        tracks: seasonsResult.archives.map(convertSeasonArchiveToMusicTrack),
-        total: seasonsResult.total,
       };
     }
 
@@ -490,6 +506,27 @@ export async function enrichBilibiliSearchResults(
     return t;
   });
 }
+/**
+ * 获取 B站视频详情。
+ */
+export async function getBilibiliVideoDetail(
+  trackId: string
+): Promise<Record<string, unknown> | null> {
+  const parsed = parseBilibiliTrackId(trackId);
+  if (!parsed) return null;
+
+  try {
+    const referer = `https://www.bilibili.com/video/${parsed.bvid}`;
+    const view = await fetchBilibiliJson<BilibiliViewResponse>(
+      buildBilibiliViewPath(parsed.bvid),
+      referer
+    );
+    return view?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // B站音频歌单 API (menu/hit)
 /**
  * 获取 B站多分P 视频的详情，返回各分P作为独立曲目列表。

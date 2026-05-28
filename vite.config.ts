@@ -245,7 +245,8 @@ export default defineConfig({
         if (!url) return { valid: false, error: "url required" };
         try {
           const parsed = new URL(url);
-          if (!/(^|\.)hdslb\.com$/.test(parsed.hostname)) {
+          // 允许 B 站图片域名：hdslb.com 和 biliimg.com
+          if (!/(^|\.)hdslb\.com$|(^|\.)biliimg\.com$/.test(parsed.hostname)) {
             return { valid: false, error: "invalid cover host" };
           }
         } catch {

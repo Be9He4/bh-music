@@ -8,6 +8,7 @@ import {
   getBilibiliCollectionDetail,
   getBilibiliCoverUrl,
   getBilibiliSongUrl,
+  getBilibiliVideoDetail,
   searchBilibiliCollections,
   searchBilibiliVideos,
 } from "@/lib/bilibili/bilibili-api";
@@ -60,5 +61,9 @@ export class BilibiliApiProvider implements IMusicProvider {
     total: number;
   } | null> {
     return getBilibiliCollectionDetail(id);
+  }
+
+  async getSongDetail(id: string): Promise<unknown> {
+    return getBilibiliVideoDetail(id);
   }
 }

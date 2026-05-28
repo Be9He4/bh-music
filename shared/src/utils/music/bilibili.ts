@@ -1,3 +1,4 @@
+import * as forge from "node-forge";
 import type { MusicTrack, SearchPageResult } from "../../types/music";
 import type {
   BilibiliDurlResponse,
@@ -99,6 +100,100 @@ export function buildBilibiliSeasonsArchivesListPath(
   return `/x/polymer/web-space/seasons_archives_list?mid=${mid}&season_id=${seasonId}&page_num=${pageNum}&page_size=${pageSize}`;
 }
 
+// ─────────────────────────────────────
+// WBI 签名
+// ─────────────────────────────────────
+
+const MIXIN_KEY_ENC_TAB = [
+  46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
+  33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40, 61,
+  26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36,
+  20, 34, 44, 52,
+];
+
+/**
+ * 对 imgKey 和 subKey 进行字符顺序打乱编码，取前 32 位。
+ */
+export function getMixinKey(orig: string): string {
+  let temp = "";
+  for (const n of MIXIN_KEY_ENC_TAB) {
+    temp += orig[n];
+  }
+  return temp.slice(0, 32);
+}
+
+/**
+ * 从 nav 接口响应中提取 WBI 签名所需密钥。
+ */
+export function extractWbiKeys(response: {
+  data?: { wbi_img?: { img_url?: string; sub_url?: string } };
+}): { imgKey: string; subKey: string } | null {
+  const wbi = response.data?.wbi_img;
+  if (!wbi?.img_url || !wbi?.sub_url) return null;
+  const imgKey = wbi.img_url.split("/").pop()?.split(".")[0] ?? "";
+  const subKey = wbi.sub_url.split("/").pop()?.split(".")[0] ?? "";
+  if (!imgKey || !subKey) return null;
+  return { imgKey, subKey };
+}
+
+/**
+ * 为请求参数进行 WBI 签名，返回完整 query string（含 w_rid 和 wts）。
+ */
+export function signWbiParams(
+  params: Record<string, string | number>,
+  imgKey: string,
+  subKey: string
+): string {
+  const mixinKey = getMixinKey(imgKey + subKey);
+  const currTime = Math.round(Date.now() / 1000);
+  const chrFilter = /[!'()*]/g;
+
+  const signed: Record<string, string | number> = { ...params, wts: currTime };
+  const queryParts: string[] = [];
+  Object.keys(signed)
+    .sort()
+    .forEach((key) => {
+      const value = String(signed[key]).replace(chrFilter, "");
+      queryParts.push(
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+      );
+    });
+
+  const queryString = queryParts.join("&");
+  const md5 = forge.md.md5.create();
+  md5.update(forge.util.encodeUtf8(queryString + mixinKey));
+  const wbiSign = md5.digest().toHex();
+
+  return `${queryString}&w_rid=${wbiSign}`;
+}
+
+// ─────────────────────────────────────
+// 用户详情
+// ─────────────────────────────────────
+
+/**
+ * 构建 B 站用户详情接口路径（需要 WBI 签名）。
+ */
+export function buildBilibiliUserCardPath(mid: number): string {
+  return `/x/space/wbi/acc/info?mid=${mid}`;
+}
+
+/**
+ * 解析 B 站用户详情响应。
+ */
+export function parseBilibiliUserInfo(
+  response: import("../../types/music-platforms").BilibiliUserCardResponse
+): { mid: number; name: string; face: string } | null {
+  if (response.code !== 0) return null;
+  const data = response.data;
+  if (!data) return null;
+  return {
+    mid: Number(data.mid),
+    name: data.name,
+    face: data.face,
+  };
+}
+
 /**
  * 构建 B 站 durl (FLV 分段) 播放地址接口路径，用于 DASH 不可用时的降级。
  */
@@ -113,7 +208,7 @@ export function buildBilibiliDurlPlayUrlPath(
  * 去掉 B 站搜索高亮标签并解码常见 HTML 实体。
  */
 export function normalizeBilibiliText(text: string | undefined): string {
-  return (text || "未知标题")
+  return (text ?? "未知标题")
     .replace(HTML_TAG_RE, "")
     .replace(/&([^;]+);/g, (_, entity: string) => HTML_ENTITY_MAP[entity] || "")
     .trim();
@@ -131,7 +226,7 @@ export function convertBilibiliSearchVideoToMusicTrack(
   return {
     id: `bilibili_${bvid}`,
     name: normalizeBilibiliText(video.title),
-    artist: [normalizeBilibiliText(video.author || video.uname || "UP主")],
+    artist: [normalizeBilibiliText(video.author || video.uname || "")],
     album: "",
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
@@ -325,7 +420,7 @@ export function convertSeriesToMusicTrack(
   return {
     id: buildBilibiliSeriesAlbumId(seriesId),
     name: normalizeBilibiliText(meta.name),
-    artist: [normalizeBilibiliText(meta.creator?.name || "UP主")],
+    artist: [normalizeBilibiliText(meta.creator?.name || "")],
     album: "",
     pic_id: coverUrl,
     url_id: `bilibili_series_${seriesId}`,
@@ -348,7 +443,7 @@ export function convertSeriesArchiveToMusicTrack(
   return {
     id: `bilibili_${bvid}`,
     name: normalizeBilibiliText(archive.title),
-    artist: [normalizeBilibiliText(archive.owner?.name || "UP主")],
+    artist: [normalizeBilibiliText(archive.owner?.name || "")],
     album: "",
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
@@ -393,6 +488,7 @@ export function parseBilibiliSeasonsArchivesList(
   meta: BilibiliSeriesMetaRaw | null;
   archives: BilibiliSeasonArchiveRaw[];
   total: number;
+  mid?: number;
 } {
   if (response.code !== 0) return { meta: null, archives: [], total: 0 };
   const rawMeta = response.data?.meta;
@@ -403,20 +499,26 @@ export function parseBilibiliSeasonsArchivesList(
           name: rawMeta.name,
           cover: normalizeResourceUrl(rawMeta.cover || ""),
           description: rawMeta.description,
+          // seasons_archives_list 返回的 meta 中没有 UP 主名称，只有 mid
+          // 需要通过额外的 API 调用获取 UP 主名称
           creator: rawMeta.mid !== undefined ? { mid: rawMeta.mid } : undefined,
           total: rawMeta.total,
         }
       : null,
     archives: response.data?.archives ?? [],
     total: response.data?.page?.total ?? 0,
+    mid: rawMeta?.mid,
   };
 }
 
 /**
  * 将 B 站合集 (seasons_archives) 内视频转换为 MusicTrack。
+ * @param archive - 合集内的视频原始数据
+ * @param upName - UP主名称
  */
 export function convertSeasonArchiveToMusicTrack(
-  archive: BilibiliSeasonArchiveRaw
+  archive: BilibiliSeasonArchiveRaw,
+  upName?: string
 ): MusicTrack {
   const bvid = archive.bvid || "";
   const coverUrl = normalizeResourceUrl(archive.pic || "");
@@ -424,8 +526,9 @@ export function convertSeasonArchiveToMusicTrack(
   return {
     id: `bilibili_${bvid}`,
     name: normalizeBilibiliText(archive.title),
-    artist: ["UP主"],
-    album: "",
+    artist: [upName || "UP主"],
+    album: archive.title,
+    album_id: buildBilibiliMultiPAlbumId(bvid),
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
     lyric_id: "",

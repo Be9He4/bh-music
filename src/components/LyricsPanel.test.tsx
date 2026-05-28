@@ -15,7 +15,7 @@ vi.mock("@/store/music-store", () => ({
 const bilibiliTrack: MusicTrack = {
   id: "bilibili_BV1xx411c7mD",
   name: "Test Bilibili Video",
-  artist: ["UP主"],
+  artist: [""],
   album: "",
   pic_id: "https://example.com/pic.jpg",
   url_id: "bilibili_BV1xx411c7mD",

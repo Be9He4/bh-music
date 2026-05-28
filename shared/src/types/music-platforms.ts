@@ -167,12 +167,6 @@ export interface BilibiliSearchVideoRaw {
   mid?: number | string;
   pic?: string;
   season_id?: number;
-  ogv?: {
-    season_id?: number;
-    title?: string;
-    cover?: string;
-    total?: number;
-  };
 }
 
 export interface BilibiliSearchResponse {
@@ -306,6 +300,7 @@ export interface BilibiliSeasonArchivesMetaRaw {
   name?: string;
   ptime?: number;
   season_id?: number;
+  title?: string;
   total?: number;
 }
 
@@ -386,6 +381,20 @@ export interface BilibiliAudioMenuSongsResponseRaw {
 }
 
 // ============================================================
+// B站用户详情 (Bilibili User Card)
+// ============================================================
+
+export interface BilibiliUserCardResponse {
+  code: number;
+  message: string;
+  data?: {
+    mid: number;
+    name: string;
+    face: string;
+  };
+}
+
+// ============================================================
 // B站 OGV 番剧 (Bilibili PGC/Bangumi)
 // ============================================================
 
@@ -397,17 +406,6 @@ export interface BilibiliOgvSeasonEpisode {
   long_title: string;
   cover: string;
   share_url: string;
-}
-
-export interface BilibiliOgvSeasonResponse {
-  code: number;
-  message: string;
-  result: {
-    season_id: number;
-    title: string;
-    cover: string;
-    episodes: BilibiliOgvSeasonEpisode[];
-  };
 }
 
 // ============================================================
