@@ -2,11 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   buildBilibiliDurlPlayUrlPath,
   buildBilibiliPlayUrlPath,
+  buildBilibiliSeasonsArchivesListPath,
   buildBilibiliSearchPath,
+  buildBilibiliSeriesArchivesPath,
+  buildBilibiliSeriesDetailPath,
   buildBilibiliViewPath,
   convertBilibiliSearchVideoToMusicTrack,
+  convertSeasonArchiveToMusicTrack,
+  convertSeriesArchiveToMusicTrack,
+  convertSeriesToMusicTrack,
   describePlayurlResponse,
+  parseBilibiliAlbumId,
+  parseBilibiliSeasonsArchivesList,
   parseBilibiliSearchResponse,
+  parseBilibiliSeriesArchives,
+  parseBilibiliSeriesDetail,
   parseBilibiliTrackId,
   selectBilibiliAudioUrl,
   selectBilibiliDurlUrl,
@@ -47,6 +57,60 @@ describe("bilibili music utilities", () => {
       lyric_id: "",
       source: "bilibili",
       artist_ids: ["123"],
+    });
+    expect(track).not.toHaveProperty("album_id");
+  });
+
+  describe("convertBilibiliSearchVideoToMusicTrack collection detection", () => {
+    it("sets album from ogv.title when available", () => {
+      const track = convertBilibiliSearchVideoToMusicTrack({
+        bvid: "BV1xx411c7mD",
+        title: "歌曲标题",
+        author: "UP主",
+        pic: "https://example.com/cover.jpg",
+        ogv: { season_id: 12345, title: "某番剧 第一季" },
+      });
+
+      expect(track.album).toBe("某番剧 第一季");
+      expect(track.album_id).toBe("bilibili_O_12345");
+    });
+
+    it("falls back to placeholder when ogv.title is empty", () => {
+      const track = convertBilibiliSearchVideoToMusicTrack({
+        bvid: "BV1xx411c7mD",
+        title: "歌曲标题",
+        author: "UP主",
+        pic: "https://example.com/cover.jpg",
+        ogv: { season_id: 12345, title: "" },
+      });
+
+      expect(track.album).toBe("合集");
+      expect(track.album_id).toBe("bilibili_O_12345");
+    });
+
+    it("does not set album from season_id (only ugc_season from view API is reliable)", () => {
+      const track = convertBilibiliSearchVideoToMusicTrack({
+        bvid: "BV1xx411c7mD",
+        title: "歌曲标题",
+        author: "UP主",
+        pic: "https://example.com/cover.jpg",
+        season_id: 67890,
+      });
+
+      expect(track.album).toBe("");
+      expect(track).not.toHaveProperty("album_id");
+    });
+
+    it("keeps album empty when no collection info", () => {
+      const track = convertBilibiliSearchVideoToMusicTrack({
+        bvid: "BV1xx411c7mD",
+        title: "歌曲标题",
+        author: "UP主",
+        pic: "https://example.com/cover.jpg",
+      });
+
+      expect(track.album).toBe("");
+      expect(track).not.toHaveProperty("album_id");
     });
   });
 
@@ -263,6 +327,207 @@ describe("bilibili music utilities", () => {
       expect(buildBilibiliDurlPlayUrlPath("BV1xx411c7mD", 62131)).toBe(
         "/x/player/playurl?fnval=0&bvid=BV1xx411c7mD&cid=62131"
       );
+    });
+  });
+
+  describe("series / collection", () => {
+    it("builds series detail path", () => {
+      expect(buildBilibiliSeriesDetailPath(12345)).toBe(
+        "/x/series/series?series_id=12345"
+      );
+    });
+
+    it("builds series archives path", () => {
+      expect(buildBilibiliSeriesArchivesPath(12345, 2, 30)).toBe(
+        "/x/series/archives?series_id=12345&pn=2&ps=30"
+      );
+    });
+
+    it("converts series meta to MusicTrack (as album)", () => {
+      const track = convertSeriesToMusicTrack({
+        series_id: 42,
+        name: "周杰伦歌曲合集",
+        creator: { name: "音乐UP", mid: 999 },
+        cover: "https://i0.hdslb.com/cover.jpg",
+        total: 15,
+      });
+
+      expect(track).toMatchObject({
+        id: "bilibili_S_42",
+        name: "周杰伦歌曲合集",
+        artist: ["音乐UP"],
+        pic_id: "https://i0.hdslb.com/cover.jpg",
+        url_id: "bilibili_series_42",
+        source: "bilibili",
+        artist_ids: ["999"],
+      });
+    });
+
+    it("converts series archive to MusicTrack", () => {
+      const track = convertSeriesArchiveToMusicTrack({
+        bvid: "BV1xx411c7mD",
+        title: "晴天 - 周杰伦",
+        cover: "https://i0.hdslb.com/archive-cover.jpg",
+        owner: { name: "音乐UP", mid: 999 },
+      });
+
+      expect(track).toMatchObject({
+        id: "bilibili_BV1xx411c7mD",
+        name: "晴天 - 周杰伦",
+        artist: ["音乐UP"],
+        pic_id: "https://i0.hdslb.com/archive-cover.jpg",
+        url_id: "bilibili_BV1xx411c7mD",
+        source: "bilibili",
+        artist_ids: ["999"],
+      });
+    });
+
+    it("parses bilibili album id (old format and new format)", () => {
+      expect(parseBilibiliAlbumId("bilibili_S_42")).toEqual({
+        seriesId: "42",
+      });
+      expect(parseBilibiliAlbumId("bilibili_S_42_999")).toEqual({
+        seriesId: "42",
+        mid: "999",
+      });
+      expect(parseBilibiliAlbumId("bilibili_BV1xx")).toBeNull();
+      expect(parseBilibiliAlbumId("netease_1")).toBeNull();
+    });
+
+    it("handles missing creator fields in series meta", () => {
+      const track = convertSeriesToMusicTrack({
+        series_id: 1,
+        name: "Untitled",
+      });
+      expect(track.artist).toEqual(["UP主"]);
+      expect(track.artist_ids).toBeUndefined();
+    });
+
+    it("parses series detail response", () => {
+      const meta = parseBilibiliSeriesDetail({
+        code: 0,
+        data: {
+          meta: {
+            series_id: 42,
+            name: "音乐合集",
+            total: 10,
+          },
+        },
+      });
+      expect(meta).not.toBeNull();
+      expect(meta!.series_id).toBe(42);
+      expect(meta!.name).toBe("音乐合集");
+    });
+
+    it("returns null for non-zero series detail response", () => {
+      const meta = parseBilibiliSeriesDetail({
+        code: -404,
+        message: "not found",
+      });
+      expect(meta).toBeNull();
+    });
+
+    it("parses series archives response", () => {
+      const result = parseBilibiliSeriesArchives({
+        code: 0,
+        data: {
+          archives: [{ bvid: "BV1", title: "Test" }],
+          page: { total: 25 },
+        },
+      });
+      expect(result.archives).toHaveLength(1);
+      expect(result.archives[0].bvid).toBe("BV1");
+      expect(result.total).toBe(25);
+    });
+
+    it("returns empty archives for error response", () => {
+      const result = parseBilibiliSeriesArchives({ code: -1 });
+      expect(result.archives).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+  });
+
+  describe("seasons_archives (合集)", () => {
+    it("builds seasons_archives_list path", () => {
+      expect(
+        buildBilibiliSeasonsArchivesListPath(37029661, 3050068, 1, 30)
+      ).toBe(
+        "/x/polymer/web-space/seasons_archives_list?mid=37029661&season_id=3050068&page_num=1&page_size=30"
+      );
+    });
+
+    it("parses seasons_archives_list response", () => {
+      const result = parseBilibiliSeasonsArchivesList({
+        code: 0,
+        message: "OK",
+        data: {
+          aids: [1],
+          archives: [
+            {
+              aid: 1,
+              bvid: "BV1xx411c7mD",
+              ctime: 1234567890,
+              duration: 120,
+              pic: "https://i0.hdslb.com/cover.jpg",
+              pubdate: 1234567890,
+              stat: { view: 100, vt: 0 },
+              title: "测试视频",
+            },
+          ],
+          meta: {
+            category: 1,
+            cover: "https://i0.hdslb.com/meta-cover.jpg",
+            description: "合集描述",
+            mid: 37029661,
+            name: "合集·测试",
+            season_id: 3050068,
+            total: 35,
+          },
+          page: {
+            page_num: 1,
+            page_size: 30,
+            total: 35,
+          },
+        },
+      });
+
+      expect(result.meta).toMatchObject({
+        series_id: 3050068,
+        name: "合集·测试",
+        cover: "https://i0.hdslb.com/meta-cover.jpg",
+        description: "合集描述",
+        total: 35,
+      });
+      expect(result.archives).toHaveLength(1);
+      expect(result.total).toBe(35);
+    });
+
+    it("returns empty result for error code", () => {
+      const result = parseBilibiliSeasonsArchivesList({ code: -400 } as any);
+      expect(result.meta).toBeNull();
+      expect(result.archives).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it("converts season archive to MusicTrack", () => {
+      const track = convertSeasonArchiveToMusicTrack({
+        aid: 116640121363085,
+        bvid: "BV1TYVA6sEhm",
+        ctime: 1779787425,
+        duration: 1604,
+        pic: "https://i0.hdslb.com/archive-cover.jpg",
+        pubdate: 1779789600,
+        stat: { view: 500, vt: 0 },
+        title: "不办婚礼去旅行结婚",
+      });
+
+      expect(track).toMatchObject({
+        id: "bilibili_BV1TYVA6sEhm",
+        name: "不办婚礼去旅行结婚",
+        artist: ["UP主"],
+        pic_id: "https://i0.hdslb.com/archive-cover.jpg",
+        source: "bilibili",
+      });
     });
   });
 });

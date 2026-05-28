@@ -166,6 +166,13 @@ export interface BilibiliSearchVideoRaw {
   uname?: string;
   mid?: number | string;
   pic?: string;
+  season_id?: number;
+  ogv?: {
+    season_id?: number;
+    title?: string;
+    cover?: string;
+    total?: number;
+  };
 }
 
 export interface BilibiliSearchResponse {
@@ -182,7 +189,24 @@ export interface BilibiliViewResponse {
   message?: string;
   data?: {
     cid?: number;
-    pages?: Array<{ cid?: number }>;
+    title?: string;
+    pic?: string;
+    pages?: Array<{
+      cid?: number;
+      page?: number;
+      part?: string;
+      duration?: number;
+    }>;
+    ugc_season?: {
+      id?: number;
+      title?: string;
+      cover?: string;
+    };
+    owner?: {
+      mid?: number;
+      name?: string;
+      face?: string;
+    };
   };
 }
 
@@ -221,6 +245,168 @@ export interface BilibiliDurlResponse {
       length?: number;
       size?: number;
     }>;
+  };
+}
+
+// ============================================================
+// B站合集/系列 (Bilibili Series/Collection)
+// ============================================================
+
+export interface BilibiliSeriesMetaRaw {
+  series_id?: number;
+  name?: string;
+  description?: string;
+  creator?: {
+    name?: string;
+    mid?: number;
+    face?: string;
+  };
+  total?: number;
+  cover?: string;
+}
+
+export interface BilibiliSeriesResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    meta?: BilibiliSeriesMetaRaw;
+  };
+}
+
+export interface BilibiliSeriesArchiveRaw {
+  bvid?: string;
+  title?: string;
+  cover?: string;
+  duration?: number;
+  owner?: {
+    name?: string;
+    mid?: number;
+    face?: string;
+  };
+}
+
+export interface BilibiliSeriesArchivesResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    archives?: BilibiliSeriesArchiveRaw[];
+    page?: {
+      num?: number;
+      size?: number;
+      total?: number;
+    };
+  };
+}
+
+export interface BilibiliSeasonArchivesMetaRaw {
+  category?: number;
+  cover?: string;
+  description?: string;
+  mid?: number;
+  name?: string;
+  ptime?: number;
+  season_id?: number;
+  total?: number;
+}
+
+export interface BilibiliSeasonArchiveRaw {
+  aid: number;
+  bvid: string;
+  ctime: number;
+  duration: number;
+  pic: string;
+  pubdate: number;
+  stat: { view: number; vt: number; danmaku?: number };
+  title: string;
+}
+
+export interface BilibiliSeasonsArchivesListResponse {
+  code: number;
+  message: string;
+  data?: {
+    aids: number[];
+    archives: BilibiliSeasonArchiveRaw[];
+    meta: BilibiliSeasonArchivesMetaRaw;
+    page: {
+      page_num: number;
+      page_size: number;
+      total: number;
+    };
+  };
+}
+
+// ============================================================
+// B站音频歌单 (Bilibili Audio Playlists)
+// ============================================================
+
+export interface BilibiliAudioMenuHitItemRaw {
+  menuId?: number;
+  title?: string;
+  cover?: string;
+}
+
+export interface BilibiliAudioMenuHitPageRaw {
+  pageNo?: number;
+  pageSize?: number;
+  totalCount?: number;
+}
+
+export interface BilibiliAudioMenuHitResponseRaw {
+  code?: number;
+  data?: {
+    data?: BilibiliAudioMenuHitItemRaw[];
+    page?: BilibiliAudioMenuHitPageRaw;
+  };
+}
+
+export interface BilibiliAudioMenuInfoRaw {
+  menuId?: number;
+  title?: string;
+  cover?: string;
+}
+
+export interface BilibiliAudioMenuInfoResponseRaw {
+  code?: number;
+  data?: BilibiliAudioMenuInfoRaw;
+}
+
+export interface BilibiliAudioSongItemRaw {
+  id?: number;
+  title?: string;
+  uname?: string;
+  uid?: number;
+  cover?: string;
+}
+
+export interface BilibiliAudioMenuSongsResponseRaw {
+  code?: number;
+  data?: {
+    data?: BilibiliAudioSongItemRaw[];
+  };
+}
+
+// ============================================================
+// B站 OGV 番剧 (Bilibili PGC/Bangumi)
+// ============================================================
+
+export interface BilibiliOgvSeasonEpisode {
+  aid: number;
+  bvid: string;
+  cid: number;
+  title: string;
+  long_title: string;
+  cover: string;
+  share_url: string;
+}
+
+export interface BilibiliOgvSeasonResponse {
+  code: number;
+  message: string;
+  result: {
+    season_id: number;
+    title: string;
+    cover: string;
+    episodes: BilibiliOgvSeasonEpisode[];
   };
 }
 

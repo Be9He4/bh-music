@@ -11,28 +11,67 @@ import { useActivePlaylists } from "@/hooks/use-active-playlists";
 // ==========================================
 // 1. 懒加载路由组件 (保持极速首屏)
 // ==========================================
-const MusicSearchView = lazy(() => import("@/components/MusicSearchView").then(m => ({ default: m.MusicSearchView })));
-const MusicPlaylistView = lazy(() => import("@/components/MusicPlaylistView").then(m => ({ default: m.MusicPlaylistView })));
-const FavoritesView = lazy(() => import("@/components/FavoritesView").then(m => ({ default: m.FavoritesView })));
-const MinePage = lazy(() => import("@/components/MinePage").then(m => ({ default: m.MinePage })));
-const QueuePage = lazy(() => import("@/components/QueuePage").then(m => ({ default: m.QueuePage })));
-const HistoryPage = lazy(() => import("@/components/HistoryPage").then(m => ({ default: m.HistoryPage })));
-const SettingsPage = lazy(() => import("@/components/SettingsPage").then(m => ({ default: m.SettingsPage })));
-const LocalMusicPage = lazy(() => import("@/components/LocalMusicPage").then(m => ({ default: m.LocalMusicPage })));
-const NeteaseDetail = lazy(() => import("@/components/NeteaseDetail").then(m => ({ default: m.NeteaseDetail })));
-const TrashPage = lazy(() => import("@/components/TrashPage").then(m => ({ default: m.TrashPage })));
-const PodcastDetailPage = lazy(() => import("@/components/Podcast/PodcastDetailPage").then(m => ({ default: m.PodcastDetailPage })));
+const MusicSearchView = lazy(() =>
+  import("@/components/MusicSearchView").then((m) => ({
+    default: m.MusicSearchView,
+  }))
+);
+const MusicPlaylistView = lazy(() =>
+  import("@/components/MusicPlaylistView").then((m) => ({
+    default: m.MusicPlaylistView,
+  }))
+);
+const FavoritesView = lazy(() =>
+  import("@/components/FavoritesView").then((m) => ({
+    default: m.FavoritesView,
+  }))
+);
+const MinePage = lazy(() =>
+  import("@/components/MinePage").then((m) => ({ default: m.MinePage }))
+);
+const QueuePage = lazy(() =>
+  import("@/components/QueuePage").then((m) => ({ default: m.QueuePage }))
+);
+const HistoryPage = lazy(() =>
+  import("@/components/HistoryPage").then((m) => ({ default: m.HistoryPage }))
+);
+const SettingsPage = lazy(() =>
+  import("@/components/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
+const LocalMusicPage = lazy(() =>
+  import("@/components/LocalMusicPage").then((m) => ({
+    default: m.LocalMusicPage,
+  }))
+);
+const NeteaseDetail = lazy(() =>
+  import("@/components/NeteaseDetail").then((m) => ({
+    default: m.NeteaseDetail,
+  }))
+);
+const TrashPage = lazy(() =>
+  import("@/components/TrashPage").then((m) => ({ default: m.TrashPage }))
+);
+const PodcastDetailPage = lazy(() =>
+  import("@/components/Podcast/PodcastDetailPage").then((m) => ({
+    default: m.PodcastDetailPage,
+  }))
+);
+const BilibiliCollectionDetail = lazy(() =>
+  import("@/components/BilibiliCollectionDetail").then((m) => ({
+    default: m.BilibiliCollectionDetail,
+  }))
+);
 
 // ==========================================
 // 2. 核心优化 Hooks & HOC
 // ==========================================
 
-/** * 精确订阅播放状态 
+/** * 精确订阅播放状态
  * 避免组件因为 queue 数组本身的变化（如添加/删除歌曲）而产生无意义的重渲染
  */
 function usePlaybackState() {
-  const currentTrackId = useMusicStore(s => s.queue[s.currentIndex]?.id);
-  const isPlaying = useMusicStore(s => s.isPlaying);
+  const currentTrackId = useMusicStore((s) => s.queue[s.currentIndex]?.id);
+  const isPlaying = useMusicStore((s) => s.isPlaying);
   return { currentTrackId, isPlaying };
 }
 
@@ -65,8 +104,8 @@ export const SearchRoute = withSuspense(() => {
 });
 
 export const FavoritesRoute = withSuspense(() => {
-  const favorites = useMusicStore(s => s.favorites);
-  const activeFavorites = favorites.filter(t => !t.is_deleted);
+  const favorites = useMusicStore((s) => s.favorites);
+  const activeFavorites = favorites.filter((t) => !t.is_deleted);
   const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
@@ -77,10 +116,13 @@ export const FavoritesRoute = withSuspense(() => {
       onPlay={(track, index) => {
         const store = useMusicStore.getState();
         if (track && currentTrackId === track.id) return store.togglePlay();
-        const idx = index ?? activeFavorites.findIndex(t => t.id === track?.id);
+        const idx =
+          index ?? activeFavorites.findIndex((t) => t.id === track?.id);
         store.playContext(activeFavorites, Math.max(0, idx), "favorites");
       }}
-      onReorder={(newOrder) => useMusicStore.getState().reorderFavorites(newOrder)}
+      onReorder={(newOrder) =>
+        useMusicStore.getState().reorderFavorites(newOrder)
+      }
     />
   );
 });
@@ -90,14 +132,16 @@ export const PlaylistDetailRoute = withSuspense(() => {
   const navigate = useNavigate();
   // 精确查找特定歌单
   const activePlaylists = useActivePlaylists();
-  const playlist = activePlaylists.find(p => p.id === id);
+  const playlist = activePlaylists.find((p) => p.id === id);
   const { currentTrackId, isPlaying } = usePlaybackState();
 
   if (!playlist) {
-    return <div className="p-4 text-center text-muted-foreground">歌单不存在</div>;
+    return (
+      <div className="p-4 text-center text-muted-foreground">歌单不存在</div>
+    );
   }
 
-  const activeTracks = playlist.tracks.filter(t => !t.is_deleted);
+  const activeTracks = playlist.tracks.filter((t) => !t.is_deleted);
 
   return (
     <PageLayout title={playlist.name}>
@@ -112,12 +156,20 @@ export const PlaylistDetailRoute = withSuspense(() => {
         onPlay={(track, index) => {
           const store = useMusicStore.getState();
           if (track && currentTrackId === track.id) return store.togglePlay();
-          const idx = index ?? activeTracks.findIndex(t => t.id === track?.id);
+          const idx =
+            index ?? activeTracks.findIndex((t) => t.id === track?.id);
           store.playContext(activeTracks, Math.max(0, idx), `playlist-${id}`);
         }}
         onRemove={(t) => useMusicStore.getState().removeFromPlaylist(id!, t.id)}
-        onBatchRemove={(tracks) => useMusicStore.getState().removeBatchFromPlaylist(id!, tracks.map(t => t.id))}
-        onRename={(pid, newName) => useMusicStore.getState().renamePlaylist(pid, newName)}
+        onBatchRemove={(tracks) =>
+          useMusicStore.getState().removeBatchFromPlaylist(
+            id!,
+            tracks.map((t) => t.id)
+          )
+        }
+        onRename={(pid, newName) =>
+          useMusicStore.getState().renamePlaylist(pid, newName)
+        }
         onDelete={(pid) => {
           useMusicStore.getState().deletePlaylist(pid);
           navigate(-1);
@@ -148,7 +200,10 @@ export const LocalMusicRoute = withSuspense(() => {
 });
 
 // -- 网易云API详情路由复用逻辑 --
-const createNeteaseRoute = (type: "playlist" | "artist" | "album", contextType: string) => {
+const createNeteaseRoute = (
+  type: "playlist" | "artist" | "album",
+  contextType: string
+) => {
   return withSuspense(() => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -168,12 +223,15 @@ const createNeteaseRoute = (type: "playlist" | "artist" | "album", contextType: 
   });
 };
 
-export const MarketPlaylistDetailRoute = createNeteaseRoute("playlist", "playlist_market");
+export const MarketPlaylistDetailRoute = createNeteaseRoute(
+  "playlist",
+  "playlist_market"
+);
 export const ArtistDetailRoute = createNeteaseRoute("artist", "artist");
 export const AlbumDetailRoute = createNeteaseRoute("album", "album");
 
 export const QueueRoute = withSuspense(() => {
-  const queue = useMusicStore(s => s.queue);
+  const queue = useMusicStore((s) => s.queue);
   const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
@@ -184,7 +242,7 @@ export const QueueRoute = withSuspense(() => {
       onPlay={(track, index) => {
         const store = useMusicStore.getState();
         if (track && currentTrackId === track.id) return store.togglePlay();
-        const idx = index ?? queue.findIndex(t => t.id === track?.id);
+        const idx = index ?? queue.findIndex((t) => t.id === track?.id);
         store.playContext(queue, Math.max(0, idx), "queue");
       }}
       onRemove={(track) => useMusicStore.getState().removeFromQueue(track.id)}
@@ -194,7 +252,7 @@ export const QueueRoute = withSuspense(() => {
 });
 
 export const HistoryRoute = withSuspense(() => {
-  const history = useHistoryStore(s => s.history);
+  const history = useHistoryStore((s) => s.history);
   const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
@@ -205,10 +263,12 @@ export const HistoryRoute = withSuspense(() => {
       onPlay={(track, index) => {
         const store = useMusicStore.getState();
         if (track && currentTrackId === track.id) return store.togglePlay();
-        const idx = index ?? history.findIndex(t => t.id === track?.id);
+        const idx = index ?? history.findIndex((t) => t.id === track?.id);
         store.playContext(history, Math.max(0, idx), "history");
       }}
-      onRemove={(track) => useHistoryStore.getState().removeFromHistory(track.id)}
+      onRemove={(track) =>
+        useHistoryStore.getState().removeFromHistory(track.id)
+      }
       onClear={() => useHistoryStore.getState().clearHistory()}
     />
   );
@@ -228,6 +288,23 @@ export const PodcastDetailRoute = withSuspense(() => {
       id={id || null}
       onBack={() => navigate(-1)}
       onPlay={(track, list) => handlePlay(track, list, "podcast")}
+      currentTrackId={currentTrackId}
+      isPlaying={isPlaying}
+    />
+  );
+});
+
+export const BilibiliCollectionDetailRoute = withSuspense(() => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { handlePlay } = usePlayHelper();
+  const { currentTrackId, isPlaying } = usePlaybackState();
+
+  return (
+    <BilibiliCollectionDetail
+      id={id || null}
+      onBack={() => navigate(-1)}
+      onPlay={(track, list) => handlePlay(track, list, "bilibili_collection")}
       currentTrackId={currentTrackId}
       isPlaying={isPlaying}
     />

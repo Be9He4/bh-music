@@ -1,10 +1,10 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { PageLayout } from "@/components/PageLayout";
 import { MusicTrackList } from "@/components/MusicTrackList";
-import { CommonDetailHeader } from "@/components/CommonDetailHeader";
+import {
+  GenericDetailPage,
+  type GenericDetailData,
+} from "@/components/GenericDetailPage";
 import { Button } from "@/components/ui/button";
-import { PageError } from "@/components/PageError";
-import { DetailSkeleton } from "@/components/skeletons/DetailSkeleton";
 import { Podcast, SquareArrowOutUpRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDateZN } from "@/lib/utils";
@@ -56,7 +56,9 @@ export function PodcastDetailPage({
     if (!detail) return;
 
     try {
-      await navigator.clipboard.writeText(`Podcast: ${detail.name}\n${detail.rssUrl}`);
+      await navigator.clipboard.writeText(
+        `Podcast: ${detail.name}\n${detail.rssUrl}`
+      );
       toast.success("链接已复制");
     } catch {
       toast.error("复制失败");
@@ -75,7 +77,9 @@ export function PodcastDetailPage({
     const loadData = async () => {
       try {
         const sources = usePodcastStore.getState().rssSources;
-        const source = sources.find((item) => item.id === id && !item.is_deleted);
+        const source = sources.find(
+          (item) => item.id === id && !item.is_deleted
+        );
         if (!source) throw new Error("Podcast not found");
 
         const feed = await parsePodcastRss(source.rssUrl);
@@ -121,48 +125,45 @@ export function PodcastDetailPage({
     };
   }, [id, retryCount]);
 
-  if (loading) return <DetailSkeleton onBack={onBack} />;
-
-  if (error) {
-    return (
-      <PageLayout title="Error" onBack={onBack}>
-        <PageError onBack={onBack} onRetry={() => setRetryCount((c) => c + 1)} />
-      </PageLayout>
-    );
-  }
+  const genericDetail: GenericDetailData | undefined = detail
+    ? {
+        title: detail.name,
+        coverUrl: detail.coverImgUrl,
+        description: detail.description,
+        creator: detail.creator,
+        countDesc: `最近 ${detail.trackCount} 集`,
+        fallbackIcon: <Podcast className="h-8 w-8 text-muted-foreground/50" />,
+      }
+    : undefined;
 
   return (
-    <PageLayout
-      title={detail?.name || "Podcast"}
+    <GenericDetailPage
+      loading={loading}
+      error={error}
+      title="Podcast"
       onBack={onBack}
+      onRetry={() => setRetryCount((c) => c + 1)}
+      detail={genericDetail}
+      scrollRef={scrollRef}
       action={
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={handleShare}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={handleShare}
+        >
           <SquareArrowOutUpRight className="w-4 h-4 mr-2" />
         </Button>
       }
     >
-      <div ref={scrollRef} className="flex flex-col flex-1 min-h-0 h-full overflow-y-auto">
-        {detail && (
-          <CommonDetailHeader
-            title={detail.name}
-            coverUrl={detail.coverImgUrl}
-            description={detail.description}
-            creator={detail.creator}
-            countDesc={`最近 ${detail.trackCount} 集`}
-            fallbackIcon={<Podcast className="h-8 w-8 text-muted-foreground/50" />}
-          />
-        )}
-        <div className="flex-1 min-h-0">
-          <MusicTrackList
-            tracks={tracks}
-            scrollContainerRef={scrollRef}
-            onPlay={(track) => onPlay(track, tracks)}
-            currentTrackId={currentTrackId}
-            isPlaying={isPlaying}
-            emptyMessage="No episodes"
-          />
-        </div>
-      </div>
-    </PageLayout>
+      <MusicTrackList
+        tracks={tracks}
+        scrollContainerRef={scrollRef}
+        onPlay={(track) => onPlay(track, tracks)}
+        currentTrackId={currentTrackId}
+        isPlaying={isPlaying}
+        emptyMessage="No episodes"
+      />
+    </GenericDetailPage>
   );
 }

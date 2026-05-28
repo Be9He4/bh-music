@@ -55,6 +55,48 @@ describe("searchBilibiliVideos", () => {
     );
   });
 
+  it("includes collections extracted from ogv in dev search results", async () => {
+    const fetchWithTimeout = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 0,
+          data: {
+            numResults: 2,
+            result: [
+              { type: "video", bvid: "BV1xx", title: "Song", author: "UP" },
+              {
+                type: "video",
+                bvid: "BV1yy",
+                title: "合集曲目1",
+                author: "音乐UP",
+                ogv: {
+                  season_id: 99,
+                  title: "周杰伦合集",
+                  cover: "https://example.com/cover.jpg",
+                  total: 8,
+                },
+              },
+            ],
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout,
+      getApiUrl: () => "https://otter-music.pages.dev",
+      IS_NATIVE: false,
+      IS_WEB_PROD: false,
+    }));
+
+    const { searchBilibiliVideos } = await import("./bilibili-api");
+    const result = await searchBilibiliVideos("周杰伦", 1, 20);
+
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]).toMatchObject({ id: "bilibili_BV1xx" });
+    expect(result.items[1]).toMatchObject({ id: "bilibili_BV1yy" });
+  });
+
   it("posts prod search requests to the worker route", async () => {
     const fetchWithTimeout = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ items: [], hasMore: false }), {
@@ -333,5 +375,118 @@ describe("getBilibiliCoverUrl", () => {
     const { getBilibiliCoverUrl } = await import("./bilibili-api");
 
     await expect(getBilibiliCoverUrl("")).resolves.toBeNull();
+  });
+});
+
+describe("searchBilibiliCollections", () => {
+  function makeSearchWithOgc() {
+    return {
+      code: 0,
+      data: {
+        numResults: 2,
+        result: [
+          {
+            type: "video",
+            bvid: "BV1aa",
+            title: "Song 1",
+            author: "UP1",
+            pic: "https://example.com/pic1.jpg",
+            ogv: {
+              season_id: 123,
+              title: "音乐合集A",
+              cover: "https://example.com/cover-a.jpg",
+              total: 10,
+            },
+          },
+          {
+            type: "video",
+            bvid: "BV1bb",
+            title: "Song 2",
+            author: "UP2",
+            pic: "https://example.com/pic2.jpg",
+            // 无 ogv 无 season_id → 不产生专辑
+          },
+        ],
+      },
+    };
+  }
+
+  it("extracts albums from ogv in dev search results", async () => {
+    const fetchWithTimeout = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(makeSearchWithOgc()), { status: 200 })
+      );
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout,
+      getApiUrl: () => "https://otter-music.pages.dev",
+      IS_NATIVE: false,
+      IS_WEB_PROD: false,
+    }));
+
+    const { searchBilibiliCollections } = await import("./bilibili-api");
+    const result = await searchBilibiliCollections("合集", 1, 20);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: "bilibili_O_123",
+      name: "音乐合集A",
+      artist: ["UP1"],
+      source: "bilibili",
+    });
+    expect(result.hasMore).toBe(false);
+  });
+
+  it("sends prod collection search to worker route", async () => {
+    const fetchWithTimeout = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], hasMore: false }), {
+        status: 200,
+      })
+    );
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout,
+      getApiUrl: () => "https://api.example.com",
+      IS_NATIVE: false,
+      IS_WEB_PROD: true,
+    }));
+
+    const { searchBilibiliCollections } = await import("./bilibili-api");
+    await searchBilibiliCollections("合集", 1, 20);
+
+    const [url, init] = fetchWithTimeout.mock.calls[0];
+    expect(url).toBe(
+      "https://api.example.com/music-api/bilibili/search-collections"
+    );
+    expect(init.method).toBe("POST");
+  });
+});
+
+describe("getBilibiliCollectionDetail", () => {
+  it("returns null for non-series album id", async () => {
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout: vi.fn(),
+      getApiUrl: () => "https://otter-music.pages.dev",
+      IS_NATIVE: false,
+      IS_WEB_PROD: false,
+    }));
+
+    const { getBilibiliCollectionDetail } = await import("./bilibili-api");
+    await expect(
+      getBilibiliCollectionDetail("bilibili_BV1xx")
+    ).resolves.toBeNull();
+  });
+
+  it("returns null for non-bilibili album id", async () => {
+    vi.doMock("@/lib/api/config", () => ({
+      fetchWithTimeout: vi.fn(),
+      getApiUrl: () => "https://otter-music.pages.dev",
+      IS_NATIVE: false,
+      IS_WEB_PROD: false,
+    }));
+
+    const { getBilibiliCollectionDetail } = await import("./bilibili-api");
+    await expect(
+      getBilibiliCollectionDetail("netease_123")
+    ).resolves.toBeNull();
   });
 });

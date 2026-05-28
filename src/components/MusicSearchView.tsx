@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
@@ -13,6 +19,7 @@ import {
   mergeAndSortTracks,
 } from "@/lib/utils/search-helper";
 import { toastUtils } from "@/lib/utils/toast";
+import { enrichBilibiliSearchResults } from "@/lib/bilibili/bilibili-api";
 
 import { Input } from "./ui/input";
 import {
@@ -75,7 +82,7 @@ export function MusicSearchView({
       setSearchPage: s.setSearchPage,
       searchIntent: s.searchIntent,
       setSearchIntent: s.setSearchIntent,
-    })),
+    }))
   );
 
   const abortRef = useRef<AbortController | null>(null);
@@ -98,9 +105,8 @@ export function MusicSearchView({
         return;
       }
       try {
-        const results = await musicApi.getSearchSuggestions(
-          debouncedSearchQuery,
-        );
+        const results =
+          await musicApi.getSearchSuggestions(debouncedSearchQuery);
         setSuggestions(results);
         setActiveSuggestionIndex(-1);
       } catch (e) {
@@ -191,7 +197,7 @@ export function MusicSearchView({
   const fetchPage = async (
     nextPage: number,
     reset = false,
-    queryOverride?: string,
+    queryOverride?: string
   ) => {
     const query = queryOverride ?? searchQuery;
     if (!query.trim() || searchLoading) return;
@@ -212,25 +218,20 @@ export function MusicSearchView({
       const signal = abortRef.current?.signal;
       const res =
         source === "all"
-          ? await musicApi.searchAll(
-              query,
-              nextPage,
-              20,
-              signal,
-              searchIntent,
-            )
+          ? await musicApi.searchAll(query, nextPage, 20, signal, searchIntent)
           : await musicApi.search(
               query,
               source,
               nextPage,
               20,
               signal,
-              searchIntent,
+              searchIntent
             );
 
       if (version !== versionRef.current) return;
 
-      let items = source === "all" ? res.items : mergeAndSortTracks(res.items, query);
+      let items =
+        source === "all" ? res.items : mergeAndSortTracks(res.items, query);
       items = applySearchIntentSort(items, searchIntent, query);
 
       const currentLength = reset ? 0 : searchResults.length;
@@ -243,11 +244,21 @@ export function MusicSearchView({
 
       setSearchResults(reset ? filtered : [...searchResults, ...filtered]);
       setSearchHasMore(
-        res.hasMore && currentLength + filtered.length > currentLength,
+        res.hasMore && currentLength + filtered.length > currentLength
       );
       setSearchPage(nextPage);
 
       if (reset && filtered.length === 0) toastUtils.notFound("未找到相关歌曲");
+
+      if (reset && filtered.some((t) => t.source === "bilibili")) {
+        enrichBilibiliSearchResults(
+          reset ? filtered : [...searchResults, ...filtered]
+        ).then((enriched) => {
+          if (version === versionRef.current) {
+            setSearchResults(enriched);
+          }
+        });
+      }
     } catch (e) {
       if ((e as Error)?.name !== "AbortError")
         toast.error("搜索失败，请稍后重试");
@@ -328,10 +339,13 @@ export function MusicSearchView({
 
       {/* 列表区域 */}
       <div className="flex-1 min-h-0">
-        { !searchQuery.trim() ? (
+        {!searchQuery.trim() ? (
           <PlaylistMarket />
         ) : (
-          <div ref={resultsScrollRef} className="flex h-full min-h-0 flex-col overflow-y-auto">
+          <div
+            ref={resultsScrollRef}
+            className="flex h-full min-h-0 flex-col overflow-y-auto"
+          >
             <MusicTrackList
               tracks={searchResults}
               scrollContainerRef={resultsScrollRef}

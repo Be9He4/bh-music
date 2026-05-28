@@ -14,7 +14,8 @@ import {
   HistoryRoute,
   SettingsRoute,
   TrashRoute,
-  PodcastDetailRoute
+  PodcastDetailRoute,
+  BilibiliCollectionDetailRoute,
 } from "@/routes/RouteWrappers";
 import { RouteErrorPage } from "@/components/RouteErrorPage";
 import { PageLoader } from "@/components/PageLoader";
@@ -70,6 +71,10 @@ export const router = createBrowserRouter([
       {
         path: "podcast/:id",
         element: <PodcastDetailRoute />,
+      },
+      {
+        path: "bilibili-collection/:id",
+        element: <BilibiliCollectionDetailRoute />,
       },
       {
         path: "queue",

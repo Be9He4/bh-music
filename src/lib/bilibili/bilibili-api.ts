@@ -7,18 +7,42 @@ import {
 import {
   buildBilibiliDurlPlayUrlPath,
   buildBilibiliHeaders,
+  buildBilibiliOgvSeasonPath,
   buildBilibiliPlayUrlPath,
+  buildBilibiliSeasonsArchivesListPath,
   buildBilibiliSearchPath,
+  buildBilibiliSeriesArchivesPath,
+  buildBilibiliSeriesDetailPath,
   buildBilibiliViewPath,
+  buildBilibiliMultiPAlbumId,
+  buildBilibiliOgvAlbumId,
+  buildBilibiliSeriesAlbumId,
+  convertBilibiliOgvEpisodeToMusicTrack,
+  convertSeasonArchiveToMusicTrack,
+  convertSeriesArchiveToMusicTrack,
+  convertSeriesToMusicTrack,
   describePlayurlResponse,
+  parseBilibiliAlbumId,
+  parseBilibiliMultiPAlbumId,
+  parseBilibiliOgvAlbumId,
+  parseBilibiliOgvSeasonDetail,
+  parseBilibiliSeasonsArchivesList,
   parseBilibiliSearchResponse,
+  parseBilibiliSeriesArchives,
+  parseBilibiliSeriesDetail,
   parseBilibiliTrackId,
   selectBilibiliAudioUrl,
   selectBilibiliCid,
   selectBilibiliDurlUrl,
   type BilibiliDurlResponse,
+  type BilibiliOgvSeasonResponse,
   type BilibiliPlayUrlResponse,
+  type BilibiliSeasonsArchivesListResponse,
   type BilibiliSearchResponse,
+  type BilibiliSearchVideoRaw,
+  type BilibiliSeriesArchivesResponse,
+  type BilibiliSeriesMetaRaw,
+  type BilibiliSeriesResponse,
   type BilibiliViewResponse,
   type MusicTrack,
   type SearchPageResult,
@@ -179,9 +203,13 @@ export async function searchBilibiliVideos(
     const data = await fetchBilibiliJson<BilibiliSearchResponse>(
       buildBilibiliSearchPath(keyword, page, rows)
     );
-    return data
+    if (!data) return { items: [], hasMore: false };
+
+    const result = data
       ? parseBilibiliSearchResponse(data, page, rows)
       : { items: [], hasMore: false };
+
+    return result;
   } catch {
     return { items: [], hasMore: false };
   }
@@ -191,33 +219,39 @@ export async function searchBilibiliVideos(
  * Web端获取B站音频URL
  * 返回代理URL，浏览器原生流式播放
  */
-async function getBilibiliSongUrlWeb(bvid: string): Promise<string | null> {
+async function getBilibiliSongUrlWeb(
+  bvid: string,
+  cidOverride?: number
+): Promise<string | null> {
   if (IS_WEB_PROD) {
     const res = await fetchWithTimeout(
       `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/song-url`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bvid }),
+        body: JSON.stringify({ bvid, cid: cidOverride }),
       },
       NETWORK_TIMEOUT
     );
     if (!res.ok) return null;
     const data = (await res.json()) as { url?: string | null };
     if (!data.url) return null;
-    // 返回代理URL，支持Range请求，浏览器原生流式播放
     return buildBilibiliAudioProxyUrl(bvid, data.url);
   }
 
   // 开发环境直接获取
   try {
     const referer = `https://www.bilibili.com/video/${bvid}`;
-    const view = await fetchBilibiliJson<BilibiliViewResponse>(
-      buildBilibiliViewPath(bvid),
-      referer
-    );
-    if (!view) return null;
-    const cid = selectBilibiliCid(view);
+    let cid = cidOverride;
+
+    if (!cid) {
+      const view = await fetchBilibiliJson<BilibiliViewResponse>(
+        buildBilibiliViewPath(bvid),
+        referer
+      );
+      if (!view) return null;
+      cid = selectBilibiliCid(view) ?? undefined;
+    }
     if (!cid) return null;
 
     const result = await resolveBilibiliAudioUrl(bvid, cid, referer);
@@ -232,19 +266,25 @@ async function getBilibiliSongUrlWeb(bvid: string): Promise<string | null> {
  * Android端获取B站音频URL
  * 使用本地代理实现真正的流式播放
  */
-async function getBilibiliSongUrlNative(bvid: string): Promise<string | null> {
+async function getBilibiliSongUrlNative(
+  bvid: string,
+  cidOverride?: number
+): Promise<string | null> {
   try {
     const { getNativeBilibiliStreamUrl } =
       await import("./bilibili-native-player");
     const referer = `https://www.bilibili.com/video/${bvid}`;
 
-    const view = await fetchBilibiliJson<BilibiliViewResponse>(
-      buildBilibiliViewPath(bvid),
-      referer
-    );
-    if (!view) return null;
+    let cid = cidOverride;
 
-    const cid = selectBilibiliCid(view);
+    if (!cid) {
+      const view = await fetchBilibiliJson<BilibiliViewResponse>(
+        buildBilibiliViewPath(bvid),
+        referer
+      );
+      if (!view) return null;
+      cid = selectBilibiliCid(view) ?? undefined;
+    }
     if (!cid) return null;
 
     const result = await resolveBilibiliAudioUrl(bvid, cid, referer);
@@ -265,9 +305,302 @@ export async function getBilibiliSongUrl(
 
   // Web端：返回代理URL，浏览器原生流式播放
   if (!IS_NATIVE) {
-    return getBilibiliSongUrlWeb(parsed.bvid);
+    return getBilibiliSongUrlWeb(parsed.bvid, parsed.cid);
   }
 
   // Android端：使用本地代理
-  return getBilibiliSongUrlNative(parsed.bvid);
+  return getBilibiliSongUrlNative(parsed.bvid, parsed.cid);
+}
+
+// ─────────────────────────────────────
+// 合集 / 系列 搜索与详情
+// ─────────────────────────────────────
+
+/**
+ * 从视频搜索结果中提取唯一的系列/合集，映射为专辑条目。
+ * 仅利用搜索结果中的 ogv（官方媒体/番剧）字段识别合集。
+ * UGC 系列通过 enrichBilibiliSearchResults 异步回填。
+ */
+function extractCollectionsFromSearch(
+  results: BilibiliSearchVideoRaw[]
+): MusicTrack[] {
+  const seen = new Set<number>();
+  const albums: MusicTrack[] = [];
+
+  for (const video of results) {
+    if (video.ogv?.season_id && !seen.has(video.ogv.season_id)) {
+      seen.add(video.ogv.season_id);
+      const album = convertSeriesToMusicTrack({
+        series_id: video.ogv.season_id,
+        name: video.ogv.title,
+        cover: video.ogv.cover,
+        creator: { name: video.author || video.uname || "未知" },
+        total: video.ogv.total,
+      });
+      album.id = buildBilibiliOgvAlbumId(video.ogv.season_id);
+      albums.push(album);
+    }
+  }
+
+  return albums;
+}
+
+export async function searchBilibiliCollections(
+  keyword: string,
+  page: number,
+  rows = 20
+): Promise<SearchPageResult<MusicTrack>> {
+  if (IS_WEB_PROD) {
+    const res = await fetchWithTimeout(
+      `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/search-collections`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword, page, rows }),
+      },
+      NETWORK_TIMEOUT
+    );
+    if (!res.ok) return { items: [], hasMore: false };
+    return res.json();
+  }
+
+  // 搜索视频，从结果中提取合集信息
+  try {
+    const data = await fetchBilibiliJson<BilibiliSearchResponse>(
+      buildBilibiliSearchPath(keyword, page, rows)
+    );
+    if (!data || data.code !== 0) return { items: [], hasMore: false };
+
+    const results = (data.data?.result || []).filter((v) => v.bvid);
+    const albums = extractCollectionsFromSearch(results);
+
+    return {
+      items: albums,
+      hasMore: false, // 合集聚合无分页
+    };
+  } catch {
+    return { items: [], hasMore: false };
+  }
+}
+
+export async function getBilibiliCollectionDetail(
+  albumId: string,
+  page = 1,
+  pageSize = 30
+): Promise<{
+  meta: BilibiliSeriesMetaRaw | null;
+  tracks: MusicTrack[];
+  total: number;
+} | null> {
+  const parsed = parseBilibiliAlbumId(albumId);
+  if (!parsed) return null;
+
+  const seriesId = Number(parsed.seriesId);
+  if (isNaN(seriesId)) return null;
+
+  const mid = parsed.mid ? Number(parsed.mid) : undefined;
+
+  try {
+    const [detailData, archivesData] = await Promise.all([
+      fetchBilibiliJson<BilibiliSeriesResponse>(
+        buildBilibiliSeriesDetailPath(seriesId)
+      ),
+      fetchBilibiliJson<BilibiliSeriesArchivesResponse>(
+        buildBilibiliSeriesArchivesPath(seriesId, page, pageSize)
+      ),
+    ]);
+
+    const meta = detailData ? parseBilibiliSeriesDetail(detailData) : null;
+
+    if (meta) {
+      const parsed = archivesData
+        ? parseBilibiliSeriesArchives(archivesData)
+        : { archives: [], total: 0 };
+
+      return {
+        meta,
+        tracks: parsed.archives.map(convertSeriesArchiveToMusicTrack),
+        total: parsed.total,
+      };
+    }
+
+    if (mid !== undefined && !isNaN(mid)) {
+      const seasonsData =
+        await fetchBilibiliJson<BilibiliSeasonsArchivesListResponse>(
+          buildBilibiliSeasonsArchivesListPath(mid, seriesId, page, pageSize)
+        );
+      if (!seasonsData) return null;
+
+      const seasonsResult = parseBilibiliSeasonsArchivesList(seasonsData);
+      if (!seasonsResult.meta) return null;
+
+      return {
+        meta: seasonsResult.meta,
+        tracks: seasonsResult.archives.map(convertSeasonArchiveToMusicTrack),
+        total: seasonsResult.total,
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 异步对 B站搜索结果进行合集/多分P 信息补全。
+ * 通过调用 view API 获取每个视频的 ugc_season（合集）和 pages（分P）信息，
+ * 回填到 MusicTrack 的 album/album_id 字段中。
+ * 已有 ogv 合集信息的条目不覆盖，未识别的条目通过 ugc_season / pages 回填。
+ */
+export async function enrichBilibiliSearchResults(
+  tracks: MusicTrack[]
+): Promise<MusicTrack[]> {
+  const bvids = tracks
+    .map((t) => {
+      if (t.source !== "bilibili") return null;
+      if (t.album_id?.startsWith("bilibili_O_")) return null;
+      const parsed = parseBilibiliTrackId(t.id);
+      return parsed?.bvid ?? null;
+    })
+    .filter((b): b is string => b !== null);
+
+  if (bvids.length === 0) return tracks;
+
+  const referer = "https://www.bilibili.com/";
+  const viewResults = await Promise.all(
+    bvids.map(async (bvid) => {
+      try {
+        const view = await fetchBilibiliJson<BilibiliViewResponse>(
+          buildBilibiliViewPath(bvid),
+          referer
+        );
+        return { bvid, view };
+      } catch {
+        return { bvid, view: null };
+      }
+    })
+  );
+
+  const viewMap = new Map(viewResults.map((r) => [r.bvid, r.view]));
+
+  return tracks.map((t) => {
+    if (t.source !== "bilibili") return t;
+    if (t.album_id?.startsWith("bilibili_O_")) return t;
+
+    const parsed = parseBilibiliTrackId(t.id);
+    if (!parsed) return t;
+
+    const view = viewMap.get(parsed.bvid);
+    if (!view?.data) return t;
+
+    const ugcSeason = view.data.ugc_season;
+    const pages = view.data.pages || [];
+
+    if (ugcSeason?.id) {
+      const ownerMid = view.data.owner?.mid;
+      return {
+        ...t,
+        album: ugcSeason.title?.trim() || "合集",
+        album_id: buildBilibiliSeriesAlbumId(ugcSeason.id, ownerMid),
+      };
+    }
+
+    if (pages.length > 1) {
+      return {
+        ...t,
+        album: view.data.title?.trim() || "合集",
+        album_id: buildBilibiliMultiPAlbumId(parsed.bvid),
+      };
+    }
+
+    return t;
+  });
+}
+// B站音频歌单 API (menu/hit)
+/**
+ * 获取 B站多分P 视频的详情，返回各分P作为独立曲目列表。
+ */
+export async function getBilibiliMultiPDetail(albumId: string): Promise<{
+  meta: { name: string; cover: string };
+  tracks: MusicTrack[];
+  total: number;
+} | null> {
+  const bvid = parseBilibiliMultiPAlbumId(albumId);
+  if (!bvid) return null;
+
+  try {
+    const referer = `https://www.bilibili.com/video/${bvid}`;
+    const view = await fetchBilibiliJson<BilibiliViewResponse>(
+      buildBilibiliViewPath(bvid),
+      referer
+    );
+    if (!view?.data) return null;
+
+    const data = view.data;
+    const pages = data.pages || [];
+    if (pages.length === 0) return null;
+
+    const tracks: MusicTrack[] = pages.map((page) => {
+      const cid = page.cid ?? 0;
+      const partTitle = page.part || `P${page.page ?? 1}`;
+      return {
+        id: `bilibili_BV${bvid.replace(/^BV/, "")}_${cid}`,
+        name: partTitle,
+        artist: data.owner?.name ? [data.owner.name] : [],
+        album: data.title?.trim() || "合集",
+        source: "bilibili",
+        pic_id: data.pic ?? "",
+        url_id: `bilibili_BV${bvid.replace(/^BV/, "")}_${cid}`,
+        lyric_id: "",
+      };
+    });
+
+    return {
+      meta: { name: data.title ?? "合集", cover: data.pic ?? "" },
+      tracks,
+      total: tracks.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 获取 B站 OGV 番剧季详情，返回各集作为独立曲目列表。
+ */
+export async function getBilibiliOgvDetail(albumId: string): Promise<{
+  meta: { name: string; cover: string };
+  tracks: MusicTrack[];
+  total: number;
+} | null> {
+  const seasonIdStr = parseBilibiliOgvAlbumId(albumId);
+  if (!seasonIdStr) return null;
+
+  const seasonId = Number(seasonIdStr);
+  if (isNaN(seasonId)) return null;
+
+  try {
+    const referer = "https://www.bilibili.com/";
+    const data = await fetchBilibiliJson<BilibiliOgvSeasonResponse>(
+      buildBilibiliOgvSeasonPath(seasonId),
+      referer
+    );
+    if (!data) return null;
+
+    const detail = parseBilibiliOgvSeasonDetail(data);
+    if (!detail) return null;
+
+    const tracks: MusicTrack[] = (data.result?.episodes || []).map((ep) =>
+      convertBilibiliOgvEpisodeToMusicTrack(ep, detail.title)
+    );
+
+    return {
+      meta: { name: detail.title, cover: detail.cover },
+      tracks,
+      total: detail.total,
+    };
+  } catch {
+    return null;
+  }
 }

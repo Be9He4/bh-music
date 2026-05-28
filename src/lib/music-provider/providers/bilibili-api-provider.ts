@@ -5,8 +5,10 @@ import {
   SongLyric,
 } from "@/types/music";
 import {
+  getBilibiliCollectionDetail,
   getBilibiliCoverUrl,
   getBilibiliSongUrl,
+  searchBilibiliCollections,
   searchBilibiliVideos,
 } from "@/lib/bilibili/bilibili-api";
 import { IMusicProvider } from "../interface";
@@ -39,8 +41,24 @@ export class BilibiliApiProvider implements IMusicProvider {
   async searchArtist(
     query: string,
     page: number,
-    count: number,
+    count: number
   ): Promise<SearchPageResult<MusicTrack>> {
     return this.search(query, page, count);
+  }
+
+  async searchAlbum(
+    query: string,
+    page: number,
+    count: number
+  ): Promise<SearchPageResult<MusicTrack>> {
+    return searchBilibiliCollections(query, page, count);
+  }
+
+  async getAlbumDetail(id: string): Promise<{
+    meta: unknown;
+    tracks: MusicTrack[];
+    total: number;
+  } | null> {
+    return getBilibiliCollectionDetail(id);
   }
 }

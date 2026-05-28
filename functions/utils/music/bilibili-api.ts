@@ -1,14 +1,34 @@
 import {
   BILIBILI_COVER_HOST_RE,
   buildBilibiliHeaders,
+  buildBilibiliOgvAlbumId,
+  buildBilibiliOgvSeasonPath,
   buildBilibiliPlayUrlPath,
+  buildBilibiliSeasonsArchivesListPath,
   buildBilibiliSearchPath,
+  buildBilibiliSeriesArchivesPath,
+  buildBilibiliSeriesDetailPath,
   buildBilibiliViewPath,
+  convertBilibiliOgvEpisodeToMusicTrack,
+  convertSeasonArchiveToMusicTrack,
+  convertSeriesArchiveToMusicTrack,
+  convertSeriesToMusicTrack,
+  parseBilibiliAlbumId,
+  parseBilibiliOgvAlbumId,
+  parseBilibiliOgvSeasonDetail,
+  parseBilibiliSeasonsArchivesList,
   parseBilibiliSearchResponse,
+  parseBilibiliSeriesArchives,
+  parseBilibiliSeriesDetail,
   selectBilibiliAudioUrl,
   selectBilibiliCid,
-  type BilibiliPlayUrlResponse,
+  type BilibiliOgvSeasonResponse,
+  type BilibiliSeasonsArchivesListResponse,
   type BilibiliSearchResponse,
+  type BilibiliSearchVideoRaw,
+  type BilibiliSeriesArchivesResponse,
+  type BilibiliSeriesResponse,
+  type BilibiliPlayUrlResponse,
   type BilibiliViewResponse,
   type MusicTrack,
   type SearchPageResult,
@@ -35,18 +55,31 @@ export async function fetchBilibiliSearch(
   const data = await fetchBilibiliJson<BilibiliSearchResponse>(
     buildBilibiliSearchPath(keyword, page, rows)
   );
-  return parseBilibiliSearchResponse(data, page, rows);
+
+  const result = parseBilibiliSearchResponse(data, page, rows);
+  const albums = extractCollectionsFromSearch(data.data?.result || []);
+
+  return {
+    items: [...albums, ...result.items],
+    hasMore: result.hasMore,
+  };
 }
 
 export async function fetchBilibiliSongUrl(
-  bvid: string
+  bvid: string,
+  cidOverride?: number
 ): Promise<string | null> {
   const referer = `https://www.bilibili.com/video/${bvid}`;
-  const view = await fetchBilibiliJson<BilibiliViewResponse>(
-    buildBilibiliViewPath(bvid),
-    referer
-  );
-  const cid = selectBilibiliCid(view);
+
+  let cid = cidOverride;
+
+  if (!cid) {
+    const view = await fetchBilibiliJson<BilibiliViewResponse>(
+      buildBilibiliViewPath(bvid),
+      referer
+    );
+    cid = selectBilibiliCid(view) ?? undefined;
+  }
   if (!cid) return null;
 
   const playUrl = await fetchBilibiliJson<BilibiliPlayUrlResponse>(
@@ -77,7 +110,7 @@ export async function proxyBilibiliAudio(
     "Accept-Ranges",
     "ETag",
     "Last-Modified",
-    "Cache-Control"
+    "Cache-Control",
   ];
 
   for (const h of headersToPass) {
@@ -98,6 +131,134 @@ export async function proxyBilibiliAudio(
   });
 }
 
+/**
+ * 从视频搜索结果中提取唯一的系列/合集。
+ */
+function extractCollectionsFromSearch(
+  results: BilibiliSearchVideoRaw[]
+): MusicTrack[] {
+  const seen = new Set<number>();
+  const albums: MusicTrack[] = [];
+
+  for (const video of results) {
+    if (video.ogv?.season_id && !seen.has(video.ogv.season_id)) {
+      seen.add(video.ogv.season_id);
+      const album = convertSeriesToMusicTrack({
+        series_id: video.ogv.season_id,
+        name: video.ogv.title,
+        cover: video.ogv.cover,
+        creator: { name: video.author || video.uname || "未知" },
+        total: video.ogv.total,
+      });
+      album.id = buildBilibiliOgvAlbumId(video.ogv.season_id);
+      albums.push(album);
+    }
+  }
+
+  return albums;
+}
+
+export async function fetchBilibiliSearchCollections(
+  keyword: string,
+  page: number,
+  rows = 20
+): Promise<SearchPageResult<MusicTrack>> {
+  const data = await fetchBilibiliJson<BilibiliSearchResponse>(
+    buildBilibiliSearchPath(keyword, page, rows)
+  );
+
+  if (!data || data.code !== 0) return { items: [], hasMore: false };
+
+  const results = (data.data?.result || []).filter((v) => v.bvid);
+  return {
+    items: extractCollectionsFromSearch(results),
+    hasMore: false,
+  };
+}
+
+export async function fetchBilibiliCollectionDetail(
+  albumId: string,
+  page = 1,
+  pageSize = 30
+): Promise<{ meta: unknown; tracks: MusicTrack[]; total: number } | null> {
+  const parsed = parseBilibiliAlbumId(albumId);
+  if (parsed) {
+    const seriesId = Number(parsed.seriesId);
+    if (!isNaN(seriesId)) {
+      const mid = parsed.mid ? Number(parsed.mid) : undefined;
+
+      const [detailData, archivesData] = await Promise.all([
+        fetchBilibiliJson<BilibiliSeriesResponse>(
+          buildBilibiliSeriesDetailPath(seriesId)
+        ),
+        fetchBilibiliJson<BilibiliSeriesArchivesResponse>(
+          buildBilibiliSeriesArchivesPath(seriesId, page, pageSize)
+        ),
+      ]);
+
+      const meta = detailData ? parseBilibiliSeriesDetail(detailData) : null;
+
+      if (meta) {
+        const parsed = archivesData
+          ? parseBilibiliSeriesArchives(archivesData)
+          : { archives: [], total: 0 };
+
+        return {
+          meta,
+          tracks: parsed.archives.map(convertSeriesArchiveToMusicTrack),
+          total: parsed.total,
+        };
+      }
+
+      if (mid !== undefined && !isNaN(mid)) {
+        const seasonsData =
+          await fetchBilibiliJson<BilibiliSeasonsArchivesListResponse>(
+            buildBilibiliSeasonsArchivesListPath(mid, seriesId, page, pageSize)
+          );
+
+        if (seasonsData) {
+          const seasonsResult = parseBilibiliSeasonsArchivesList(seasonsData);
+          if (seasonsResult.meta) {
+            return {
+              meta: seasonsResult.meta,
+              tracks: seasonsResult.archives.map(
+                convertSeasonArchiveToMusicTrack
+              ),
+              total: seasonsResult.total,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  const ogvSeasonIdStr = parseBilibiliOgvAlbumId(albumId);
+  if (ogvSeasonIdStr) {
+    const seasonId = Number(ogvSeasonIdStr);
+    if (!isNaN(seasonId)) {
+      const data = await fetchBilibiliJson<BilibiliOgvSeasonResponse>(
+        buildBilibiliOgvSeasonPath(seasonId)
+      );
+      if (!data) return null;
+
+      const detail = parseBilibiliOgvSeasonDetail(data);
+      if (!detail) return null;
+
+      const tracks: MusicTrack[] = (data.result?.episodes || []).map((ep) =>
+        convertBilibiliOgvEpisodeToMusicTrack(ep, detail.title)
+      );
+
+      return {
+        meta: { name: detail.title, cover: detail.cover },
+        tracks,
+        total: detail.total,
+      };
+    }
+  }
+
+  return null;
+}
+
 export async function proxyBilibiliCover(url: string): Promise<Response> {
   const parsed = new URL(url);
   if (!BILIBILI_COVER_HOST_RE.test(parsed.hostname)) {
@@ -108,6 +269,24 @@ export async function proxyBilibiliCover(url: string): Promise<Response> {
   }
 
   const response = await fetch(url, {
+    headers: buildBilibiliHeaders("https://www.bilibili.com/"),
+  });
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.set("Access-Control-Allow-Origin", "*");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  });
+}
+
+export async function proxyBilibiliAudioApi(
+  path: string,
+  search: string
+): Promise<Response> {
+  const targetUrl = `https://www.bilibili.com${path}${search}`;
+
+  const response = await fetch(targetUrl, {
     headers: buildBilibiliHeaders("https://www.bilibili.com/"),
   });
   const responseHeaders = new Headers(response.headers);
