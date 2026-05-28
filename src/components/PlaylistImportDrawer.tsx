@@ -23,6 +23,7 @@ import * as qqmusic from "@/lib/qqmusic/qqmusic-api";
 import * as kugou from "@/lib/kugou/kugou-api";
 import * as kuwo from "@/lib/kuwo/kuwo-api";
 import * as migu from "@/lib/migu/migu-api";
+import * as appleMusic from "@/lib/apple-music/apple-playlist-importer";
 
 import { importPlaylist } from "@/lib/utils/playlist-backup";
 import type { MusicTrack } from "@/types/music";
@@ -37,6 +38,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   kugou: "酷狗音乐",
   kuwo: "酷我音乐",
   migu: "咪咕音乐",
+  apple: "Apple Music",
 };
 
 // 平台解析策略配置
@@ -95,6 +97,15 @@ const platformStrategies: Record<
       })(),
     getDetail: migu.getMiguPlaylistDetail,
     convert: migu.convertMiguSongToMusicTrack,
+  },
+  apple: {
+    resolveId: (url) => {
+      const id = appleMusic.parsePlaylistId(url);
+      if (!id) throw new Error("无法解析此 Apple Music 链接");
+      return id;
+    },
+    getDetail: appleMusic.fetchPlaylist,
+    convert: appleMusic.convertToMusicTrack,
   },
 };
 
@@ -161,7 +172,7 @@ export function PlaylistImportDrawer({
     const platform = detectPlatform(trimmed);
     if (!platform) {
       setErrorMsg(
-        "不支持的链接格式，目前支持网易云、QQ、酷狗、酷我和咪咕音乐的歌单链接"
+        "不支持的链接格式，目前支持网易云、QQ、酷狗、酷我、咪咕音乐和 Apple Music 的歌单链接"
       );
       setPhase("error");
       return;
@@ -173,7 +184,18 @@ export function PlaylistImportDrawer({
       const strategy = platformStrategies[platform];
       const playlistId = await strategy.resolveId(trimmed);
       const detail = await strategy.getDetail(playlistId);
-      const songs = detail?.tracks || detail?.songs;
+
+      // 处理不同平台的数据结构
+      let songs: unknown[] = [];
+      if (platform === "apple") {
+        // Apple Music 使用 tracks 数组
+        songs =
+          (
+            detail as import("@/lib/apple-music/apple-playlist-importer").AppleMusicPlaylist
+          ).tracks || [];
+      } else {
+        songs = detail?.tracks || detail?.songs || [];
+      }
 
       if (!detail || !songs?.length) {
         throw new Error(!detail ? "获取歌单信息失败" : "歌单为空，无法导入");
@@ -182,7 +204,8 @@ export function PlaylistImportDrawer({
       const tracks = songs.map(strategy.convert);
       setPreview({
         name: detail.name,
-        coverUrl: detail.coverImgUrl || detail.coverUrl || "",
+        coverUrl:
+          detail.coverImgUrl || detail.coverUrl || detail.artworkUrl || "",
         trackCount: detail.trackCount || tracks.length,
         tracks,
         platform,
