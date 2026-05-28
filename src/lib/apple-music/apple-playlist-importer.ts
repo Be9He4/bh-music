@@ -54,21 +54,37 @@ export function parsePlaylistId(url: string): string | null {
 }
 
 /**
- * 从 Apple Music 嵌入页面获取歌单数据
+ * 从 Apple Music 分享 URL 解析地区代码
+ * 例如 /cn/playlist/... → "cn"，/us/playlist/... → "us"
+ * 无地区信息的短链接默认返回 "cn"
  *
- * @param playlistId Apple Music 歌单 ID
+ * @param url Apple Music 分享链接
+ * @returns 地区代码
+ */
+export function parsePlaylistRegion(url: string): string {
+  try {
+    const match = url.match(/music\.apple\.com\/([a-z]{2})\/playlist\//);
+    return match ? match[1] : "cn";
+  } catch {
+    return "cn";
+  }
+}
+
+/**
+ * 从 Apple Music 页面获取歌单数据
+ *
+ * @param pageUrl Apple Music 歌单页面完整 URL（必须包含名称 slug）
  * @returns 歌单信息
  */
 export async function fetchPlaylist(
-  playlistId: string
+  pageUrl: string
 ): Promise<AppleMusicPlaylist> {
-  logger.info("apple-music", "Fetching playlist", { playlistId });
+  logger.info("apple-music", "Fetching playlist", { pageUrl });
 
-  // 使用 embed 页面获取数据
-  const embedUrl = `https://embed.music.apple.com/us/playlist/${playlistId}`;
+  const playlistId = parsePlaylistId(pageUrl) || "unknown";
 
   try {
-    const response = await fetch(embedUrl, {
+    const response = await fetch(pageUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -86,7 +102,7 @@ export async function fetchPlaylist(
 
     // 尝试从 JSON-LD 解析
     const jsonLdMatch = html.match(
-      /<script type="application\/ld\+json">(.+?)<\/script>/s
+      /<script[^>]*type="application\/ld\+json"[^>]*>(.+?)<\/script>/s
     );
     if (jsonLdMatch) {
       try {
@@ -330,7 +346,7 @@ export async function importFromUrl(url: string): Promise<string> {
     throw new Error("无法解析歌单链接，请检查链接格式");
   }
 
-  const playlist = await fetchPlaylist(playlistId);
+  const playlist = await fetchPlaylist(url);
   if (playlist.tracks.length === 0) {
     throw new Error("歌单中没有曲目");
   }

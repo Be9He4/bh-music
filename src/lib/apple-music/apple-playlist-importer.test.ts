@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   parsePlaylistId,
+  parsePlaylistRegion,
   convertToMusicTrack,
   type AppleMusicTrack,
 } from "./apple-playlist-importer";
@@ -53,6 +54,25 @@ describe("parsePlaylistId", () => {
     const url = "not-a-valid-url";
     const result = parsePlaylistId(url);
     expect(result).toBeNull();
+  });
+});
+
+describe("parsePlaylistRegion", () => {
+  it("should extract cn region from web URL", () => {
+    const url =
+      "https://music.apple.com/cn/playlist/test-playlist/pl.1234567890abcdef";
+    expect(parsePlaylistRegion(url)).toBe("cn");
+  });
+
+  it("should extract us region from web URL", () => {
+    const url =
+      "https://music.apple.com/us/playlist/test-playlist/pl.1234567890abcdef";
+    expect(parsePlaylistRegion(url)).toBe("us");
+  });
+
+  it("should default to cn for short URL", () => {
+    const url = "https://music.apple.com/pl.playlist.u-9N9L24qL8B0";
+    expect(parsePlaylistRegion(url)).toBe("cn");
   });
 });
 

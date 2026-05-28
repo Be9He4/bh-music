@@ -102,9 +102,9 @@ const platformStrategies: Record<
     resolveId: (url) => {
       const id = appleMusic.parsePlaylistId(url);
       if (!id) throw new Error("无法解析此 Apple Music 链接");
-      return id;
+      return url;
     },
-    getDetail: appleMusic.fetchPlaylist,
+    getDetail: (url: string) => appleMusic.fetchPlaylist(url),
     convert: appleMusic.convertToMusicTrack,
   },
 };
