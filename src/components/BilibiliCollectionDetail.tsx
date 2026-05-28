@@ -8,12 +8,11 @@ import { ListMusic } from "lucide-react";
 import {
   getBilibiliCollectionDetail,
   getBilibiliMultiPDetail,
-  getBilibiliOgvDetail,
+  getBilibiliCoverUrl,
 } from "@/lib/bilibili/bilibili-api";
 import {
   parseBilibiliAlbumId,
   parseBilibiliMultiPAlbumId,
-  parseBilibiliOgvAlbumId,
 } from "@otter-music/shared";
 import { MusicTrack } from "@/types/music";
 
@@ -56,11 +55,10 @@ export function BilibiliCollectionDetail({
 
   const albumId = id || "";
   const isSeries = albumId ? !!parseBilibiliAlbumId(albumId) : false;
-  const isOgv = albumId ? !!parseBilibiliOgvAlbumId(albumId) : false;
   const isMultiP = albumId ? !!parseBilibiliMultiPAlbumId(albumId) : false;
 
   useEffect(() => {
-    if (!isSeries && !isOgv && !isMultiP) {
+    if (!isSeries && !isMultiP) {
       setState({ loading: false, error: true, detail: null, tracks: [] });
       return;
     }
@@ -71,31 +69,17 @@ export function BilibiliCollectionDetail({
       try {
         setState((prev) => ({ ...prev, loading: true, error: false }));
 
-        if (isOgv) {
-          const res = await getBilibiliOgvDetail(albumId);
-          if (cancelled) return;
-          if (!res || !res.meta) throw new Error("获取番剧失败");
-          setState({
-            loading: false,
-            error: false,
-            detail: {
-              title: res.meta.name || "番剧",
-              coverUrl: res.meta.cover || "",
-              trackCount: res.total,
-              upName: "",
-            },
-            tracks: res.tracks,
-          });
-        } else if (isSeries) {
+        if (isSeries) {
           const res = await getBilibiliCollectionDetail(albumId);
           if (cancelled) return;
           if (!res || !res.meta) throw new Error("获取合集失败");
+          const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
           setState({
             loading: false,
             error: false,
             detail: {
               title: res.meta.name || "合集",
-              coverUrl: res.meta.cover || "",
+              coverUrl: coverUrl || "",
               trackCount: res.total,
               upName: res.meta.creator?.name || "",
             },
@@ -105,12 +89,13 @@ export function BilibiliCollectionDetail({
           const res = await getBilibiliMultiPDetail(albumId);
           if (cancelled) return;
           if (!res || !res.meta) throw new Error("获取分P失败");
+          const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
           setState({
             loading: false,
             error: false,
             detail: {
               title: res.meta.name || "系列",
-              coverUrl: res.meta.cover || "",
+              coverUrl: coverUrl || "",
               trackCount: res.total,
               upName: "",
             },
@@ -129,7 +114,7 @@ export function BilibiliCollectionDetail({
     return () => {
       cancelled = true;
     };
-  }, [albumId, isSeries, isOgv, isMultiP, retryCount]);
+  }, [albumId, isSeries, isMultiP, retryCount]);
 
   const handleTrackPlay = useCallback(
     (track: MusicTrack) => {

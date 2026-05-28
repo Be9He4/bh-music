@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useState, useEffect, memo, useMemo, useCallback } from "react";
+import { useState, useEffect, memo, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LyricsPanel } from "./LyricsPanel";
@@ -167,6 +167,7 @@ export function FullScreenPlayer({
   const [showLyrics, setShowLyrics] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [colorInfo, setColorInfo] = useState<{
     coverUrl: string | null;
@@ -240,6 +241,32 @@ export function FullScreenPlayer({
       toast.success("已复制到剪贴板");
     } catch {
       toast.error("复制失败，请重试");
+    }
+  };
+
+  /**
+   * 长按复制歌曲信息
+   */
+  const handleTrackInfoPressStart = () => {
+    if (!currentTrack) return;
+
+    pressTimerRef.current = setTimeout(() => {
+      const text = `${currentTrack.name} - ${currentTrack.artist.join(", ")}`;
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          toast.success("已复制歌曲信息");
+        })
+        .catch(() => {
+          toast.error("复制失败，请重试");
+        });
+    }, 500);
+  };
+
+  const handleTrackInfoPressEnd = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
     }
   };
 
@@ -342,7 +369,15 @@ export function FullScreenPlayer({
 
       <div className="shrink-0 px-8 py-4 relative z-10">
         <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1">
+          <div
+            className={cn("min-w-0 flex-1 cursor-pointer select-none")}
+            onMouseDown={handleTrackInfoPressStart}
+            onMouseUp={handleTrackInfoPressEnd}
+            onMouseLeave={handleTrackInfoPressEnd}
+            onTouchStart={handleTrackInfoPressStart}
+            onTouchEnd={handleTrackInfoPressEnd}
+            title="长按复制歌曲信息"
+          >
             <h2 className="truncate text-xl font-semibold text-white">
               {currentTrack?.name || "未知歌曲"}
             </h2>

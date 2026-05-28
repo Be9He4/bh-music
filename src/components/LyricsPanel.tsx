@@ -233,9 +233,11 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     if (!trackId || !source || !active) return;
 
     if (!lyricId) {
-      setLoading(false);
-      setError("暂无歌词");
-      setLyrics([]);
+      queueMicrotask(() => {
+        setLoading(false);
+        setError("暂无歌词");
+        setLyrics([]);
+      });
       return;
     }
 

@@ -1,7 +1,6 @@
 import type { MusicTrack, SearchPageResult } from "../../types/music";
 import type {
   BilibiliDurlResponse,
-  BilibiliOgvSeasonResponse,
   BilibiliPlayUrlResponse,
   BilibiliSearchResponse,
   BilibiliSearchVideoRaw,
@@ -101,13 +100,6 @@ export function buildBilibiliSeasonsArchivesListPath(
 }
 
 /**
- * 构建 B 站 PGC 番剧季详情接口路径。
- */
-export function buildBilibiliOgvSeasonPath(seasonId: number): string {
-  return `/pgc/view/web/season?season_id=${seasonId}`;
-}
-
-/**
  * 构建 B 站 durl (FLV 分段) 播放地址接口路径，用于 DASH 不可用时的降级。
  */
 export function buildBilibiliDurlPlayUrlPath(
@@ -136,20 +128,11 @@ export function convertBilibiliSearchVideoToMusicTrack(
   const bvid = video.bvid || "";
   const coverUrl = normalizeResourceUrl(video.pic || "");
 
-  let album = "";
-  let albumId: string | undefined;
-
-  if (video.ogv?.season_id) {
-    album = video.ogv.title?.trim() || "合集";
-    albumId = buildBilibiliOgvAlbumId(video.ogv.season_id);
-  }
-
   return {
     id: `bilibili_${bvid}`,
     name: normalizeBilibiliText(video.title),
     artist: [normalizeBilibiliText(video.author || video.uname || "UP主")],
-    album,
-    ...(albumId !== undefined ? { album_id: albumId } : {}),
+    album: "",
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
     lyric_id: "",
@@ -320,15 +303,6 @@ export function parseBilibiliAlbumId(
   return null;
 }
 
-export function buildBilibiliOgvAlbumId(seasonId: number): string {
-  return `bilibili_O_${seasonId}`;
-}
-
-export function parseBilibiliOgvAlbumId(albumId: string): string | null {
-  const match = albumId.match(/^bilibili_O_(\d+)$/);
-  return match ? match[1] : null;
-}
-
 export function buildBilibiliMultiPAlbumId(bvid: string): string {
   return `bilibili_V_${bvid}`;
 }
@@ -454,53 +428,6 @@ export function convertSeasonArchiveToMusicTrack(
     album: "",
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
-    lyric_id: "",
-    source: "bilibili",
-  };
-}
-
-// ─────────────────────────────────────
-// OGV 番剧 数据转换
-// ─────────────────────────────────────
-
-/**
- * 解析 B 站 PGC 番剧季响应。
- */
-export function parseBilibiliOgvSeasonDetail(
-  response: BilibiliOgvSeasonResponse
-): { title: string; cover: string; total: number } | null {
-  if (response.code !== 0) return null;
-  return {
-    title: response.result?.title || "番剧",
-    cover: normalizeResourceUrl(response.result?.cover || ""),
-    total: response.result?.episodes?.length || 0,
-  };
-}
-
-/**
- * 将 B 站 OGV 番剧集转换为 MusicTrack。
- */
-export function convertBilibiliOgvEpisodeToMusicTrack(
-  episode: {
-    bvid?: string;
-    cid?: number;
-    title?: string;
-    long_title?: string;
-    cover?: string;
-  },
-  albumTitle: string
-): MusicTrack {
-  const bvid = episode.bvid || "";
-  const cid = episode.cid ?? 0;
-  const trackName = episode.long_title || episode.title || "未知标题";
-
-  return {
-    id: `bilibili_BV${bvid.replace(/^BV/, "")}_${cid}`,
-    name: normalizeBilibiliText(trackName),
-    artist: [],
-    album: albumTitle,
-    pic_id: normalizeResourceUrl(episode.cover || ""),
-    url_id: `bilibili_BV${bvid.replace(/^BV/, "")}_${cid}`,
     lyric_id: "",
     source: "bilibili",
   };

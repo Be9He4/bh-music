@@ -1,28 +1,21 @@
 import {
   BILIBILI_COVER_HOST_RE,
   buildBilibiliHeaders,
-  buildBilibiliOgvAlbumId,
-  buildBilibiliOgvSeasonPath,
   buildBilibiliPlayUrlPath,
   buildBilibiliSeasonsArchivesListPath,
   buildBilibiliSearchPath,
   buildBilibiliSeriesArchivesPath,
   buildBilibiliSeriesDetailPath,
   buildBilibiliViewPath,
-  convertBilibiliOgvEpisodeToMusicTrack,
   convertSeasonArchiveToMusicTrack,
   convertSeriesArchiveToMusicTrack,
-  convertSeriesToMusicTrack,
   parseBilibiliAlbumId,
-  parseBilibiliOgvAlbumId,
-  parseBilibiliOgvSeasonDetail,
   parseBilibiliSeasonsArchivesList,
   parseBilibiliSearchResponse,
   parseBilibiliSeriesArchives,
   parseBilibiliSeriesDetail,
   selectBilibiliAudioUrl,
   selectBilibiliCid,
-  type BilibiliOgvSeasonResponse,
   type BilibiliSeasonsArchivesListResponse,
   type BilibiliSearchResponse,
   type BilibiliSearchVideoRaw,
@@ -135,27 +128,9 @@ export async function proxyBilibiliAudio(
  * 从视频搜索结果中提取唯一的系列/合集。
  */
 function extractCollectionsFromSearch(
-  results: BilibiliSearchVideoRaw[]
+  _results: BilibiliSearchVideoRaw[]
 ): MusicTrack[] {
-  const seen = new Set<number>();
-  const albums: MusicTrack[] = [];
-
-  for (const video of results) {
-    if (video.ogv?.season_id && !seen.has(video.ogv.season_id)) {
-      seen.add(video.ogv.season_id);
-      const album = convertSeriesToMusicTrack({
-        series_id: video.ogv.season_id,
-        name: video.ogv.title,
-        cover: video.ogv.cover,
-        creator: { name: video.author || video.uname || "未知" },
-        total: video.ogv.total,
-      });
-      album.id = buildBilibiliOgvAlbumId(video.ogv.season_id);
-      albums.push(album);
-    }
-  }
-
-  return albums;
+  return [];
 }
 
 export async function fetchBilibiliSearchCollections(
@@ -229,30 +204,6 @@ export async function fetchBilibiliCollectionDetail(
           }
         }
       }
-    }
-  }
-
-  const ogvSeasonIdStr = parseBilibiliOgvAlbumId(albumId);
-  if (ogvSeasonIdStr) {
-    const seasonId = Number(ogvSeasonIdStr);
-    if (!isNaN(seasonId)) {
-      const data = await fetchBilibiliJson<BilibiliOgvSeasonResponse>(
-        buildBilibiliOgvSeasonPath(seasonId)
-      );
-      if (!data) return null;
-
-      const detail = parseBilibiliOgvSeasonDetail(data);
-      if (!detail) return null;
-
-      const tracks: MusicTrack[] = (data.result?.episodes || []).map((ep) =>
-        convertBilibiliOgvEpisodeToMusicTrack(ep, detail.title)
-      );
-
-      return {
-        meta: { name: detail.title, cover: detail.cover },
-        tracks,
-        total: detail.total,
-      };
     }
   }
 

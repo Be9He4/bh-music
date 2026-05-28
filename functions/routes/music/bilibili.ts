@@ -7,7 +7,6 @@ import {
   fetchBilibiliCollectionDetail,
   proxyBilibiliAudio,
   proxyBilibiliCover,
-  proxyBilibiliAudioApi,
 } from "../../utils/music/bilibili-api";
 
 export const bilibiliRoutes = new Hono<{ Bindings: Env }>();

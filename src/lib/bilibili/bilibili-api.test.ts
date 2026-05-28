@@ -55,7 +55,7 @@ describe("searchBilibiliVideos", () => {
     );
   });
 
-  it("includes collections extracted from ogv in dev search results", async () => {
+  it("returns empty collections in dev search results", async () => {
     const fetchWithTimeout = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -69,12 +69,6 @@ describe("searchBilibiliVideos", () => {
                 bvid: "BV1yy",
                 title: "合集曲目1",
                 author: "音乐UP",
-                ogv: {
-                  season_id: 99,
-                  title: "周杰伦合集",
-                  cover: "https://example.com/cover.jpg",
-                  total: 8,
-                },
               },
             ],
           },
@@ -379,44 +373,22 @@ describe("getBilibiliCoverUrl", () => {
 });
 
 describe("searchBilibiliCollections", () => {
-  function makeSearchWithOgc() {
-    return {
-      code: 0,
-      data: {
-        numResults: 2,
-        result: [
-          {
-            type: "video",
-            bvid: "BV1aa",
-            title: "Song 1",
-            author: "UP1",
-            pic: "https://example.com/pic1.jpg",
-            ogv: {
-              season_id: 123,
-              title: "音乐合集A",
-              cover: "https://example.com/cover-a.jpg",
-              total: 10,
-            },
+  it("returns empty collections in dev search results", async () => {
+    const fetchWithTimeout = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 0,
+          data: {
+            numResults: 2,
+            result: [
+              { type: "video", bvid: "BV1aa", title: "Song 1", author: "UP1" },
+              { type: "video", bvid: "BV1bb", title: "Song 2", author: "UP2" },
+            ],
           },
-          {
-            type: "video",
-            bvid: "BV1bb",
-            title: "Song 2",
-            author: "UP2",
-            pic: "https://example.com/pic2.jpg",
-            // 无 ogv 无 season_id → 不产生专辑
-          },
-        ],
-      },
-    };
-  }
-
-  it("extracts albums from ogv in dev search results", async () => {
-    const fetchWithTimeout = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(makeSearchWithOgc()), { status: 200 })
-      );
+        }),
+        { status: 200 }
+      )
+    );
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout,
       getApiUrl: () => "https://otter-music.pages.dev",
@@ -427,13 +399,7 @@ describe("searchBilibiliCollections", () => {
     const { searchBilibiliCollections } = await import("./bilibili-api");
     const result = await searchBilibiliCollections("合集", 1, 20);
 
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({
-      id: "bilibili_O_123",
-      name: "音乐合集A",
-      artist: ["UP1"],
-      source: "bilibili",
-    });
+    expect(result.items).toHaveLength(0);
     expect(result.hasMore).toBe(false);
   });
 

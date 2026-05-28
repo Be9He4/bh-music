@@ -62,32 +62,6 @@ describe("bilibili music utilities", () => {
   });
 
   describe("convertBilibiliSearchVideoToMusicTrack collection detection", () => {
-    it("sets album from ogv.title when available", () => {
-      const track = convertBilibiliSearchVideoToMusicTrack({
-        bvid: "BV1xx411c7mD",
-        title: "歌曲标题",
-        author: "UP主",
-        pic: "https://example.com/cover.jpg",
-        ogv: { season_id: 12345, title: "某番剧 第一季" },
-      });
-
-      expect(track.album).toBe("某番剧 第一季");
-      expect(track.album_id).toBe("bilibili_O_12345");
-    });
-
-    it("falls back to placeholder when ogv.title is empty", () => {
-      const track = convertBilibiliSearchVideoToMusicTrack({
-        bvid: "BV1xx411c7mD",
-        title: "歌曲标题",
-        author: "UP主",
-        pic: "https://example.com/cover.jpg",
-        ogv: { season_id: 12345, title: "" },
-      });
-
-      expect(track.album).toBe("合集");
-      expect(track.album_id).toBe("bilibili_O_12345");
-    });
-
     it("does not set album from season_id (only ugc_season from view API is reliable)", () => {
       const track = convertBilibiliSearchVideoToMusicTrack({
         bvid: "BV1xx411c7mD",
