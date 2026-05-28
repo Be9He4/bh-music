@@ -9,15 +9,17 @@ import { useAudioPlaybackControl } from "@/hooks/useAudioPlaybackControl";
 import { useMediaSessionIntegration } from "@/hooks/useMediaSessionIntegration";
 import { useAudioEventHandlers } from "@/hooks/useAudioEventHandlers";
 import { useAudioTrackLoader } from "@/hooks/useAudioTrackLoader";
+import { useSleepTimer } from "@/hooks/useSleepTimer";
 
 export function GlobalMusicPlayer() {
   const audioRef = useAudioElement();
-  const currentTrack = useMusicStore(s => s.queue[s.currentIndex]);
+  const currentTrack = useMusicStore((s) => s.queue[s.currentIndex]);
   const coverUrl = useMusicCover(currentTrack);
 
   const isSwitchingTrackRef = useRef(false);
   const hasRecordedRef = useRef(false);
 
+  useSleepTimer(audioRef);
   useSeekHandler(audioRef);
   useAudioTrackLoader(audioRef, isSwitchingTrackRef, hasRecordedRef);
   useAudioPlaybackControl(audioRef, isSwitchingTrackRef);
@@ -25,11 +27,6 @@ export function GlobalMusicPlayer() {
   useMediaSessionIntegration(audioRef, coverUrl);
 
   return (
-    <audio
-      ref={audioRef}
-      className="sr-only"
-      preload="auto"
-      playsInline
-    />
+    <audio ref={audioRef} className="sr-only" preload="auto" playsInline />
   );
 }
