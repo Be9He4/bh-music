@@ -44,6 +44,8 @@ import {
 import { registerBlobUrl } from "@/lib/utils/blob-registry";
 import { base64ToBlob } from "@/lib/utils/base64";
 import { logger } from "../logger";
+import { setUpNameCache, getUpNameCache } from "@/lib/bilibili/up-name-cache";
+import { cachedFetch } from "@/lib/utils/cache";
 
 const BILIBILI_API_BASE = "https://api.bilibili.com";
 const BILIBILI_PROXY_PREFIX = "/music-api/bilibili";
@@ -384,7 +386,7 @@ export async function getBilibiliCollectionDetail(
       if (seasonsData) {
         const seasonsResult = parseBilibiliSeasonsArchivesList(seasonsData);
         if (seasonsResult.meta) {
-          const upName = "";
+          const upName = getUpNameCache(mid) || "";
 
           // 更新 meta 中的 creator name
           const metaWithCreator: BilibiliSeriesMetaRaw = {
@@ -408,11 +410,21 @@ export async function getBilibiliCollectionDetail(
 
     // 没有 mid 或 seasons_archives_list 失败，尝试 series API
     const [detailData, archivesData] = await Promise.all([
-      fetchBilibiliJson<BilibiliSeriesResponse>(
-        buildBilibiliSeriesDetailPath(seriesId)
+      cachedFetch<BilibiliSeriesResponse>(
+        `bilibili_series_detail_${seriesId}`,
+        () =>
+          fetchBilibiliJson<BilibiliSeriesResponse>(
+            buildBilibiliSeriesDetailPath(seriesId)
+          ),
+        24 * 60 * 60 * 1000
       ),
-      fetchBilibiliJson<BilibiliSeriesArchivesResponse>(
-        buildBilibiliSeriesArchivesPath(seriesId, page, pageSize)
+      cachedFetch<BilibiliSeriesArchivesResponse>(
+        `bilibili_series_archives_${seriesId}_${page}_${pageSize}`,
+        () =>
+          fetchBilibiliJson<BilibiliSeriesArchivesResponse>(
+            buildBilibiliSeriesArchivesPath(seriesId, page, pageSize)
+          ),
+        24 * 60 * 60 * 1000
       ),
     ]);
 
@@ -460,9 +472,14 @@ export async function enrichBilibiliSearchResults(
   const viewResults = await Promise.all(
     bvids.map(async (bvid) => {
       try {
-        const view = await fetchBilibiliJson<BilibiliViewResponse>(
-          buildBilibiliViewPath(bvid),
-          referer
+        const view = await cachedFetch<BilibiliViewResponse>(
+          `bilibili_view_${bvid}`,
+          () =>
+            fetchBilibiliJson<BilibiliViewResponse>(
+              buildBilibiliViewPath(bvid),
+              referer
+            ),
+          24 * 60 * 60 * 1000
         );
         return { bvid, view };
       } catch {
@@ -482,6 +499,10 @@ export async function enrichBilibiliSearchResults(
 
     const view = viewMap.get(parsed.bvid);
     if (!view?.data) return t;
+
+    if (view.data.owner?.mid && view.data.owner?.name) {
+      setUpNameCache(view.data.owner.mid, view.data.owner.name);
+    }
 
     const ugcSeason = view.data.ugc_season;
     const pages = view.data.pages || [];

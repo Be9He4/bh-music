@@ -15,6 +15,7 @@ import {
   parseBilibiliMultiPAlbumId,
 } from "@otter-music/shared";
 import { MusicTrack } from "@/types/music";
+import { getUpNameCache } from "@/lib/bilibili/up-name-cache";
 
 interface BilibiliCollectionDetailProps {
   id: string | null;
@@ -74,6 +75,9 @@ export function BilibiliCollectionDetail({
           if (cancelled) return;
           if (!res || !res.meta) throw new Error("获取合集失败");
           const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
+          const cachedUpName = getUpNameCache(
+            Number(parseBilibiliAlbumId(albumId)?.mid)
+          );
           setState({
             loading: false,
             error: false,
@@ -81,7 +85,7 @@ export function BilibiliCollectionDetail({
               title: res.meta.name || "合集",
               coverUrl: coverUrl || "",
               trackCount: res.total,
-              upName: res.meta.creator?.name || "",
+              upName: cachedUpName || res.meta.creator?.name || "",
             },
             tracks: res.tracks,
           });
@@ -97,7 +101,7 @@ export function BilibiliCollectionDetail({
               title: res.meta.name || "系列",
               coverUrl: coverUrl || "",
               trackCount: res.total,
-              upName: "",
+              upName: res.tracks[0]?.artist?.[0] || "",
             },
             tracks: res.tracks,
           });
