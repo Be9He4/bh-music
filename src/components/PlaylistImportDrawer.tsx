@@ -9,13 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Link2, Loader2, Upload, ListMusic } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Link2, Loader2, Upload, ListMusic, Braces, Copy } from "lucide-react";
 import { MusicCover } from "@/components/MusicCover";
 import { useMusicStore } from "@/store/music-store";
 import { toastUtils } from "@/lib/utils/toast";
 import { logger } from "@/lib/logger";
 import { detectPlatform, type Platform } from "@/lib/platform-detector";
-import { readClipboardText } from "@/lib/clipboard";
+import { readClipboardText, writeClipboardText } from "@/lib/clipboard";
 
 // 聚合各平台 API 导入
 import * as netease from "@/lib/netease/netease-api";
@@ -26,6 +27,12 @@ import * as migu from "@/lib/migu/migu-api";
 import * as appleMusic from "@/lib/apple-music/apple-playlist-importer";
 
 import { importPlaylist } from "@/lib/utils/playlist-backup";
+import {
+  validateAndParse,
+  convertToMusicTracks,
+  TEXT_IMPORT_PROMPT,
+  type TextPlaylistInput,
+} from "@/lib/utils/text-playlist-import";
 import type { MusicTrack } from "@/types/music";
 
 function parseInput(text: string) {
@@ -132,14 +139,28 @@ export function PlaylistImportDrawer({
   const [phase, setPhase] = useState<Phase>("input");
   const [preview, setPreview] = useState<PlaylistPreview | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"link" | "file">("link");
+  const [activeTab, setActiveTab] = useState<"link" | "file" | "text">("link");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 文本导入状态
+  const [textInput, setTextInput] = useState("");
+  const [textPhase, setTextPhase] = useState<
+    "input" | "error" | "preview" | "importing"
+  >("input");
+  const [textError, setTextError] = useState("");
+  const [textPreview, setTextPreview] = useState<TextPlaylistInput | null>(
+    null
+  );
 
   const reset = () => {
     setUrl("");
     setPhase("input");
     setPreview(null);
     setErrorMsg("");
+    setTextInput("");
+    setTextPhase("input");
+    setTextPreview(null);
+    setTextError("");
   };
 
   const handleClose = () => {
@@ -257,6 +278,41 @@ export function PlaylistImportDrawer({
     }
   };
 
+  const handleTextValidate = () => {
+    const result = validateAndParse(textInput);
+    if (result.valid) {
+      setTextPreview(result.data);
+      setTextError("");
+      setTextPhase("preview");
+    } else {
+      setTextError(result.error);
+      setTextPreview(null);
+      setTextPhase("error");
+    }
+  };
+
+  const handleTextImport = async () => {
+    if (!textPreview) return;
+    setTextPhase("importing");
+    try {
+      const tracks = convertToMusicTracks(textPreview);
+      savePlaylistToStore(textPreview.name, undefined, tracks);
+    } catch (e) {
+      logger.error("PlaylistImportDrawer", "Text import failed", e);
+      toastUtils.error("导入失败，请重试");
+      setTextPhase("preview");
+    }
+  };
+
+  const handleCopyPrompt = async () => {
+    const ok = await writeClipboardText(TEXT_IMPORT_PROMPT);
+    if (ok) {
+      toastUtils.success("提示词已复制到剪贴板");
+    } else {
+      toastUtils.error("复制失败，请手动复制");
+    }
+  };
+
   return (
     <Drawer open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DrawerContent className="max-h-[92vh] outline-none">
@@ -269,16 +325,20 @@ export function PlaylistImportDrawer({
         <Tabs
           defaultValue="link"
           className="px-5"
-          onValueChange={(v) => setActiveTab(v as "link" | "file")}
+          onValueChange={(v) => setActiveTab(v as "link" | "file" | "text")}
         >
           <TabsList className="w-full">
             <TabsTrigger value="link" className="flex-1">
               <Link2 className="h-4 w-4 mr-1.5" />
-              链接导入
+              链接
             </TabsTrigger>
             <TabsTrigger value="file" className="flex-1">
               <Upload className="h-4 w-4 mr-1.5" />
-              文件导入
+              文件
+            </TabsTrigger>
+            <TabsTrigger value="text" className="flex-1">
+              <Braces className="h-4 w-4 mr-1.5" />
+              文本
             </TabsTrigger>
           </TabsList>
 
@@ -363,6 +423,56 @@ export function PlaylistImportDrawer({
               />
             </div>
           </TabsContent>
+
+          <TabsContent value="text" className="mt-4 space-y-3">
+            {/* JSON 输入区 */}
+            <Textarea
+              className="min-h-32 max-h-48 bg-muted/40 border-none rounded-xl focus-visible:ring-1 font-mono text-sm resize-none overflow-y-auto"
+              placeholder={`{\n  "name": "歌单名称",\n  "tracks": [\n    { "name": "歌名", "artist": ["歌手"] }\n  ]\n}`}
+              value={textInput}
+              onChange={(e) => {
+                setTextInput(e.target.value);
+                if (textPhase !== "input") setTextPhase("input");
+              }}
+            />
+            <div className="flex items-center justify-between px-1">
+              <p className="text-xs text-muted-foreground">
+                将歌曲列表发送给 AI，粘贴返回的 JSON 即可导入
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleCopyPrompt}
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                复制提示词
+              </Button>
+            </div>
+
+            {/* 校验结果展示 */}
+            {textPhase === "error" && (
+              <div className="text-center py-3">
+                <p className="text-sm text-destructive">{textError}</p>
+              </div>
+            )}
+
+            {textPhase === "preview" && textPreview && (
+              <div className="bg-muted/30 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-muted/40 flex items-center justify-center shrink-0">
+                  <ListMusic className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base truncate">
+                    {textPreview.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {textPreview.tracks.length} 首歌曲
+                  </p>
+                </div>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
 
         <DrawerFooter className="px-5 pt-2 pb-8">
@@ -410,6 +520,52 @@ export function PlaylistImportDrawer({
                 </>
               )}
               {phase === "importing" && (
+                <Button className="h-12 rounded-2xl w-full" disabled>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  导入中...
+                </Button>
+              )}
+            </div>
+          )}
+
+          {activeTab === "text" && (
+            <div className="mt-2 w-full space-y-2">
+              {textPhase === "error" && (
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-2xl w-full"
+                  onClick={() => setTextPhase("input")}
+                >
+                  返回修改
+                </Button>
+              )}
+              {(textPhase === "input" || textPhase === "error") && (
+                <Button
+                  className="h-12 rounded-2xl shadow-lg w-full"
+                  disabled={!textInput.trim()}
+                  onClick={handleTextValidate}
+                >
+                  {textPhase === "error" ? "重新校验" : "校验 JSON"}
+                </Button>
+              )}
+              {textPhase === "preview" && (
+                <>
+                  <Button
+                    className="h-12 rounded-2xl shadow-lg w-full"
+                    onClick={handleTextImport}
+                  >
+                    确认导入
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-12 rounded-2xl w-full"
+                    onClick={() => setTextPhase("input")}
+                  >
+                    返回
+                  </Button>
+                </>
+              )}
+              {textPhase === "importing" && (
                 <Button className="h-12 rounded-2xl w-full" disabled>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   导入中...
