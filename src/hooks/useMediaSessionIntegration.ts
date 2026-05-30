@@ -2,6 +2,34 @@ import { useEffect } from "react";
 import { useMusicStore } from "@/store/music-store";
 import { MediaSession } from "@jofr/capacitor-media-session";
 import { forceHttps } from "@otter-music/shared";
+import { IS_NATIVE } from "@/lib/api/config";
+
+const artworkCache = new Map<string, boolean>();
+
+async function prefetchArtwork(url: string): Promise<boolean> {
+  const cached = artworkCache.get(url);
+  if (cached !== undefined) return cached;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) {
+      artworkCache.set(url, false);
+      return false;
+    }
+    const contentType = res.headers.get("content-type") || "";
+    const valid = contentType.includes("image");
+    artworkCache.set(url, valid);
+    return valid;
+  } catch {
+    clearTimeout(timer);
+    artworkCache.set(url, false);
+    return false;
+  }
+}
 
 export function sanitizeMediaSessionArtworkUrl(
   rawUrl: string | null | undefined
@@ -37,10 +65,15 @@ export function useMediaSessionIntegration(
       try {
         const safeArtworkUrl = sanitizeMediaSessionArtworkUrl(coverUrl);
 
-        // The Android plugin fetches artwork synchronously in native code, which
-        // can destabilize startup when restored playback state replays metadata updates.
-        const safeArtwork =
-          navigator.onLine && safeArtworkUrl ? [{ src: safeArtworkUrl }] : [];
+        let safeArtwork: { src: string }[] = [];
+        if (navigator.onLine && safeArtworkUrl) {
+          if (IS_NATIVE) {
+            const valid = await prefetchArtwork(safeArtworkUrl);
+            if (valid) safeArtwork = [{ src: safeArtworkUrl }];
+          } else {
+            safeArtwork = [{ src: safeArtworkUrl }];
+          }
+        }
 
         await MediaSession.setMetadata({
           title: currentTrack.name || "Unknown Track",
@@ -112,6 +145,7 @@ export function useMediaSessionIntegration(
       [
         "play",
         () => {
+          // TODO: play 和 pause 直接操纵 audio 是否有问题？
           useMusicStore.getState().setUserGesture();
           const audio = audioRef.current;
           if (!audio) return;

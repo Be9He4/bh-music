@@ -17,7 +17,9 @@ export function useAudioEventHandlers(
 ) {
   const autoMatchedTrackIdRef = useRef<string | null>(null);
   const recoveryAttemptedRef = useRef(false);
-  const pauseConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const pauseConfirmTokenRef = useRef(0);
 
   useEffect(() => {
@@ -39,8 +41,10 @@ export function useAudioEventHandlers(
 
     const syncPositionState = (playbackRate: number) => {
       const rate = playbackRate || audio.playbackRate || 1;
+      const dur = audio.duration;
+      const safeDuration = isFinite(dur) && dur > 0 ? dur : 0;
       MediaSession.setPositionState({
-        duration: audio.duration || 0,
+        duration: safeDuration,
         playbackRate: rate,
         position: audio.currentTime,
       }).catch(console.error);
@@ -92,9 +96,13 @@ export function useAudioEventHandlers(
 
       if (state.isRepeat) {
         audio.currentTime = 0;
-        void audio.play();
+        audio.play().catch(() => {
+          useMusicStore.getState().setIsPlaying(false);
+        });
       } else if (state.queue.length) {
-        state.setCurrentIndexAndPlay((state.currentIndex + 1) % state.queue.length);
+        state.setCurrentIndexAndPlay(
+          (state.currentIndex + 1) % state.queue.length
+        );
       }
     };
 
@@ -108,7 +116,13 @@ export function useAudioEventHandlers(
         if (token !== pauseConfirmTokenRef.current) return;
         pauseConfirmTimerRef.current = null;
 
-        if (isSwitchingTrackRef.current || audio.ended || audio.error || !audio.paused) return;
+        if (
+          isSwitchingTrackRef.current ||
+          audio.ended ||
+          audio.error ||
+          !audio.paused
+        )
+          return;
 
         const state = useMusicStore.getState();
         if (state.isPlaying) state.setIsPlaying(false);
@@ -149,7 +163,10 @@ export function useAudioEventHandlers(
 
         if (!recoveryAttemptedRef.current && state.queue.length > 0) {
           recoveryAttemptedRef.current = true;
-          logger.warn("useAudioEventHandlers", "Audio error, attempting URL recovery");
+          logger.warn(
+            "useAudioEventHandlers",
+            "Audio error, attempting URL recovery"
+          );
           state.incrementUrlRecoveryKey();
           return;
         }

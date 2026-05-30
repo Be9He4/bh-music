@@ -50,7 +50,7 @@ export function GenericDetailPage({
   return (
     <PageLayout title={detail?.title ?? title} onBack={onBack} action={action}>
       <div ref={scrollRef} className="h-full overflow-y-auto custom-scrollbar">
-        <div className="px-4 pb-24 space-y-6">
+        <div className="pb-24">
           {detail && (
             <CommonDetailHeader
               title={detail.title}
