@@ -203,7 +203,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground truncate">离线歌单</p>
               <p className="text-xs text-muted-foreground">
-                {offlineTracks.length} 首可离线播放
+                {offlineTracks.length} 首
               </p>
             </div>
           </div>
