@@ -7,6 +7,7 @@ import { PageLoader } from "@/components/PageLoader";
 import { PageLayout } from "@/components/PageLayout";
 import { ListMusic } from "lucide-react";
 import { useActivePlaylists } from "@/hooks/use-active-playlists";
+import { useOfflinePlaylist } from "@/hooks/use-offline-playlist";
 
 // ==========================================
 // 1. 懒加载路由组件 (保持极速首屏)
@@ -130,10 +131,34 @@ export const FavoritesRoute = withSuspense(() => {
 export const PlaylistDetailRoute = withSuspense(() => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const offlineTracks = useOfflinePlaylist();
+  const isOffline = id === "__offline__";
+
   // 精确查找特定歌单
   const activePlaylists = useActivePlaylists();
-  const playlist = activePlaylists.find((p) => p.id === id);
+  const playlist = isOffline ? null : activePlaylists.find((p) => p.id === id);
   const { currentTrackId, isPlaying } = usePlaybackState();
+
+  if (isOffline) {
+    return (
+      <PageLayout title="离线歌单">
+        <MusicPlaylistView
+          title="离线歌单"
+          tracks={offlineTracks}
+          icon={<ListMusic className="h-8 w-8 text-primary/80" />}
+          onPlay={(track, index) => {
+            const store = useMusicStore.getState();
+            if (track && currentTrackId === track.id) return store.togglePlay();
+            const idx =
+              index ?? offlineTracks.findIndex((t) => t.id === track?.id);
+            store.playContext(offlineTracks, Math.max(0, idx), "offline");
+          }}
+          currentTrackId={currentTrackId}
+          isPlaying={isPlaying}
+        />
+      </PageLayout>
+    );
+  }
 
   if (!playlist) {
     return (

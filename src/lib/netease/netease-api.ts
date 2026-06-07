@@ -375,10 +375,34 @@ export const getUserPlaylists = async (
   const res = await cachedFetch<MarketPlaylist[]>(
     `netease:v2:user-playlists:${userId}`,
     async () => {
-      const r = await fetchLocalApi<{ playlist: UserPlaylist[]; code: number }>(
-        "/music-api/netease/user-playlists",
-        { userId, cookie: finalCookie }
-      );
+      if (IS_WEB_PROD) {
+        // Web生产环境走代理
+        const r = await fetchLocalApi<{
+          playlist: UserPlaylist[];
+          code: number;
+        }>("/music-api/netease/user-playlists", {
+          userId,
+          cookie: finalCookie,
+        });
+        if (r.code !== 200)
+          throw new Error(`NetEase user playlists error: ${r.code}`);
+        return r.playlist.map(toMarketPlaylistFromUserPlaylist);
+      }
+
+      // 移动端直连
+      const params = new URLSearchParams({
+        uid: userId,
+        limit: "1000",
+        offset: "0",
+        includeVideo: "true",
+      });
+      const headers = buildHeaders(finalCookie, PC_USER_AGENT);
+      const { data } = await crossFetch(`${BASE_URL}/api/user/playlist`, {
+        method: "POST",
+        headers,
+        body: params.toString(),
+      });
+      const r = data as { playlist: UserPlaylist[]; code: number };
       if (r.code !== 200)
         throw new Error(`NetEase user playlists error: ${r.code}`);
       return r.playlist.map(toMarketPlaylistFromUserPlaylist);
@@ -395,11 +419,22 @@ export const getRecommendPlaylists = async (
   const res = await cachedFetch<MarketPlaylist[]>(
     `netease:v2:recommend:${finalCookie.slice(-16)}`,
     async () => {
-      const r = await fetchLocalApi<{
-        result?: RecommendPlaylist[];
-        data?: { result?: RecommendPlaylist[] };
-      }>("/music-api/netease/recommend", { cookie: finalCookie });
-      return unwrapRecommendResult(r).map(toMarketPlaylistFromRecommend);
+      if (IS_WEB_PROD) {
+        // Web生产环境走代理
+        const r = await fetchLocalApi<{
+          result?: RecommendPlaylist[];
+          data?: { result?: RecommendPlaylist[] };
+        }>("/music-api/netease/recommend", { cookie: finalCookie });
+        return unwrapRecommendResult(r).map(toMarketPlaylistFromRecommend);
+      }
+
+      // 移动端直连
+      const r = await requestWeapi<{ result: RecommendPlaylist[] }>(
+        `${BASE_URL}/weapi/personalized/playlist`,
+        { limit: 20, total: true, n: 1000 },
+        finalCookie
+      );
+      return (r.data?.result || []).map(toMarketPlaylistFromRecommend);
     },
     TTL_SHORT
   );

@@ -11,6 +11,7 @@ import {
   clearAudioCache,
 } from "@/lib/cache-stats";
 import { toastUtils } from "@/lib/utils/toast";
+import { useOfflineStore } from "@/store/offline-store";
 
 export function StreamCacheSetting() {
   const { enableStreamCache, setEnableStreamCache } = useMusicStore();
@@ -73,6 +74,7 @@ export function StreamCacheSetting() {
                 window.confirm("确定要清空所有音频缓存吗？此操作不可恢复。")
               ) {
                 await clearAudioCache();
+                useOfflineStore.getState().clear();
                 setStats({ entryCount: 0, approxSize: 0 });
                 toastUtils.info("音频缓存已清空");
               }

@@ -3,11 +3,14 @@ import { throttle } from "@/lib/utils";
 import { useMusicStore } from "@/store/music-store";
 import { useSourceQualityStore } from "@/store/source-quality-store";
 import { useHistoryStore } from "@/store/history-store";
+import { useOfflineStore } from "@/store/offline-store";
 import { MediaSession } from "@jofr/capacitor-media-session";
 import toast from "react-hot-toast";
 import { handleAutoMatch } from "@/lib/audio-match";
 import { logger } from "@/lib/logger";
 
+// 曲目切换触发的短暂 pause 事件不应将状态置为暂停，
+// 需延迟 200ms 确认 pause 是稳定状态后再更新 isPlaying
 const PAUSE_CONFIRM_DELAY_MS = 200;
 
 export function useAudioEventHandlers(
@@ -148,6 +151,30 @@ export function useAudioEventHandlers(
       if (track) {
         useSourceQualityStore.getState().recordSuccess(track.source);
         useHistoryStore.getState().addToHistory(track);
+
+        // 仅对远程曲目记录流媒体缓存，本地和已下载的由各自模块处理
+        if (track.source !== "local") {
+          const cachedUrl = audio.src;
+          if (
+            cachedUrl &&
+            !cachedUrl.startsWith("blob:") &&
+            !cachedUrl.startsWith("capacitor:")
+          ) {
+            useOfflineStore.getState().addRecord({
+              trackId: track.id,
+              source: "stream-cache",
+              url: cachedUrl,
+              cachedAt: Date.now(),
+              name: track.name,
+              artist: track.artist,
+              album: track.album,
+              trackSource: track.source,
+              url_id: track.url_id,
+              pic_id: track.pic_id,
+              lyric_id: track.lyric_id,
+            });
+          }
+        }
       }
     };
 

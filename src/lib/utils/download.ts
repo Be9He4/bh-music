@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import { base64ToBlob } from "@/lib/utils/base64";
 import { LocalMusicFile } from "@/plugins/local-music";
 import { useDownloadStore } from "@/store/download-store";
+import { useOfflineStore } from "@/store/offline-store";
 import { useMusicStore } from "@/store/music-store";
 import { toastUtils } from "./toast";
 import { getProxyUrl, isProxyUrl } from "@/lib/api/config";
@@ -79,7 +80,10 @@ async function performDownloadOne(
   const isReusedUrl = !!url;
 
   if (!url) {
-    url = await MusicProviderFactory.getProvider(track.source).getUrl(track, br);
+    url = await MusicProviderFactory.getProvider(track.source).getUrl(
+      track,
+      br
+    );
   }
   // 音质降级重试：高音质无 URL 时逐级降级
   if (!url) {
@@ -93,7 +97,7 @@ async function performDownloadOne(
       if (url) break;
     }
   }
-  
+
   if (!url) throw new Error("无法获取下载链接");
 
   const doDownload = async (downloadUrl: string) => {
@@ -108,7 +112,9 @@ async function performDownloadOne(
     // 如果是复用的 URL 失败，回退到重新获取
     if (isReusedUrl) {
       logger.warn("Reused URL download failed, falling back to getUrl...", err);
-      const freshUrl = await MusicProviderFactory.getProvider(track.source).getUrl(track, br);
+      const freshUrl = await MusicProviderFactory.getProvider(
+        track.source
+      ).getUrl(track, br);
       if (!freshUrl) throw new Error("无法获取下载链接");
       await doDownload(freshUrl);
       return;
@@ -241,6 +247,20 @@ async function downloadNative(
 
     const key = buildDownloadKey(track.source, track.id);
     await useDownloadStore.getState().addRecord(key, fileUri.uri);
+
+    useOfflineStore.getState().addRecord({
+      trackId: track.id,
+      source: "download",
+      url: fileUri.uri,
+      cachedAt: Date.now(),
+      name: track.name,
+      artist: track.artist,
+      album: track.album,
+      trackSource: track.source,
+      url_id: track.url_id,
+      pic_id: track.pic_id,
+      lyric_id: track.lyric_id,
+    });
 
     if (toastId) toast.success("下载完成", { id: toastId });
   } finally {
