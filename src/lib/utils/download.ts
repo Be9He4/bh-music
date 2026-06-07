@@ -49,9 +49,16 @@ function getCurrentPlayingUrl(
   return state.currentAudioUrl;
 }
 
+/**
+ * 获取曲目的音频格式（用于确定下载文件名扩展名）。
+ *
+ * B 站音源：getUrl() 会将真实 format（DASH=m4s / durl=m4a）写入 audioFormatCache，
+ * 因此必须在 getUrl() 之后调用，否则读到的是旧缓存或 undefined。
+ * 极端防御：若缓存仍为空（不应发生），fallback 到 m4a（标准单文件 fMP4 音频）。
+ */
 function resolveAudioFormat(track: MusicTrack): AudioFormat | undefined {
   if (track.source === "bilibili") {
-    return getCachedBilibiliAudioFormat(track);
+    return getCachedBilibiliAudioFormat(track) ?? "m4a";
   }
   return track.audioFormat;
 }
@@ -76,11 +83,6 @@ async function performDownloadOne(
   toastId?: string,
   opts?: PerformDownloadOpts
 ): Promise<void> {
-  const format = resolveAudioFormat(track);
-  const trackWithFormat: MusicTrack = format
-    ? { ...track, audioFormat: format }
-    : track;
-  const fileName = buildFileName(trackWithFormat);
   const isNative = Capacitor.isNativePlatform();
   const br = parseInt(useMusicStore.getState().downloadQuality) || 320;
 
@@ -113,6 +115,13 @@ async function performDownloadOne(
   }
 
   if (!url) throw new Error("无法获取下载链接");
+
+  // B 站 getUrl() 已将真实 format 写入 audioFormatCache，此时查询得到准确值
+  const format = resolveAudioFormat(track);
+  const trackWithFormat: MusicTrack = format
+    ? { ...track, audioFormat: format }
+    : track;
+  const fileName = buildFileName(trackWithFormat);
 
   const doDownload = async (downloadUrl: string) => {
     await (isNative
