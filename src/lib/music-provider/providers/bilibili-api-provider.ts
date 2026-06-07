@@ -1,9 +1,10 @@
 import {
+  AudioFormat,
   MusicTrack,
   SearchIntent,
   SearchPageResult,
   SongLyric,
-} from "@/types/music";
+} from "@otter-music/shared";
 import {
   getBilibiliCollectionDetail,
   getBilibiliCoverUrl,
@@ -13,6 +14,18 @@ import {
   searchBilibiliVideos,
 } from "@/lib/bilibili/bilibili-api";
 import { IMusicProvider } from "../interface";
+
+const audioFormatCache = new Map<string, AudioFormat>();
+
+function formatCacheKey(track: Pick<MusicTrack, "id" | "source">): string {
+  return `${track.source}:${track.id}`;
+}
+
+export function getCachedBilibiliAudioFormat(
+  track: Pick<MusicTrack, "id" | "source">
+): AudioFormat | undefined {
+  return audioFormatCache.get(formatCacheKey(track));
+}
 
 export class BilibiliApiProvider implements IMusicProvider {
   source = "bilibili" as const;
@@ -28,7 +41,11 @@ export class BilibiliApiProvider implements IMusicProvider {
   }
 
   async getUrl(track: MusicTrack, _br?: number): Promise<string | null> {
-    return getBilibiliSongUrl(track.url_id || track.id);
+    const result = await getBilibiliSongUrl(track.url_id || track.id);
+    if (result?.format) {
+      audioFormatCache.set(formatCacheKey(track), result.format);
+    }
+    return result?.url ?? null;
   }
 
   async getPic(track: MusicTrack, _size?: number): Promise<string | null> {

@@ -1,5 +1,6 @@
 import { MusicTrack } from "@/types/music";
 import { Directory } from "@capacitor/filesystem";
+import type { AudioFormat } from "@otter-music/shared";
 
 /**
  * 统一存储配置中心
@@ -37,9 +38,23 @@ export const AppPaths = {
 
 export const DOWNLOAD_RECORDS_FILE = "downloads.json";
 
+/**
+ * 音频格式 → Blob MIME 映射
+ * - mp3 → audio/mpeg
+ * - m4a / m4s → audio/mp4 (fMP4)
+ * - flv → video/x-flv
+ */
+export const AUDIO_MIME: Record<AudioFormat, string> = {
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  m4s: "audio/mp4",
+  flv: "video/x-flv",
+};
+
 export function buildFileName(track: MusicTrack) {
+  const ext = track.audioFormat ?? "mp3";
   return sanitize(
-    `${track.name} - ${track.artist?.join(" & ") || "Unknown"}.mp3`
+    `${track.name} - ${track.artist?.join(" & ") || "Unknown"}.${ext}`
   );
 }
 

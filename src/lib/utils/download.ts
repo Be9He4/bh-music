@@ -3,23 +3,26 @@ import { Filesystem, Encoding } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { MusicProviderFactory } from "@/lib/music-provider";
 import {
+  AUDIO_MIME,
   AppPaths,
   DOWNLOAD_RECORDS_FILE,
   STORAGE_CONFIG,
   buildFileName,
 } from "@/lib/storage-manager";
 import { MusicSource, MusicTrack } from "@/types/music";
+import type { AudioFormat } from "@otter-music/shared";
 import toast from "react-hot-toast";
 import { base64ToBlob } from "@/lib/utils/base64";
 import { LocalMusicFile } from "@/plugins/local-music";
 import { useDownloadStore } from "@/store/download-store";
-import { useOfflineStore } from "@/store/offline-store";
 import { useMusicStore } from "@/store/music-store";
+import { useOfflineStore } from "@/store/offline-store";
 import { toastUtils } from "./toast";
 import { getProxyUrl, isProxyUrl } from "@/lib/api/config";
 import { logger } from "@/lib/logger";
 import { processBatchIO } from "@/lib/utils";
 import { embedMetadata } from "./id3-embed";
+import { getCachedBilibiliAudioFormat } from "@/lib/music-provider/providers/bilibili-api-provider";
 
 /**
  * 获取当前正在播放的曲目 URL（如果匹配）
@@ -46,6 +49,13 @@ function getCurrentPlayingUrl(
   return state.currentAudioUrl;
 }
 
+function resolveAudioFormat(track: MusicTrack): AudioFormat | undefined {
+  if (track.source === "bilibili") {
+    return getCachedBilibiliAudioFormat(track);
+  }
+  return track.audioFormat;
+}
+
 /* ================= 主入口 ================= */
 
 export function buildDownloadKey(source: MusicSource, id: string) {
@@ -66,7 +76,11 @@ async function performDownloadOne(
   toastId?: string,
   opts?: PerformDownloadOpts
 ): Promise<void> {
-  const fileName = buildFileName(track);
+  const format = resolveAudioFormat(track);
+  const trackWithFormat: MusicTrack = format
+    ? { ...track, audioFormat: format }
+    : track;
+  const fileName = buildFileName(trackWithFormat);
   const isNative = Capacitor.isNativePlatform();
   const br = parseInt(useMusicStore.getState().downloadQuality) || 320;
 
@@ -102,8 +116,8 @@ async function performDownloadOne(
 
   const doDownload = async (downloadUrl: string) => {
     await (isNative
-      ? downloadNative(downloadUrl, fileName, track, toastId, opts)
-      : downloadWeb(downloadUrl, fileName, track, toastId, opts));
+      ? downloadNative(downloadUrl, fileName, trackWithFormat, toastId, opts)
+      : downloadWeb(downloadUrl, fileName, trackWithFormat, toastId, opts));
   };
 
   try {
@@ -273,6 +287,16 @@ async function embedMetadataNative(
   track: MusicTrack,
   toastId?: string
 ) {
+  const format: AudioFormat = track.audioFormat ?? "mp3";
+
+  if (format !== "mp3") {
+    logger.warn(
+      "download",
+      `Skip native metadata embed for non-mp3 format: ${format}`
+    );
+    return;
+  }
+
   try {
     if (toastId) toast.loading("正在写入元数据...", { id: toastId });
 
@@ -281,7 +305,8 @@ async function embedMetadataNative(
       directory: STORAGE_CONFIG.BASE_DIR,
     });
 
-    const blob = base64ToBlob(readResult.data as string, "audio/mpeg");
+    const mime = AUDIO_MIME[format] ?? "audio/mpeg";
+    const blob = base64ToBlob(readResult.data as string, mime);
 
     const store = useMusicStore.getState();
     const result = await embedMetadata(blob, track, {
@@ -323,6 +348,9 @@ async function downloadWeb(
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+  const format: AudioFormat = track.audioFormat ?? "mp3";
+  const mime = AUDIO_MIME[format] ?? "audio/mpeg";
+
   const total = Number(res.headers.get("content-length")) || 0;
   const reader = res.body?.getReader();
 
@@ -348,7 +376,7 @@ async function downloadWeb(
     }
   }
 
-  const rawBlob = new Blob(chunks as BlobPart[], { type: "audio/mpeg" });
+  const rawBlob = new Blob(chunks as BlobPart[], { type: mime });
   const blob = await applyMetadata(rawBlob, track, toastId, opts);
   triggerBlobDownload(blob, fileName, toastId);
 }

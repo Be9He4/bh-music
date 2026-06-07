@@ -168,9 +168,10 @@ describe("getBilibiliSongUrl", () => {
 
     const { getBilibiliSongUrl } = await import("./bilibili-api");
 
-    await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toBe(
-      "http://localhost:8080/stream"
-    );
+    await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toEqual({
+      url: "http://localhost:8080/stream",
+      format: "m4a",
+    });
   });
 
   it("returns null on native when proxy fails to get stream url", async () => {
@@ -245,7 +246,12 @@ describe("getBilibiliSongUrl", () => {
             code: 0,
             data: {
               dash: {
-                audio: [{ baseUrl: "https://example.com/audio.m4s" }],
+                audio: [
+                  {
+                    baseUrl: "https://example.com/audio.m4s",
+                    mimeType: "audio/mp4",
+                  },
+                ],
               },
             },
           }),
@@ -261,9 +267,10 @@ describe("getBilibiliSongUrl", () => {
 
     const { getBilibiliSongUrl } = await import("./bilibili-api");
 
-    await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toBe(
-      "/api/bilibili-audio?bvid=BV1xx411c7mD&url=https%3A%2F%2Fexample.com%2Faudio.m4s"
-    );
+    await expect(getBilibiliSongUrl("bilibili_BV1xx411c7mD")).resolves.toEqual({
+      url: "/api/bilibili-audio?bvid=BV1xx411c7mD&url=https%3A%2F%2Fexample.com%2Faudio.m4s",
+      format: "m4s",
+    });
   });
 
   it("returns null for invalid Bilibili track ids", async () => {

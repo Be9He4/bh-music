@@ -1,5 +1,9 @@
 import * as forge from "node-forge";
-import type { MusicTrack, SearchPageResult } from "../../types/music";
+import type {
+  AudioFormat,
+  MusicTrack,
+  SearchPageResult,
+} from "../../types/music";
 import type {
   BilibiliDurlResponse,
   BilibiliPlayUrlResponse,
@@ -299,19 +303,56 @@ function pickAudioUrl(entry: Record<string, unknown>): string | null {
 }
 
 /**
+ * 从 DASH 音频项的 mimeType 推断 AudioFormat。
+ * B 站 DASH 音频通常为 audio/mp4 (m4s) 或 audio/x-flv (flv)。
+ */
+export function inferAudioFormatFromMime(
+  mimeType?: string | null
+): AudioFormat {
+  if (!mimeType) return "m4a";
+  const m = mimeType.toLowerCase();
+  if (m.includes("flv")) return "flv";
+  if (m.includes("mp4") || m.includes("m4a")) return "m4s";
+  return "m4a";
+}
+
+/**
+ * 从音频 URL 路径推断 AudioFormat（durl 降级路径使用）。
+ * 形如 .../.../123.m4s?xxx 或 .../.../xxx.flv
+ */
+export function inferAudioFormatFromUrl(audioUrl: string): AudioFormat {
+  const lower = audioUrl.toLowerCase().split("?")[0] ?? "";
+  if (lower.endsWith(".flv")) return "flv";
+  if (
+    lower.endsWith(".m4s") ||
+    lower.endsWith(".m4a") ||
+    lower.endsWith(".mp4")
+  )
+    return "m4s";
+  return "m4a";
+}
+
+/**
  * 从 B 站播放地址响应中选择最高带宽音频地址。
  * 按优先级匹配多个已知字段名：baseUrl → base_url → backupUrl → backup_url → url
  */
 export function selectBilibiliAudioUrl(
   response: BilibiliPlayUrlResponse
-): string | null {
+): { url: string; format: AudioFormat } | null {
   const audio = response.data?.dash?.audio || [];
   const selected = [...audio].sort(
     (a, b) => (b.bandwidth || 0) - (a.bandwidth || 0)
   )[0];
   if (!selected) return null;
   const url = pickAudioUrl(selected as unknown as Record<string, unknown>);
-  return url ? normalizeResourceUrl(url) : null;
+  if (!url) return null;
+  const normalized = normalizeResourceUrl(url);
+  const format = inferAudioFormatFromMime(
+    (selected as unknown as Record<string, unknown>).mimeType as
+      | string
+      | undefined
+  );
+  return { url: normalized, format };
 }
 
 /**
@@ -362,11 +403,13 @@ export function describePlayurlResponse(
  */
 export function selectBilibiliDurlUrl(
   response: BilibiliDurlResponse
-): string | null {
+): { url: string; format: AudioFormat } | null {
   const durl = response.data?.durl;
   if (!durl || durl.length === 0) return null;
   const url = durl[0].url;
-  return url ? normalizeResourceUrl(url) : null;
+  if (!url) return null;
+  const normalized = normalizeResourceUrl(url);
+  return { url: normalized, format: inferAudioFormatFromUrl(normalized) };
 }
 
 // ─────────────────────────────────────

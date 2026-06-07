@@ -124,13 +124,24 @@ describe("bilibili music utilities", () => {
         data: {
           dash: {
             audio: [
-              { baseUrl: "https://example.com/low.m4s", bandwidth: 1 },
-              { base_url: "https://example.com/high.m4s", bandwidth: 2 },
+              {
+                baseUrl: "https://example.com/low.m4s",
+                bandwidth: 1,
+                mimeType: "audio/mp4",
+              },
+              {
+                base_url: "https://example.com/high.m4s",
+                bandwidth: 2,
+                mimeType: "audio/mp4",
+              },
             ],
           },
         },
       })
-    ).toBe("https://example.com/high.m4s");
+    ).toEqual({
+      url: "https://example.com/high.m4s",
+      format: "m4s",
+    });
   });
 
   describe("selectBilibiliAudioUrl extended field matching", () => {
@@ -140,12 +151,19 @@ describe("bilibili music utilities", () => {
           data: {
             dash: {
               audio: [
-                { backup_url: "https://example.com/backup.m4s", bandwidth: 1 },
+                {
+                  backup_url: "https://example.com/backup.m4s",
+                  bandwidth: 1,
+                  mimeType: "audio/mp4",
+                },
               ],
             },
           },
         })
-      ).toBe("https://example.com/backup.m4s");
+      ).toEqual({
+        url: "https://example.com/backup.m4s",
+        format: "m4s",
+      });
     });
 
     it("selects backupUrl (camelCase) when snake_case is missing", () => {
@@ -157,12 +175,16 @@ describe("bilibili music utilities", () => {
                 {
                   backupUrl: "https://example.com/backup-camel.m4s",
                   bandwidth: 1,
+                  mimeType: "audio/mp4",
                 },
               ],
             },
           },
         })
-      ).toBe("https://example.com/backup-camel.m4s");
+      ).toEqual({
+        url: "https://example.com/backup-camel.m4s",
+        format: "m4s",
+      });
     });
 
     it("selects url field when all other fields are missing", () => {
@@ -171,12 +193,19 @@ describe("bilibili music utilities", () => {
           data: {
             dash: {
               audio: [
-                { url: "https://example.com/plain-url.m4s", bandwidth: 1 },
+                {
+                  url: "https://example.com/plain-url.m4s",
+                  bandwidth: 1,
+                  mimeType: "audio/mp4",
+                },
               ],
             },
           },
         })
-      ).toBe("https://example.com/plain-url.m4s");
+      ).toEqual({
+        url: "https://example.com/plain-url.m4s",
+        format: "m4s",
+      });
     });
 
     it("prefers baseUrl over backup_url when both present", () => {
@@ -189,12 +218,16 @@ describe("bilibili music utilities", () => {
                   baseUrl: "https://example.com/primary.m4s",
                   backup_url: "https://example.com/backup.m4s",
                   bandwidth: 1,
+                  mimeType: "audio/mp4",
                 },
               ],
             },
           },
         })
-      ).toBe("https://example.com/primary.m4s");
+      ).toEqual({
+        url: "https://example.com/primary.m4s",
+        format: "m4s",
+      });
     });
 
     it("returns null when audio array is empty", () => {
@@ -226,8 +259,58 @@ describe("bilibili music utilities", () => {
     });
   });
 
+  describe("selectBilibiliAudioUrl format inference", () => {
+    it("infers m4s from audio/mp4 mimeType", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [
+                {
+                  baseUrl: "https://example.com/a.m4s",
+                  bandwidth: 1,
+                  mimeType: "audio/mp4",
+                },
+              ],
+            },
+          },
+        })
+      ).toEqual({ url: "https://example.com/a.m4s", format: "m4s" });
+    });
+
+    it("infers flv from audio/x-flv mimeType", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [
+                {
+                  baseUrl: "https://example.com/a.flv",
+                  bandwidth: 1,
+                  mimeType: "audio/x-flv",
+                },
+              ],
+            },
+          },
+        })
+      ).toEqual({ url: "https://example.com/a.flv", format: "flv" });
+    });
+
+    it("infers m4a as fallback when mimeType is missing", () => {
+      expect(
+        selectBilibiliAudioUrl({
+          data: {
+            dash: {
+              audio: [{ baseUrl: "https://example.com/a", bandwidth: 1 }],
+            },
+          },
+        })
+      ).toEqual({ url: "https://example.com/a", format: "m4a" });
+    });
+  });
+
   describe("selectBilibiliDurlUrl", () => {
-    it("extracts the first durl entry url", () => {
+    it("extracts the first durl entry url with format", () => {
       expect(
         selectBilibiliDurlUrl({
           data: {
@@ -237,7 +320,21 @@ describe("bilibili music utilities", () => {
             ],
           },
         })
-      ).toBe("https://example.com/segment1.flv");
+      ).toEqual({
+        url: "https://example.com/segment1.flv",
+        format: "flv",
+      });
+    });
+
+    it("infers m4s from .m4s url", () => {
+      expect(
+        selectBilibiliDurlUrl({
+          data: { durl: [{ url: "https://example.com/audio.m4s" }] },
+        })
+      ).toEqual({
+        url: "https://example.com/audio.m4s",
+        format: "m4s",
+      });
     });
 
     it("returns null when durl array is empty", () => {
@@ -259,7 +356,15 @@ describe("bilibili music utilities", () => {
             durl: [{ url: "//example.com/audio.flv" }],
           },
         })
-      ).toBe("https://example.com/audio.flv");
+      ).toEqual({ url: "https://example.com/audio.flv", format: "flv" });
+    });
+
+    it("falls back to m4a when extension is unknown", () => {
+      expect(
+        selectBilibiliDurlUrl({
+          data: { durl: [{ url: "https://example.com/segment" }] },
+        })
+      ).toEqual({ url: "https://example.com/segment", format: "m4a" });
     });
   });
 

@@ -87,15 +87,21 @@ async function resolveBilibiliAudioUrl(
   bvid: string,
   cid: number,
   referer: string
-): Promise<{ url: string; source: "dash" | "durl" } | null> {
+): Promise<{
+  url: string;
+  format: import("@otter-music/shared").AudioFormat;
+  source: "dash" | "durl";
+} | null> {
   // 尝试 DASH 格式 (fnval=16)
   const playUrl = await fetchBilibiliJson<BilibiliPlayUrlResponse>(
     buildBilibiliPlayUrlPath(bvid, cid),
     referer
   );
-  let audioUrl = playUrl ? selectBilibiliAudioUrl(playUrl) : null;
+  const dashResult = playUrl ? selectBilibiliAudioUrl(playUrl) : null;
 
-  if (audioUrl) return { url: audioUrl, source: "dash" };
+  if (dashResult) {
+    return { url: dashResult.url, format: dashResult.format, source: "dash" };
+  }
 
   // 诊断日志
   if (playUrl) {
@@ -112,10 +118,10 @@ async function resolveBilibiliAudioUrl(
     buildBilibiliDurlPlayUrlPath(bvid, cid),
     referer
   );
-  audioUrl = durlResponse ? selectBilibiliDurlUrl(durlResponse) : null;
-  if (audioUrl) {
+  const durlResult = durlResponse ? selectBilibiliDurlUrl(durlResponse) : null;
+  if (durlResult) {
     logger.warn("[bilibili] Using durl fallback for audio");
-    return { url: audioUrl, source: "durl" };
+    return { url: durlResult.url, format: durlResult.format, source: "durl" };
   }
 
   return null;
@@ -218,7 +224,10 @@ export async function searchBilibiliVideos(
 async function getBilibiliSongUrlWeb(
   bvid: string,
   cidOverride?: number
-): Promise<string | null> {
+): Promise<{
+  url: string;
+  format: import("@otter-music/shared").AudioFormat;
+} | null> {
   if (IS_WEB_PROD) {
     const res = await fetchWithTimeout(
       `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/song-url`,
@@ -230,9 +239,15 @@ async function getBilibiliSongUrlWeb(
       NETWORK_TIMEOUT
     );
     if (!res.ok) return null;
-    const data = (await res.json()) as { url?: string | null };
+    const data = (await res.json()) as {
+      url?: string | null;
+      format?: import("@otter-music/shared").AudioFormat;
+    };
     if (!data.url) return null;
-    return buildBilibiliAudioProxyUrl(bvid, data.url);
+    return {
+      url: buildBilibiliAudioProxyUrl(bvid, data.url),
+      format: data.format ?? "m4s",
+    };
   }
 
   try {
@@ -251,7 +266,10 @@ async function getBilibiliSongUrlWeb(
 
     const result = await resolveBilibiliAudioUrl(bvid, cid, referer);
     if (!result) return null;
-    return buildBilibiliAudioProxyUrl(bvid, result.url);
+    return {
+      url: buildBilibiliAudioProxyUrl(bvid, result.url),
+      format: result.format,
+    };
   } catch {
     return null;
   }
@@ -264,7 +282,10 @@ async function getBilibiliSongUrlWeb(
 async function getBilibiliSongUrlNative(
   bvid: string,
   cidOverride?: number
-): Promise<string | null> {
+): Promise<{
+  url: string;
+  format: import("@otter-music/shared").AudioFormat;
+} | null> {
   try {
     const { getNativeBilibiliStreamUrl } =
       await import("./bilibili-native-player");
@@ -285,7 +306,13 @@ async function getBilibiliSongUrlNative(
     const result = await resolveBilibiliAudioUrl(bvid, cid, referer);
     if (!result) return null;
 
-    return getNativeBilibiliStreamUrl(result.url, bvid);
+    const streamUrl = await getNativeBilibiliStreamUrl(result.url, bvid);
+    if (!streamUrl) return null;
+
+    return {
+      url: streamUrl,
+      format: result.format,
+    };
   } catch (e) {
     logger.error("[bilibili] Error getting native song URL:", e);
     return null;
@@ -294,7 +321,10 @@ async function getBilibiliSongUrlNative(
 
 export async function getBilibiliSongUrl(
   trackId: string
-): Promise<string | null> {
+): Promise<{
+  url: string;
+  format: import("@otter-music/shared").AudioFormat;
+} | null> {
   const parsed = parseBilibiliTrackId(trackId);
   if (!parsed) return null;
 
