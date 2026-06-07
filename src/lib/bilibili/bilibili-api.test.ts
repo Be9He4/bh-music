@@ -1,33 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-let _IS_NATIVE = false;
-let _IS_WEB_PROD = false;
-
-const mockConfig = {
-  fetchWithTimeout: vi.fn(),
-  getApiUrl: vi.fn().mockReturnValue("https://otter-music.pages.dev"),
-  get IS_NATIVE() {
-    return _IS_NATIVE;
-  },
-  get IS_WEB_PROD() {
-    return _IS_WEB_PROD;
-  },
-};
-
-const mockCapacitor = {
-  Capacitor: { isNativePlatform: vi.fn() },
-  CapacitorHttp: { request: vi.fn() },
-};
-
-const mockBilibiliProxy = {
-  getProxyUrl: vi.fn(),
-  isRunning: vi.fn(),
-  startServer: vi.fn(),
-};
+let mockConfig: any;
+let mockCapacitor: any;
+let mockBilibiliProxy: any;
 
 beforeEach(() => {
-  _IS_NATIVE = false;
-  _IS_WEB_PROD = false;
+  mockConfig = {
+    fetchWithTimeout: vi.fn(),
+    getApiUrl: vi.fn().mockReturnValue("https://otter-music.pages.dev"),
+    IS_NATIVE: false,
+    IS_WEB_PROD: false,
+  };
+  mockCapacitor = {
+    Capacitor: { isNativePlatform: vi.fn() },
+    CapacitorHttp: { request: vi.fn() },
+  };
+  mockBilibiliProxy = {
+    getProxyUrl: vi.fn(),
+    isRunning: vi.fn(),
+    startServer: vi.fn(),
+  };
   vi.doMock("@/lib/api/config", () => mockConfig);
   vi.doMock("@capacitor/core", () => mockCapacitor);
   vi.doMock("@/plugins/bilibili-proxy", () => ({
@@ -36,7 +28,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.clearAllMocks();
   vi.resetModules();
 });
 
@@ -60,8 +51,8 @@ function makeSearchResponse() {
 
 describe("searchBilibiliVideos", () => {
   it("loads dev search results through the Vite Bilibili proxy", async () => {
-    _IS_WEB_PROD = false;
-    _IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse()), {
@@ -83,8 +74,8 @@ describe("searchBilibiliVideos", () => {
   });
 
   it("returns empty collections in dev search results", async () => {
-    _IS_WEB_PROD = false;
-    _IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockResolvedValue(
       new Response(
@@ -116,8 +107,8 @@ describe("searchBilibiliVideos", () => {
   });
 
   it("posts prod search requests to the worker route", async () => {
-    _IS_WEB_PROD = true;
-    _IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = true;
+    mockConfig.IS_NATIVE = false;
     mockConfig.getApiUrl.mockReturnValue("https://api.example.com");
     mockConfig.fetchWithTimeout.mockResolvedValue(
       new Response(JSON.stringify({ items: [], hasMore: false }), {
@@ -169,8 +160,8 @@ describe("getBilibiliSongUrl", () => {
           },
         }),
       });
-    _IS_NATIVE = true;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = true;
+    mockConfig.IS_WEB_PROD = false;
     mockCapacitor.Capacitor.isNativePlatform.mockReturnValue(true);
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
@@ -212,8 +203,8 @@ describe("getBilibiliSongUrl", () => {
           },
         }),
       });
-    _IS_NATIVE = true;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = true;
+    mockConfig.IS_WEB_PROD = false;
     mockCapacitor.Capacitor.isNativePlatform.mockReturnValue(true);
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
@@ -226,8 +217,8 @@ describe("getBilibiliSongUrl", () => {
   });
 
   it("resolves dev song urls through view and playurl", async () => {
-    _IS_WEB_PROD = false;
-    _IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout
       .mockResolvedValueOnce(
@@ -275,8 +266,8 @@ describe("getBilibiliSongUrl", () => {
 
 describe("getBilibiliCoverUrl", () => {
   it("wraps dev cover urls through the Vite Bilibili cover proxy", async () => {
-    _IS_NATIVE = false;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
 
@@ -290,8 +281,8 @@ describe("getBilibiliCoverUrl", () => {
   });
 
   it("wraps prod cover urls through the worker Bilibili cover proxy", async () => {
-    _IS_NATIVE = false;
-    _IS_WEB_PROD = true;
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = true;
     mockConfig.getApiUrl.mockReturnValue("https://api.example.com");
     mockConfig.fetchWithTimeout.mockReset();
 
@@ -310,8 +301,8 @@ describe("getBilibiliCoverUrl", () => {
       data: new Blob(),
       headers: { "Content-Type": "image/jpeg" },
     });
-    _IS_NATIVE = true;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = true;
+    mockConfig.IS_WEB_PROD = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:native-cover");
@@ -336,8 +327,8 @@ describe("getBilibiliCoverUrl", () => {
       data: "ZHVtbXk=",
       headers: { "Content-Type": "image/jpeg" },
     });
-    _IS_NATIVE = true;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = true;
+    mockConfig.IS_WEB_PROD = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
     vi.spyOn(URL, "createObjectURL").mockReturnValue(
@@ -360,8 +351,8 @@ describe("getBilibiliCoverUrl", () => {
 
 describe("searchBilibiliCollections", () => {
   it("returns empty collections in dev search results", async () => {
-    _IS_WEB_PROD = false;
-    _IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockResolvedValue(
       new Response(
@@ -387,8 +378,8 @@ describe("searchBilibiliCollections", () => {
   });
 
   it("sends prod collection search to worker route", async () => {
-    _IS_WEB_PROD = true;
-    _IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = true;
+    mockConfig.IS_NATIVE = false;
     mockConfig.getApiUrl.mockReturnValue("https://api.example.com");
     mockConfig.fetchWithTimeout.mockResolvedValue(
       new Response(JSON.stringify({ items: [], hasMore: false }), {
@@ -409,8 +400,8 @@ describe("searchBilibiliCollections", () => {
 
 describe("getBilibiliCollectionDetail", () => {
   it("returns null for non-series album id", async () => {
-    _IS_NATIVE = false;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
 
@@ -421,8 +412,8 @@ describe("getBilibiliCollectionDetail", () => {
   });
 
   it("returns null for non-bilibili album id", async () => {
-    _IS_NATIVE = false;
-    _IS_WEB_PROD = false;
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
     mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
     mockConfig.fetchWithTimeout.mockReset();
 
