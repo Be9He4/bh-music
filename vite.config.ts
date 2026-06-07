@@ -132,17 +132,30 @@ export default defineConfig({
                 /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(request.url)
               );
             },
-            handler: "NetworkFirst",
+            handler: "CacheFirst",
             options: {
               cacheName: "audio-stream-cache",
               expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 7 * 24 * 60 * 60,
+                maxEntries: 300,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
               },
               cacheableResponse: {
                 statuses: [0, 200, 206],
               },
               rangeRequests: true,
+              // 缓存优先策略：优先使用缓存，同时后台更新
+              // 适合边听边缓存场景，离线时也能播放已缓存内容
+              plugins: [
+                {
+                  cacheWillUpdate: async ({ response }) => {
+                    // 确保只缓存成功的响应
+                    if (response.status === 200 || response.status === 206) {
+                      return response;
+                    }
+                    return null;
+                  },
+                },
+              ],
             },
           },
         ],
