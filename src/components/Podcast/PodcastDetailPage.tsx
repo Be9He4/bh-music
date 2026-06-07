@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿import { useRef } from "react";
 import { MusicTrackList } from "@/components/MusicTrackList";
 import {
   GenericDetailPage,
@@ -12,6 +12,7 @@ import { parsePodcastRss } from "@/lib/api/podcast";
 import { usePodcastStore } from "@/store/podcast-store";
 import { forceHttps } from "@otter-music/shared";
 import { MusicTrack } from "@/types/music";
+import { useDetailPage } from "@/hooks/useDetailPage";
 
 interface PodcastDetailPageProps {
   id: string | null;
@@ -38,19 +39,41 @@ export function PodcastDetailPage({
   isPlaying,
 }: PodcastDetailPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
-  const [{ loading, error, detail, tracks }, setState] = useState<{
-    loading: boolean;
-    error: boolean;
-    detail: PodcastDetailData | null;
-    tracks: MusicTrack[];
-  }>({
-    loading: true,
-    error: false,
-    detail: null,
-    tracks: [],
-  });
+  const { loading, error, detail, tracks, retry } =
+    useDetailPage<PodcastDetailData>(async () => {
+      if (!id) throw new Error("No id");
+
+      const sources = usePodcastStore.getState().rssSources;
+      const source = sources.find((item) => item.id === id && !item.is_deleted);
+      if (!source) throw new Error("Podcast not found");
+
+      const feed = await parsePodcastRss(source.rssUrl);
+      const coverUrl = forceHttps(feed.coverUrl || source.coverUrl || "");
+
+      const podcastTracks = feed.episodes.map((ep) => ({
+        id: ep.audioUrl || ep.id,
+        name: ep.title,
+        artist: [feed.name],
+        album: ep.pubDate ? formatDateZN(ep.pubDate) : "",
+        pic_id: coverUrl,
+        url_id: forceHttps(ep.audioUrl) || "",
+        lyric_id: "_podcast",
+        source: "podcast" as const,
+      }));
+
+      return {
+        detail: {
+          name: feed.name,
+          coverImgUrl: coverUrl,
+          description: feed.description || source.description,
+          trackCount: feed.episodes.length,
+          creator: source.author,
+          rssUrl: source.rssUrl,
+        },
+        tracks: podcastTracks,
+      };
+    }, [id]);
 
   const handleShare = async () => {
     if (!detail) return;
@@ -64,66 +87,6 @@ export function PodcastDetailPage({
       toast.error("复制失败");
     }
   };
-
-  useEffect(() => {
-    if (!id) {
-      setState({ loading: false, error: true, detail: null, tracks: [] });
-      return;
-    }
-
-    let active = true;
-    setState({ loading: true, error: false, detail: null, tracks: [] });
-
-    const loadData = async () => {
-      try {
-        const sources = usePodcastStore.getState().rssSources;
-        const source = sources.find(
-          (item) => item.id === id && !item.is_deleted
-        );
-        if (!source) throw new Error("Podcast not found");
-
-        const feed = await parsePodcastRss(source.rssUrl);
-        const coverUrl = forceHttps(feed.coverUrl || source.coverUrl || "");
-
-        const podcastTracks = feed.episodes.map((ep) => ({
-          id: ep.audioUrl || ep.id,
-          name: ep.title,
-          artist: [feed.name],
-          album: ep.pubDate ? formatDateZN(ep.pubDate) : "",
-          pic_id: coverUrl,
-          url_id: forceHttps(ep.audioUrl) || "",
-          lyric_id: "_podcast",
-          source: "podcast" as const,
-        }));
-
-        if (!active) return;
-
-        setState({
-          loading: false,
-          error: false,
-          detail: {
-            name: feed.name,
-            coverImgUrl: coverUrl,
-            description: feed.description || source.description,
-            trackCount: feed.episodes.length,
-            creator: source.author,
-            rssUrl: source.rssUrl,
-          },
-          tracks: podcastTracks,
-        });
-      } catch {
-        if (active) {
-          setState((prev) => ({ ...prev, loading: false, error: true }));
-        }
-      }
-    };
-
-    void loadData();
-
-    return () => {
-      active = false;
-    };
-  }, [id, retryCount]);
 
   const genericDetail: GenericDetailData | undefined = detail
     ? {
@@ -142,7 +105,7 @@ export function PodcastDetailPage({
       error={error}
       title="Podcast"
       onBack={onBack}
-      onRetry={() => setRetryCount((c) => c + 1)}
+      onRetry={retry}
       detail={genericDetail}
       scrollRef={scrollRef}
       action={

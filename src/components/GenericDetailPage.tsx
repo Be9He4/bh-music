@@ -3,6 +3,7 @@ import { CommonDetailHeader } from "@/components/CommonDetailHeader";
 import { DetailSkeleton } from "@/components/skeletons/DetailSkeleton";
 import { PageError } from "@/components/PageError";
 import type { ReactNode, RefObject } from "react";
+import type { MusicTrack } from "@/types/music";
 
 export interface GenericDetailData {
   title: string;
@@ -23,6 +24,9 @@ interface GenericDetailPageProps {
   action?: ReactNode;
   detail?: GenericDetailData;
   scrollRef?: RefObject<HTMLDivElement | null>;
+  isShuffle?: boolean;
+  tracks?: MusicTrack[];
+  onPlayTrack?: (track: MusicTrack) => void;
   children: ReactNode;
 }
 
@@ -35,6 +39,9 @@ export function GenericDetailPage({
   action,
   detail,
   scrollRef,
+  isShuffle,
+  tracks,
+  onPlayTrack,
   children,
 }: GenericDetailPageProps) {
   if (loading) return <DetailSkeleton onBack={onBack} />;
@@ -60,6 +67,9 @@ export function GenericDetailPage({
               countDesc={detail.countDesc}
               publishTime={detail.publishTime}
               fallbackIcon={detail.fallbackIcon}
+              isShuffle={isShuffle}
+              tracks={tracks}
+              onPlayTrack={onPlayTrack}
             />
           )}
           {children}

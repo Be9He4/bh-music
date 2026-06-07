@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 import { MusicTrackList } from "@/components/MusicTrackList";
 import {
   GenericDetailPage,
@@ -16,6 +16,7 @@ import {
 } from "@otter-music/shared";
 import { MusicTrack } from "@/types/music";
 import { getUpNameCache } from "@/lib/bilibili/up-name-cache";
+import { useDetailPage } from "@/hooks/useDetailPage";
 
 interface BilibiliCollectionDetailProps {
   id: string | null;
@@ -40,86 +41,53 @@ export function BilibiliCollectionDetail({
   isPlaying,
 }: BilibiliCollectionDetailProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const cancelledRef = useRef(false);
   const pageRef = useRef(1);
   const totalRef = useRef(0);
-  const [retryCount, setRetryCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [detail, setDetail] = useState<CollectionDetailData | null>(null);
-  const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const albumId = id || "";
   const isSeries = albumId ? !!parseBilibiliAlbumId(albumId) : false;
   const isMultiP = albumId ? !!parseBilibiliMultiPAlbumId(albumId) : false;
 
-  useEffect(() => {
-    if (!isSeries && !isMultiP) {
-      setLoading(false);
-      setError(true);
-      setDetail(null);
-      setTracks([]);
-      return;
-    }
+  const { loading, error, detail, tracks, setTracks, retry } =
+    useDetailPage<CollectionDetailData>(async () => {
+      if (!isSeries && !isMultiP) throw new Error("Invalid");
 
-    pageRef.current = 1;
-    totalRef.current = 0;
-    cancelledRef.current = false;
+      pageRef.current = 1;
+      totalRef.current = 0;
 
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-
-        if (isSeries) {
-          const res = await getBilibiliCollectionDetail(albumId, 1);
-          if (cancelledRef.current) return;
-          if (!res || !res.meta) throw new Error("获取合集失败");
-          const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
-          const cachedUpName = getUpNameCache(
-            Number(parseBilibiliAlbumId(albumId)?.mid)
-          );
-          setDetail({
+      if (isSeries) {
+        const res = await getBilibiliCollectionDetail(albumId, 1);
+        if (!res || !res.meta) throw new Error("获取合集失败");
+        const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
+        const cachedUpName = getUpNameCache(
+          Number(parseBilibiliAlbumId(albumId)?.mid)
+        );
+        totalRef.current = res.total;
+        return {
+          detail: {
             title: res.meta.name || "合集",
             coverUrl: coverUrl || "",
             trackCount: res.total,
             upName: cachedUpName || res.meta.creator?.name || "",
-          });
-          setTracks(res.tracks);
-          totalRef.current = res.total;
-          pageRef.current = 1;
-          setLoading(false);
-        } else {
-          const res = await getBilibiliMultiPDetail(albumId);
-          if (cancelledRef.current) return;
-          if (!res || !res.meta) throw new Error("获取分P失败");
-          const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
-          setDetail({
+          },
+          tracks: res.tracks,
+        };
+      } else {
+        const res = await getBilibiliMultiPDetail(albumId);
+        if (!res || !res.meta) throw new Error("获取分P失败");
+        const coverUrl = await getBilibiliCoverUrl(res.meta.cover || "");
+        return {
+          detail: {
             title: res.meta.name || "系列",
             coverUrl: coverUrl || "",
             trackCount: res.total,
             upName: res.tracks[0]?.artist?.[0] || "",
-          });
-          setTracks(res.tracks);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelledRef.current) {
-          setLoading(false);
-          setError(true);
-          setDetail(null);
-          setTracks([]);
-        }
+          },
+          tracks: res.tracks,
+        };
       }
-    };
-
-    fetchDetail();
-
-    return () => {
-      cancelledRef.current = true;
-    };
-  }, [albumId, isSeries, isMultiP, retryCount]);
+    }, [albumId, isSeries, isMultiP]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -127,7 +95,6 @@ export function BilibiliCollectionDetail({
     try {
       const nextPage = pageRef.current + 1;
       const res = await getBilibiliCollectionDetail(albumId, nextPage);
-      if (cancelledRef.current) return;
       if (res && res.tracks.length > 0) {
         setTracks((prev) => [...prev, ...res.tracks]);
         pageRef.current = nextPage;
@@ -135,14 +102,7 @@ export function BilibiliCollectionDetail({
     } finally {
       setLoadingMore(false);
     }
-  }, [albumId, loadingMore]);
-
-  const handleTrackPlay = useCallback(
-    (track: MusicTrack) => {
-      onPlay(track, tracks);
-    },
-    [onPlay, tracks]
-  );
+  }, [albumId, loadingMore, setTracks]);
 
   const activeTracks = tracks.filter((t) => !t.is_deleted);
   const hasMore = isSeries && tracks.length < totalRef.current;
@@ -163,13 +123,13 @@ export function BilibiliCollectionDetail({
       error={error}
       title="合集"
       onBack={onBack}
-      onRetry={() => setRetryCount((c) => c + 1)}
+      onRetry={retry}
       detail={genericDetail}
       scrollRef={scrollRef}
     >
       <MusicTrackList
         tracks={activeTracks}
-        onPlay={handleTrackPlay}
+        onPlay={(track) => onPlay(track, activeTracks)}
         currentTrackId={currentTrackId}
         isPlaying={isPlaying}
         scrollContainerRef={scrollRef}

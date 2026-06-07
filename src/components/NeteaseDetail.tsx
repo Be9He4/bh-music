@@ -1,23 +1,38 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { PageLayout } from "@/components/PageLayout";
 import { MusicTrackList } from "@/components/MusicTrackList";
-import { 
-  getPlaylistDetail, getArtist, getAlbum, getArtistSongs, 
-  convertSongToMusicTrack, toggleSubAlbum, getAlbumDynamicDetail,
+import {
+  GenericDetailPage,
+  type GenericDetailData,
+} from "@/components/GenericDetailPage";
+import {
+  getPlaylistDetail,
+  getArtist,
+  getAlbum,
+  getArtistSongs,
+  convertSongToMusicTrack,
+  toggleSubAlbum,
+  getAlbumDynamicDetail,
 } from "@/lib/netease/netease-api";
 import { MusicTrack } from "@/types/music";
-import { MoreVertical, Import, SquareArrowOutUpRight, Album, Bookmark } from "lucide-react";
+import {
+  MoreVertical,
+  Import,
+  SquareArrowOutUpRight,
+  Album,
+  Bookmark,
+  ListMusic,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useMusicStore } from "@/store/music-store";
 import { useNeteaseStore } from "@/store/netease-store";
-import { PageError } from "@/components/PageError";
-import { DetailSkeleton } from "@/components/skeletons/DetailSkeleton";
-import { CommonDetailHeader } from "@/components/CommonDetailHeader";
 import { SongDetail } from "@/lib/netease/netease-raw-types";
 import { ArtistAlbumSheet } from "@/components/ArtistAlbumSheet";
 import {
@@ -28,6 +43,7 @@ import {
 } from "@/lib/navigation/netease-detail-navigation";
 import { useMarketSession } from "@/store/session/market-session";
 import { logger } from "@/lib/logger";
+import { useDetailPage } from "@/hooks/useDetailPage";
 
 interface NeteaseDetailProps {
   id: string | null;
@@ -46,23 +62,10 @@ interface UnifiedDetail {
   trackCount: number;
   albumCount?: number;
   publishTime?: number;
-  sub?: boolean; 
+  sub?: boolean;
   playCount?: number;
   creatorId?: string | number;
 }
-
-// export function NeteaseDetail(props: NeteaseDetailProps) {
-//   if (props.type === "artist" && props.id) {
-//     return <ArtistDetailView 
-//       id={props.id} 
-//       onBack={props.onBack} 
-//       onPlay={props.onPlay} 
-//       currentTrackId={props.currentTrackId} 
-//       isPlaying={props.isPlaying} 
-//     />;
-//   }
-//   return <LegacyNeteaseDetail {...props} />;
-// }
 
 export function NeteaseDetail({
   id,
@@ -75,25 +78,83 @@ export function NeteaseDetail({
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const [{ loading, error, detail, tracks }, setState] = useState<{
-    loading: boolean;
-    error: boolean;
-    detail: UnifiedDetail | null;
-    tracks: MusicTrack[];
-  }>({ loading: true, error: false, detail: null, tracks: [] });
-
   const { createPlaylist, setPlaylistTracks } = useMusicStore();
-  const isShuffle = useMusicStore(state => state.isShuffle);
+  const isShuffle = useMusicStore((state) => state.isShuffle);
   const { cookie } = useNeteaseStore();
   const { toggleAlbumInSession } = useMarketSession();
   const navigationState =
-    (location.state as ArtistAlbumSheetNavigationState | null | undefined) ?? null;
+    (location.state as ArtistAlbumSheetNavigationState | null | undefined) ??
+    null;
+
+  const { loading, error, detail, tracks, setDetail, setTracks, retry } =
+    useDetailPage<UnifiedDetail>(
+      async (_signal) => {
+        if (!id) throw new Error("No id");
+
+        let rawDetail: UnifiedDetail;
+        let rawTracks: SongDetail[] = [];
+
+        if (type === "playlist") {
+          const res = await getPlaylistDetail(id, cookie);
+          if (!res) throw new Error("Not found");
+          rawDetail = {
+            name: res.name,
+            coverImgUrl: res.coverImgUrl,
+            description: res.description,
+            creator: res.creator?.nickname,
+            trackCount: res.trackCount,
+            playCount: res.playCount,
+            creatorId: res.creator?.userId,
+          };
+          rawTracks = res.tracks;
+        } else if (type === "artist") {
+          const res = await getArtist(id, cookie);
+          if (!res) throw new Error("Not found");
+          rawDetail = {
+            name: res.artist.name,
+            coverImgUrl: res.artist.picUrl,
+            description: res.artist.briefDesc,
+            trackCount: res.artist.musicSize,
+            albumCount: res.artist.albumSize,
+          };
+          rawTracks = res.hotSongs;
+        } else {
+          const [res, dynamicRes] = await Promise.all([
+            getAlbum(id, cookie),
+            getAlbumDynamicDetail(id, cookie).catch(() => null),
+          ]);
+          if (!res?.album) throw new Error("Not found");
+          rawDetail = {
+            name: res.album.name,
+            coverImgUrl: res.album.picUrl,
+            description: res.album.description,
+            creator: res.album.artist?.name,
+            trackCount: res.songs.length,
+            publishTime: res.album.publishTime,
+            sub: dynamicRes?.isSub || false,
+          };
+          rawTracks = res.songs;
+        }
+
+        return {
+          detail: rawDetail,
+          tracks: rawTracks.map(convertSongToMusicTrack),
+        };
+      },
+      [id, type, cookie]
+    );
+
+  useEffect(() => {
+    if (type === "artist" && detail) {
+      setOffset(tracks.length);
+      setHasMore(detail.trackCount > tracks.length);
+    }
+  }, [type, detail, tracks]);
 
   useEffect(() => {
     if (!shouldRestoreArtistAlbumSheet(type, id, navigationState)) return;
@@ -109,7 +170,7 @@ export function NeteaseDetail({
         replace: true,
         state: createArtistAlbumSheetState(
           backTarget.artistId,
-          backTarget.artistName,
+          backTarget.artistName
         ),
       });
       return;
@@ -121,7 +182,9 @@ export function NeteaseDetail({
   const handleShare = async () => {
     if (!detail || !id) return;
     try {
-      const typeLabel = { playlist: "歌单", artist: "歌手", album: "专辑" }[type];
+      const typeLabel = { playlist: "歌单", artist: "歌手", album: "专辑" }[
+        type
+      ];
       await navigator.clipboard.writeText(
         `【网易云${typeLabel}】${detail.name}\nhttps://music.163.com/#/${type}?id=${id}`
       );
@@ -143,12 +206,10 @@ export function NeteaseDetail({
     }
   };
 
-  // 处理专辑的收藏逻辑
   const handleToggleAlbumSub = async () => {
     if (!id || !cookie || type !== "album" || !detail) return;
     const shouldSub = !detail.sub;
-    
-    // 取消收藏时增加二次确认
+
     if (!shouldSub && !confirm("确定不再收藏吗？")) return;
 
     try {
@@ -159,20 +220,20 @@ export function NeteaseDetail({
       success = res.data?.code === 200;
       msg = res.data?.message || "";
       if (success) {
-          toggleAlbumInSession({
+        toggleAlbumInSession(
+          {
             id: Number(id),
             name: detail.name || "",
             picUrl: detail.coverImgUrl || "",
             artistName: detail.creator || "",
-          }, shouldSub);
+          },
+          shouldSub
+        );
       }
 
       if (success) {
         toast.success(shouldSub ? "收藏成功" : "已取消收藏");
-        setState((prev) => ({
-          ...prev,
-          detail: prev.detail ? { ...prev.detail, sub: shouldSub } : prev.detail,
-        }));
+        setDetail((prev) => (prev ? { ...prev, sub: shouldSub } : prev));
       } else {
         toast.error(msg || "操作失败");
       }
@@ -187,17 +248,21 @@ export function NeteaseDetail({
   };
 
   const handleLoadMore = async () => {
-    if (!id || loadingMore || !hasMore || type !== 'artist') return;
+    if (!id || loadingMore || !hasMore || type !== "artist") return;
     setLoadingMore(true);
     try {
       const res = await getArtistSongs(id, 50, offset);
       if (res?.songs?.length) {
         const newTracks = res.songs.map(convertSongToMusicTrack);
-        setState(prev => ({ ...prev, tracks: [...prev.tracks, ...newTracks] }));
-        
+        setTracks((prev) => [...prev, ...newTracks]);
+
         const nextOffset = offset + newTracks.length;
         setOffset(nextOffset);
-        setHasMore(detail?.trackCount ? nextOffset < detail.trackCount && (res.more ?? true) : res.more ?? true);
+        setHasMore(
+          detail?.trackCount
+            ? nextOffset < detail.trackCount && (res.more ?? true)
+            : (res.more ?? true)
+        );
       } else {
         setHasMore(false);
       }
@@ -213,153 +278,106 @@ export function NeteaseDetail({
     }
   };
 
-  useEffect(() => {
-    if (!id) return;
-    let active = true;
-    
-    setState({ loading: true, error: false, detail: null, tracks: [] });
-    setOffset(0);
-    setHasMore(false);
-
-    const loadData = async () => {
-      try {
-        let rawDetail: UnifiedDetail;
-        let rawTracks: SongDetail[] = [];
-
-        if (type === "playlist") {
-          const res = await getPlaylistDetail(id, cookie);
-          if (!res) throw new Error("Not found");
-          rawDetail = {
-            name: res.name, coverImgUrl: res.coverImgUrl, description: res.description,
-            creator: res.creator?.nickname, trackCount: res.trackCount, 
-            playCount: res.playCount,
-            creatorId: res.creator?.userId,
-          };
-          rawTracks = res.tracks;
-        } else if (type === "artist") {
-          const res = await getArtist(id, cookie);
-          if (!res) throw new Error("Not found");
-          rawDetail = {
-            name: res.artist.name, coverImgUrl: res.artist.picUrl, description: res.artist.briefDesc,
-            trackCount: res.artist.musicSize,
-            albumCount: res.artist.albumSize,
-          };
-          rawTracks = res.hotSongs;
-          if (active) {
-            setOffset(rawTracks.length);
-            setHasMore(res.artist.musicSize > rawTracks.length);
-          }
-        } else {  //  album
-          const [res, dynamicRes] = await Promise.all([
-            getAlbum(id, cookie),
-            getAlbumDynamicDetail(id, cookie).catch(() => null),
-          ]);
-          if (!res?.album) throw new Error("Not found");
-          rawDetail = {
-            name: res.album.name, coverImgUrl: res.album.picUrl, description: res.album.description,
-            creator: res.album.artist?.name, trackCount: res.songs.length, publishTime: res.album.publishTime,
-            sub: dynamicRes?.isSub || false,
-          };
-          rawTracks = res.songs;
-        }
-
-        if (!active) return;
-        setState({
-          loading: false, error: false, detail: rawDetail,
-          tracks: rawTracks.map(convertSongToMusicTrack),
-        });
-      } catch (err) {
-        logger.error("NeteaseDetail", "Load detail failed", err, {
-          id,
-          type,
-          retryCount,
-        });
-        if (active) setState((s) => ({ ...s, loading: false, error: true }));
+  const genericDetail: GenericDetailData | undefined = detail
+    ? {
+        title: detail.name,
+        coverUrl: detail.coverImgUrl,
+        description: detail.description,
+        creator: detail.creator,
+        countDesc: `${detail.trackCount} 首`,
+        publishTime: detail.publishTime,
+        fallbackIcon: <ListMusic className="h-8 w-8 text-primary/80" />,
       }
-    };
+    : undefined;
 
-    loadData();
-    return () => { active = false; };
-  }, [id, type, retryCount, cookie]);
-
-  if (loading) return <DetailSkeleton onBack={handleBack} />;
-
-  if (error) {
-    return (
-      <PageLayout title="Error" onBack={handleBack}>
-        <PageError onBack={handleBack} onRetry={() => setRetryCount((c) => c + 1)} />
-      </PageLayout>
-    );
-  }
+  const action = (
+    <div className="flex items-center">
+      {type === "artist" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={() => setIsAlbumSheetOpen(true)}
+        >
+          <Album className="w-5 h-5" />
+        </Button>
+      )}
+      {cookie && type === "album" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={
+            detail?.sub
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }
+          onClick={handleToggleAlbumSub}
+        >
+          <Bookmark
+            className={`w-5 h-5 ${detail?.sub ? "fill-current" : ""}`}
+          />
+        </Button>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <MoreVertical className="w-5 h-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleShare}>
+            <SquareArrowOutUpRight className="w-4 h-4 mr-2" />
+            分享
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleImportPlaylist}>
+            <Import className="w-4 h-4 mr-2" />
+            导入歌单
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 
   return (
-    <PageLayout
-      title={detail?.name || "详情"}
+    <GenericDetailPage
+      loading={loading}
+      error={error}
+      title="详情"
       onBack={handleBack}
-      action={
-        <div className="flex items-center">
-          {type === "artist" && (
-            <Button
-              variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"
-              onClick={() => setIsAlbumSheetOpen(true)}
-            >
-              <Album className="w-5 h-5" />
-            </Button>
-          )}
-          {cookie && type === "album" && (
-            <Button
-              variant="ghost" size="icon"
-              className={detail?.sub ? "text-primary" : "text-muted-foreground hover:text-foreground"}
-              onClick={handleToggleAlbumSub}
-            >
-              <Bookmark className={`w-5 h-5 ${detail?.sub ? "fill-current" : ""}`} />
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <MoreVertical className="w-5 h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleShare}>
-                <SquareArrowOutUpRight className="w-4 h-4 mr-2" />分享
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleImportPlaylist}>
-                <Import className="w-4 h-4 mr-2" />导入歌单
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      onRetry={retry}
+      detail={genericDetail}
+      scrollRef={scrollRef}
+      action={action}
+      isShuffle={isShuffle}
+      tracks={tracks}
+      onPlayTrack={
+        tracks.length > 0 ? (track) => onPlay(track, tracks) : undefined
       }
     >
-      <div
-        ref={scrollRef}
-        className="flex flex-col flex-1 min-h-0 h-full overflow-y-auto"
-        style={{ scrollbarWidth: "thin" }}
-      >
-        {detail && (
-          <CommonDetailHeader
-            title={detail.name} coverUrl={detail.coverImgUrl} description={detail.description}
-            creator={detail.creator} countDesc={`${detail.trackCount} 首`} publishTime={detail.publishTime}
-            isShuffle={isShuffle}
-            tracks={tracks}
-            onPlayTrack={tracks.length > 0 ? (track) => onPlay(track, tracks) : undefined}
-          />
-        )}
-        <div className="flex-1 min-h-0">
-          <MusicTrackList
-            tracks={tracks} scrollContainerRef={scrollRef} onPlay={(track) => onPlay(track, tracks)} currentTrackId={currentTrackId}
-            isPlaying={isPlaying} emptyMessage="列表为空"
-            onLoadMore={type === 'artist' ? handleLoadMore : undefined}
-            hasMore={hasMore} loading={loading || loadingMore}
-          />
-        </div>
+      <div className="flex-1 min-h-0">
+        <MusicTrackList
+          tracks={tracks}
+          scrollContainerRef={scrollRef}
+          onPlay={(track) => onPlay(track, tracks)}
+          currentTrackId={currentTrackId}
+          isPlaying={isPlaying}
+          emptyMessage="列表为空"
+          onLoadMore={type === "artist" ? handleLoadMore : undefined}
+          hasMore={hasMore}
+          loading={loading || loadingMore}
+        />
       </div>
-      
-      <ArtistAlbumSheet 
-        artistId={id} isOpen={isAlbumSheetOpen} onOpenChange={setIsAlbumSheetOpen} artistName={detail?.name} albumCount={detail?.albumCount}
+      <ArtistAlbumSheet
+        artistId={id}
+        isOpen={isAlbumSheetOpen}
+        onOpenChange={setIsAlbumSheetOpen}
+        artistName={detail?.name}
+        albumCount={detail?.albumCount}
       />
-    </PageLayout>
+    </GenericDetailPage>
   );
 }
