@@ -1,5 +1,5 @@
-import type { MusicTrack } from '@/types/music';
-import zhT2SMap from './zh-t2s-map.json';
+import type { MusicTrack } from "@/types/music";
+import zhT2SMap from "./zh-t2s-map.json";
 
 /* -------------------------------------------------- */
 /* normalize（唯一实现，全项目统一） */
@@ -8,27 +8,26 @@ import zhT2SMap from './zh-t2s-map.json';
 const tMap = new Map<string, string>(Object.entries(zhT2SMap));
 
 const customCharMap = new Map<string, string>([
-  ['妳', '你'],
-  ['祢', '你'],
-  ['妳', '你'],
-  ['牠', '它'],
-  ['祂', '他'],
+  ["妳", "你"],
+  ["祢", "你"],
+  ["妳", "你"],
+  ["牠", "它"],
+  ["祂", "他"],
 ]);
 
 customCharMap.forEach((v, k) => tMap.set(k, v));
 
 export const normalizeText = (v: string): string => {
-  if (!v) return '';
+  if (!v) return "";
 
-  let base = v.toLowerCase().normalize('NFKC');
+  let base = v.toLowerCase().normalize("NFKC");
 
-  base = base.replace(/[([{【（].*?[)\]}】）]/g, ' ');             //  去括号内容
-  base = base.replace(/[\u4e00-\u9fa5]/g, c => tMap.get(c) ?? c);    //  繁简转换
-  base = base.replace(/[^\w\u4e00-\u9fa5]/g, '');                    //  去符号
+  base = base.replace(/[([{【（].*?[)\]}】）]/g, " "); //  去括号内容
+  base = base.replace(/[\u4e00-\u9fa5]/g, (c) => tMap.get(c) ?? c); //  繁简转换
+  base = base.replace(/[^\w\u4e00-\u9fa5]/g, ""); //  去符号
 
-  return base.trim() || v.toLowerCase().replace(/\s+/g, '');
+  return base.trim() || v.toLowerCase().replace(/\s+/g, "");
 };
-
 
 export const normalizeArtists = (artists: string[]) =>
   artists.map(normalizeText).filter(Boolean).sort();
@@ -38,7 +37,7 @@ export const normalizeArtists = (artists: string[]) =>
  */
 const getAlias = (s: string): string => {
   const match = s.match(/[([{【（](.*?)[)\]}】）]/);
-  return match ? normalizeText(match[1]) : '';
+  return match ? normalizeText(match[1]) : "";
 };
 
 /**
@@ -61,13 +60,47 @@ export const isNameMatch = (name1: string, name2: string): boolean => {
 };
 
 /**
- * 判断歌手列表是否匹配（归一化后有交集）
+ * 将歌手名称展开为主名、别名和完整名
+ * 例如 "五月天（Mayday）" 展开为 ["五月天", "mayday", "五月天mayday"]
  */
-export const isArtistMatch = (artists1: string[], artists2: string[]): boolean => {
-  const set1 = new Set(artists1.map(normalizeText).filter(Boolean));
-  const set2 = new Set(artists2.map(normalizeText).filter(Boolean));
-  
-  // 只要有任意一个歌手相同，即视为匹配
+const expandArtistWithAlias = (artist: string): string[] => {
+  const normalized = normalizeText(artist);
+  const alias = getAlias(artist);
+
+  const result = new Set<string>();
+  result.add(normalized);
+  if (alias) {
+    result.add(alias);
+    // 完整名（主名+别名，无括号）
+    result.add(normalized + alias);
+  }
+  return Array.from(result);
+};
+
+/**
+ * 判断歌手列表是否匹配（归一化后有交集，支持括号别名）
+ * 例如 "五月天（Mayday）" 可与 "五月天"、"Mayday" 或 "五月天（Mayday）" 匹配
+ */
+export const isArtistMatch = (
+  artists1: string[],
+  artists2: string[]
+): boolean => {
+  // 展开所有可能的歌手名称（主名、别名、完整名）
+  const set1 = new Set<string>();
+  for (const artist of artists1) {
+    for (const expanded of expandArtistWithAlias(artist)) {
+      set1.add(expanded);
+    }
+  }
+
+  const set2 = new Set<string>();
+  for (const artist of artists2) {
+    for (const expanded of expandArtistWithAlias(artist)) {
+      set2.add(expanded);
+    }
+  }
+
+  // 只要有任意一个展开后的名称相同，即视为匹配
   for (const a of set1) {
     if (set2.has(a)) return true;
   }
@@ -92,7 +125,10 @@ export const isNameContainsMatch = (name1: string, name2: string): boolean => {
   return false;
 };
 
-export const isArtistContainsMatch = (artists1: string[], artists2: string[]): boolean => {
+export const isArtistContainsMatch = (
+  artists1: string[],
+  artists2: string[]
+): boolean => {
   const normalized1 = artists1.map(normalizeText).filter(Boolean);
   const normalized2 = artists2.map(normalizeText).filter(Boolean);
 
@@ -110,5 +146,5 @@ export const isArtistContainsMatch = (artists1: string[], artists2: string[]): b
 /* -------------------------------------------------- */
 
 export const getExactKey = (t: MusicTrack): string => {
-  return `${normalizeText(t.name)}|${normalizeArtists(t.artist).join('/')}`;
+  return `${normalizeText(t.name)}|${normalizeArtists(t.artist).join("/")}`;
 };
