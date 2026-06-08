@@ -33,7 +33,9 @@ describe("useMediaSessionIntegration", () => {
   const originalOnLine = navigator.onLine;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     vi.clearAllMocks();
     Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
@@ -56,7 +58,9 @@ describe("useMediaSessionIntegration", () => {
 
   const renderHook = async (coverUrl: string | null | undefined) => {
     const audio = document.createElement("audio");
-    const audioRef = { current: audio } as React.RefObject<HTMLAudioElement | null>;
+    const audioRef = {
+      current: audio,
+    } as React.RefObject<HTMLAudioElement | null>;
 
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -88,7 +92,9 @@ describe("useMediaSessionIntegration", () => {
 
   it("drops unsafe artwork URL", () => {
     expect(sanitizeMediaSessionArtworkUrl("javascript:alert(1)")).toBeNull();
-    expect(sanitizeMediaSessionArtworkUrl("http://localhost:3000/cover.jpg")).toBeNull();
+    expect(
+      sanitizeMediaSessionArtworkUrl("http://localhost:3000/cover.jpg")
+    ).toBeNull();
   });
 
   it("passes sanitized artwork when URL is safe", async () => {
@@ -106,6 +112,7 @@ describe("useMediaSessionIntegration", () => {
         },
       ],
       currentIndex: 0,
+      hasUserGesture: true,
     });
 
     const cleanup = await renderHook("http://image.test/cover.jpg");
@@ -135,6 +142,7 @@ describe("useMediaSessionIntegration", () => {
         },
       ],
       currentIndex: 0,
+      hasUserGesture: true,
     });
 
     const cleanup = await renderHook("http://localhost:3000/web-cover.jpg");

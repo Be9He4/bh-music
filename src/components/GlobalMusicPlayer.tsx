@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useMusicStore } from "@/store/music-store";
 import { useMusicCover } from "@/hooks/useMusicCover";
 import { useAudioElement } from "@/hooks/useAudioElement";
@@ -14,7 +14,12 @@ import { useSleepTimer } from "@/hooks/useSleepTimer";
 export function GlobalMusicPlayer() {
   const audioRef = useAudioElement();
   const currentTrack = useMusicStore((s) => s.queue[s.currentIndex]);
+  const setCoverUrl = useMusicStore((s) => s.setCoverUrl);
   const coverUrl = useMusicCover(currentTrack);
+
+  useEffect(() => {
+    setCoverUrl(coverUrl);
+  }, [coverUrl, setCoverUrl]);
 
   const isSwitchingTrackRef = useRef(false);
   const hasRecordedRef = useRef(false);

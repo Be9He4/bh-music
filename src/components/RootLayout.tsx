@@ -6,7 +6,6 @@ import { GlobalMusicPlayer } from "@/components/GlobalMusicPlayer";
 import { useMusicStore } from "@/store/music-store";
 import toast from "react-hot-toast";
 import { toastUtils } from "@/lib/utils/toast";
-import { useMusicCover } from "@/hooks/useMusicCover";
 import { useExitLayer } from "@/hooks/useExitLayer";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
@@ -117,10 +116,10 @@ export function RootLayout() {
     isFavorite,
     addToFavorites,
     removeFromFavorites,
+    coverUrl,
   } = useMusicStore();
 
   const currentTrack = queue[currentIndex] || null;
-  const coverUrl = useMusicCover(currentTrack);
 
   const isTab = isRootTabPath(location.pathname);
 

@@ -166,6 +166,8 @@ export interface MusicState {
   setUserGesture: () => void;
   incrementFailures: () => number;
   resetFailures: () => void;
+  coverUrl: string | null;
+  setCoverUrl: (url: string | null) => void;
 
   queue: MusicTrack[];
   originalQueue: MusicTrack[];
@@ -430,6 +432,7 @@ export const useMusicStore = create<MusicState>()(
       consecutiveFailures: 0,
       maxConsecutiveFailures: 3,
       urlRecoveryKey: 0,
+      coverUrl: null,
       setVolume: (volume) => set({ volume }),
       toggleRepeat: () => set((s) => ({ isRepeat: !s.isRepeat })),
       setAudioCurrentTime: (currentAudioTime) => set({ currentAudioTime }),
@@ -449,6 +452,7 @@ export const useMusicStore = create<MusicState>()(
       setCurrentAudioUrl: (currentAudioUrl) => set({ currentAudioUrl }),
       setUserGesture: () => set({ hasUserGesture: true }),
       resetFailures: () => set({ consecutiveFailures: 0 }),
+      setCoverUrl: (coverUrl) => set({ coverUrl }),
       incrementUrlRecoveryKey: () =>
         set((s) => ({ urlRecoveryKey: s.urlRecoveryKey + 1 })),
       incrementFailures: () => {

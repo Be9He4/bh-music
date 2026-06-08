@@ -57,10 +57,12 @@ export function useMediaSessionIntegration(
 ) {
   const currentTrack = useMusicStore((s) => s.queue[s.currentIndex]);
   const isPlaying = useMusicStore((s) => s.isPlaying);
+  const hasUserGesture = useMusicStore((s) => s.hasUserGesture);
 
   useEffect(() => {
     const updateMetadata = async () => {
       if (!currentTrack) return;
+      if (!hasUserGesture) return;
 
       try {
         const safeArtworkUrl = sanitizeMediaSessionArtworkUrl(coverUrl);
@@ -86,7 +88,7 @@ export function useMediaSessionIntegration(
       }
     };
     updateMetadata();
-  }, [currentTrack, coverUrl]);
+  }, [currentTrack, coverUrl, hasUserGesture]);
 
   useEffect(() => {
     const audio = audioRef.current;

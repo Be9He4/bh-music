@@ -43,7 +43,7 @@ export function useMusicCover(
     return () => {
       active = false;
     };
-  }, [track?.pic_id, track?.source, enabled, track]);
+  }, [track?.pic_id, track?.source, enabled]);
 
   // Derived state: if disabled or no track, return null.
   // If the current track doesn't match what we've loaded, return null (it's loading).

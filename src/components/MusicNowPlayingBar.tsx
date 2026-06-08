@@ -3,7 +3,6 @@
 import { ListVideo, Pause, Play } from "lucide-react";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
-import { useMusicCover } from "@/hooks/useMusicCover";
 import { PlayerQueueDrawer } from "./PlayerQueueDrawer";
 import { MusicCover } from "./MusicCover";
 import { useCallback } from "react";
@@ -27,6 +26,7 @@ export function MusicNowPlayingBar({
     isShuffle,
     queue,
     currentIndex,
+    coverUrl,
     togglePlay,
     setCurrentIndexAndPlay,
     clearQueue,
@@ -41,6 +41,7 @@ export function MusicNowPlayingBar({
       isShuffle: state.isShuffle,
       queue: state.queue,
       currentIndex: state.currentIndex,
+      coverUrl: state.coverUrl,
       togglePlay: state.togglePlay,
       setCurrentIndexAndPlay: state.setCurrentIndexAndPlay,
       clearQueue: state.clearQueue,
@@ -51,7 +52,6 @@ export function MusicNowPlayingBar({
   );
 
   const currentTrack = queue[currentIndex] || null;
-  const coverUrl = useMusicCover(currentTrack);
 
   const playTrack = useCallback(
     (index: number) => {
