@@ -31,6 +31,7 @@ export function useSleepTimer(
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const originalVolumeRef = useRef<number>(1);
   const isFadingRef = useRef<boolean>(false);
+  const isPlayingRef = useRef<boolean>(isPlaying);
   const sleepTimerEndTimeRef = useRef<number>(sleepTimerEndTime);
   const sleepTimerRemainingRef = useRef<number>(sleepTimerRemaining);
 
@@ -137,26 +138,18 @@ export function useSleepTimer(
       return;
     }
 
-    if (!isPlaying) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      if (sleepTimerRemainingRef.current > 0) {
-        setSleepTimerEndTime(
-          Date.now() + sleepTimerRemainingRef.current * 1000
-        );
-      }
-      return;
-    }
-
     intervalRef.current = setInterval(() => {
       const now = Date.now();
       const remaining = Math.ceil((sleepTimerEndTimeRef.current - now) / 1000);
 
       if (remaining <= 0) {
         setSleepTimerRemaining(0);
-        fadeOutAndStop();
+        if (isPlayingRef.current) {
+          fadeOutAndStop();
+        } else {
+          setSleepTimerIsActive(false);
+          setSleepTimerEndTime(0);
+        }
       } else {
         setSleepTimerRemaining(remaining);
       }
@@ -170,11 +163,15 @@ export function useSleepTimer(
     };
   }, [
     sleepTimerIsActive,
-    isPlaying,
     setSleepTimerRemaining,
     setSleepTimerEndTime,
+    setSleepTimerIsActive,
     fadeOutAndStop,
   ]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     return () => {

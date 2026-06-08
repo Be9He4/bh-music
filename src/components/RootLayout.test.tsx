@@ -199,7 +199,7 @@ describe("RootLayout", () => {
     ).toBe("closed");
     expect(
       addEventListenerSpy.mock.calls.some(
-        ([eventName]) => eventName === "popstate"
+        ([eventName]) => (eventName as string) === "popstate"
       )
     ).toBe(false);
 

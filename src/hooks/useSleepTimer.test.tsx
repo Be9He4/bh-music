@@ -94,7 +94,7 @@ describe("useSleepTimer", () => {
     cleanup();
   });
 
-  it("should pause countdown when playback pauses", () => {
+  it("should continue countdown when playback pauses", () => {
     const { result, cleanup } = setup();
 
     act(() => {
@@ -116,7 +116,7 @@ describe("useSleepTimer", () => {
     });
 
     expect(useMusicStore.getState().sleepTimerRemaining).toBe(
-      remainingBeforePause
+      remainingBeforePause - 3
     );
     cleanup();
   });
