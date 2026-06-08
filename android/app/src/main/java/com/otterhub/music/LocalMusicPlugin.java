@@ -154,6 +154,10 @@ public class LocalMusicPlugin extends Plugin {
         call.resolve(new JSObject().put("isDarkMode", isDarkMode));
     }
 
+    public void notifyDarkModeChange(boolean isDarkMode) {
+        notifyListeners("darkModeChange", new JSObject().put("isDarkMode", isDarkMode));
+    }
+
     // --- 内部扫描逻辑 ---
 
     private void scanMusicFiles(PluginCall call) {

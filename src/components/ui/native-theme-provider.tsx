@@ -103,6 +103,15 @@ export function NativeThemeProvider({
 
     App.addListener("resume", handleResume);
 
+    let darkModeListener: Awaited<
+      ReturnType<typeof LocalMusicPlugin.addListener>
+    > | null = null;
+    LocalMusicPlugin.addListener("darkModeChange", (event) => {
+      setSystemTheme(event.isDarkMode ? "dark" : "light");
+    }).then((handle) => {
+      darkModeListener = handle;
+    });
+
     const mql = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e: MediaQueryListEvent) => {
       setSystemTheme(e.matches ? "dark" : "light");
@@ -111,6 +120,7 @@ export function NativeThemeProvider({
 
     return () => {
       App.removeAllListeners();
+      darkModeListener?.remove();
       mql.removeEventListener("change", handleChange);
     };
   }, []);

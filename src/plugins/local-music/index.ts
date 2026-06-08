@@ -1,4 +1,4 @@
-import { registerPlugin } from "@capacitor/core";
+import { registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 
 export interface LocalMusicFile {
   id: string;
@@ -56,6 +56,10 @@ export interface SystemDarkModeResult {
   isDarkMode: boolean;
 }
 
+export interface DarkModeChangeEvent {
+  isDarkMode: boolean;
+}
+
 export interface LocalMusicPlugin {
   scanLocalMusic(): Promise<ScanResult>;
   scanAllStorage(): Promise<ScanResult>;
@@ -71,6 +75,10 @@ export interface LocalMusicPlugin {
   deleteLocalMusic(options: { localPath: string }): Promise<DeleteResult>;
   pickDownloadDirectory(): Promise<PickDirectoryResult>;
   getSystemDarkMode(): Promise<SystemDarkModeResult>;
+  addListener(
+    eventName: "darkModeChange",
+    listenerFunc: (event: DarkModeChangeEvent) => void
+  ): Promise<PluginListenerHandle>;
 }
 
 const LocalMusicPlugin = registerPlugin<LocalMusicPlugin>("LocalMusicPlugin");
