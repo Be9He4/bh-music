@@ -21,7 +21,7 @@ import {
 import { ReactNode, useState } from "react";
 import { MusicCover } from "./MusicCover";
 import { useMusicCover } from "@/hooks/useMusicCover";
-import { MusicTrack, SearchIntent } from "@/types/music";
+import { MusicTrack, SearchIntent, sourceLabels } from "@/types/music";
 import { useNavigate } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { MusicProviderFactory } from "@/lib/music-provider";
@@ -338,7 +338,7 @@ export function MusicTrackMobileMenu({
               className="justify-start w-full cursor-default text-muted-foreground"
             >
               <Link2 className="mr-2 h-4 w-4" /> 音源：
-              {track.source}
+              {sourceLabels[track.source] || track.source}
             </Button>
 
             {onRemove && (

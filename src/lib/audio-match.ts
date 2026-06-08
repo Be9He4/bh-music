@@ -5,7 +5,7 @@ import {
   getAggregatedSourcesForMatch,
 } from "@/hooks/use-aggregated-sources";
 import { musicApi } from "@/lib/music-api";
-import type { MusicTrack } from "@/types/music";
+import { sourceLabels, type MusicTrack } from "@/types/music";
 import {
   isNameMatch,
   isArtistMatch,
@@ -97,7 +97,8 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
       setFavorites(favorites.map((t) => (t.id === track.id ? match : t)));
     }
 
-    toast.success(`已自动切换至: ${match.source}`, { id: toastId });
+    const sourceLabel = sourceLabels[match.source] || match.source;
+    toast.success(`已自动切换至: ${sourceLabel}`, { id: toastId });
     return true;
   } catch (error) {
     logger.error("audio-match", "Auto match failed", error);
