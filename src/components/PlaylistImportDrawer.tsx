@@ -424,54 +424,59 @@ export function PlaylistImportDrawer({
             </div>
           </TabsContent>
 
-          <TabsContent value="text" className="mt-4 space-y-3">
-            {/* JSON 输入区 */}
-            <Textarea
-              className="min-h-32 max-h-48 bg-muted/40 border-none rounded-xl focus-visible:ring-1 font-mono text-sm resize-none overflow-y-auto"
-              placeholder={`{\n  "name": "歌单名称",\n  "tracks": [\n    { "name": "歌名", "artist": ["歌手"] }\n  ]\n}`}
-              value={textInput}
-              onChange={(e) => {
-                setTextInput(e.target.value);
-                if (textPhase !== "input") setTextPhase("input");
-              }}
-            />
-            <div className="flex items-center justify-between px-1">
-              <p className="text-xs text-muted-foreground">
-                将歌曲列表发送给 AI，粘贴返回的 JSON 即可导入
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={handleCopyPrompt}
-              >
-                <Copy className="h-3 w-3 mr-1" />
-                复制提示词
-              </Button>
+          <TabsContent
+            value="text"
+            className="mt-4 flex flex-col overflow-hidden"
+          >
+            <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+              {/* JSON 输入区 */}
+              <Textarea
+                className="min-h-32 max-h-48 bg-muted/40 border-none rounded-xl focus-visible:ring-1 font-mono text-sm resize-none overflow-y-auto"
+                placeholder={`{\n  "name": "歌单名称",\n  "tracks": [\n    { "name": "歌名", "artist": ["歌手"] }\n  ]\n}`}
+                value={textInput}
+                onChange={(e) => {
+                  setTextInput(e.target.value);
+                  if (textPhase !== "input") setTextPhase("input");
+                }}
+              />
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-muted-foreground">
+                  将歌曲列表发送给 AI，粘贴返回的 JSON 即可导入
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleCopyPrompt}
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  复制提示词
+                </Button>
+              </div>
+
+              {/* 校验结果展示 */}
+              {textPhase === "error" && (
+                <div className="text-center py-3">
+                  <p className="text-sm text-destructive">{textError}</p>
+                </div>
+              )}
+
+              {textPhase === "preview" && textPreview && (
+                <div className="bg-muted/30 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-muted/40 flex items-center justify-center shrink-0">
+                    <ListMusic className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base truncate">
+                      {textPreview.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {textPreview.tracks.length} 首歌曲
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* 校验结果展示 */}
-            {textPhase === "error" && (
-              <div className="text-center py-3">
-                <p className="text-sm text-destructive">{textError}</p>
-              </div>
-            )}
-
-            {textPhase === "preview" && textPreview && (
-              <div className="bg-muted/30 rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-muted/40 flex items-center justify-center shrink-0">
-                  <ListMusic className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base truncate">
-                    {textPreview.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {textPreview.tracks.length} 首歌曲
-                  </p>
-                </div>
-              </div>
-            )}
           </TabsContent>
         </Tabs>
 

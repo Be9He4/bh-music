@@ -33,6 +33,16 @@ export const normalizeArtists = (artists: string[]) =>
   artists.map(normalizeText).filter(Boolean).sort();
 
 /**
+ * 仅进行简繁体转换（不去除括号、不去符号）
+ */
+export const convertT2SOnly = (v: string): string => {
+  if (!v) return "";
+  let base = v.toLowerCase().normalize("NFKC");
+  base = base.replace(/[\u4e00-\u9fa5]/g, (c) => tMap.get(c) ?? c); // 仅繁简转换
+  return base;
+};
+
+/**
  * 提取括号内容作为别名（已标准化）
  */
 const getAlias = (s: string): string => {

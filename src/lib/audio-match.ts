@@ -11,6 +11,7 @@ import {
   isArtistMatch,
   normalizeArtists,
   normalizeText,
+  convertT2SOnly,
 } from "./utils/music-key";
 import { logger } from "@/lib/logger";
 
@@ -31,6 +32,11 @@ function scoreAutoMatchCandidate(
 
   if (normalizeText(target.name) === normalizeText(candidate.name))
     score += 100;
+
+  // 全量匹配额外加分：简繁体转换后完全一致（保留括号等所有字符）
+  if (convertT2SOnly(target.name) === convertT2SOnly(candidate.name)) {
+    score += 50;
+  }
 
   score += Math.max(0, 20 - originalIndex);
 
