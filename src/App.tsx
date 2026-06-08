@@ -10,22 +10,7 @@ import { revokeAll } from "@/lib/utils/blob-registry";
 import { stopBilibiliProxyServer } from "@/lib/bilibili/bilibili-native-player";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
-import { useMusicStore } from "@/store/music-store";
-
 export default function App() {
-  const enableStreamCache = useMusicStore((s) => s.enableStreamCache);
-
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    const channel = new BroadcastChannel("stream-cache-preference");
-    const broadcast = () =>
-      channel.postMessage({
-        type: "set-stream-cache",
-        enabled: enableStreamCache,
-      });
-    navigator.serviceWorker.ready.then(broadcast).catch(() => {});
-    return () => channel.close();
-  }, [enableStreamCache]);
   // Sync Logic
   const { syncKey } = useSyncStore();
   const syncInProgress = useRef(false);

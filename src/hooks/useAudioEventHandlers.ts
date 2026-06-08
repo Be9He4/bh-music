@@ -152,7 +152,7 @@ export function useAudioEventHandlers(
         useSourceQualityStore.getState().recordSuccess(track.source);
         useHistoryStore.getState().addToHistory(track);
 
-        // 仅对远程曲目记录流媒体缓存，本地和已下载的由各自模块处理
+        // 对远程曲目记录流媒体缓存
         if (track.source !== "local") {
           const cachedUrl = audio.src;
           if (

@@ -1,5 +1,3 @@
-import { useMusicStore } from "@/store/music-store";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SettingItem } from "./SettingItem";
 import { HardDrive, Trash2 } from "lucide-react";
@@ -14,13 +12,11 @@ import { toastUtils } from "@/lib/utils/toast";
 import { useOfflineStore } from "@/store/offline-store";
 
 export function StreamCacheSetting() {
-  const { enableStreamCache, setEnableStreamCache } = useMusicStore();
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState({ entryCount: 0, approxSize: 0 });
 
   useEffect(() => {
     if (expanded) {
-      // opaque response 无法直接获取缓存大小，仅统计条目数
       Promise.all([getAudioCacheStats(), getStorageUsage()]).then(
         ([s, usage]) => {
           setStats({ entryCount: s.entryCount, approxSize: usage });
@@ -33,13 +29,7 @@ export function StreamCacheSetting() {
     <SettingItem
       icon={HardDrive}
       title="边听边缓存"
-      subtitle={enableStreamCache ? "播放时自动缓存，离线也能听" : "缓存已关闭"}
-      action={
-        <Switch
-          checked={enableStreamCache}
-          onCheckedChange={setEnableStreamCache}
-        />
-      }
+      subtitle="播放时自动缓存，离线也能听"
       onClick={() => setExpanded(!expanded)}
       showChevron
       isExpanded={expanded}
@@ -74,7 +64,11 @@ export function StreamCacheSetting() {
                 window.confirm("确定要清空所有音频缓存吗？此操作不可恢复。")
               ) {
                 await clearAudioCache();
-                useOfflineStore.getState().clear();
+                // 只清理流媒体缓存记录，保留下载记录
+                const { records, removeRecord } = useOfflineStore.getState();
+                Object.values(records)
+                  .filter((r) => r.source === "stream-cache")
+                  .forEach((r) => removeRecord(r.trackId));
                 setStats({ entryCount: 0, approxSize: 0 });
                 toastUtils.info("音频缓存已清空");
               }

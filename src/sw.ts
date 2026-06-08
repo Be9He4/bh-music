@@ -12,15 +12,6 @@ declare let self: ServiceWorkerGlobalScope;
 self.skipWaiting();
 clientsClaim();
 
-let streamCacheEnabled = true;
-
-const STREAM_CACHE_CHANNEL = new BroadcastChannel("stream-cache-preference");
-STREAM_CACHE_CHANNEL.addEventListener("message", (event) => {
-  if (event.data?.type === "set-stream-cache") {
-    streamCacheEnabled = !!event.data.enabled;
-  }
-});
-
 precacheAndRoute(self.__WB_MANIFEST);
 
 registerRoute(
@@ -54,7 +45,6 @@ registerRoute(
       }),
       {
         cacheWillUpdate: async ({ response }) => {
-          if (!streamCacheEnabled) return null;
           if (
             response.status === 0 ||
             response.status === 200 ||

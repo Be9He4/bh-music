@@ -88,7 +88,6 @@ export interface MusicState {
   enableAutoMatch: boolean;
   fullScreenBackgroundMode: FullScreenBackgroundMode;
   showSourceBadge: boolean;
-  enableStreamCache: boolean;
   sleepTimerDuration: number;
   sleepTimerRemaining: number;
   sleepTimerIsActive: boolean;
@@ -116,7 +115,6 @@ export interface MusicState {
   setEmbedCover: (embed: boolean) => void;
   setEmbedLyric: (embed: boolean) => void;
   setDownloadDirectory: (dir: string) => void;
-  setEnableStreamCache: (enable: boolean) => void;
   playbackSpeed: number;
   setPlaybackSpeed: (speed: number) => void;
 
@@ -356,7 +354,6 @@ export const useMusicStore = create<MusicState>()(
       enableAutoMatch: true,
       fullScreenBackgroundMode: "theme",
       showSourceBadge: true,
-      enableStreamCache: true,
       sleepTimerDuration: 30,
       sleepTimerRemaining: 0,
       sleepTimerIsActive: false,
@@ -387,7 +384,6 @@ export const useMusicStore = create<MusicState>()(
       setEmbedCover: (embedCover) => set({ embedCover }),
       setEmbedLyric: (embedLyric) => set({ embedLyric }),
       setDownloadDirectory: (downloadDirectory) => set({ downloadDirectory }),
-      setEnableStreamCache: (enableStreamCache) => set({ enableStreamCache }),
       playbackSpeed: 1.0,
       setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
 
@@ -731,7 +727,6 @@ export const useMusicStore = create<MusicState>()(
         embedCover: state.embedCover,
         embedLyric: state.embedLyric,
         downloadDirectory: state.downloadDirectory,
-        enableStreamCache: state.enableStreamCache,
         sleepTimerDuration: state.sleepTimerDuration,
         playbackSpeed: state.playbackSpeed,
       }),
