@@ -155,7 +155,6 @@ shared/                     # 跨端共享类型
 ## TODO
 
 - [ ] 评估是否学习 musicfree 那种插件化机制(CommonJS + 沙箱 VM)
-- [ ] 优化倍速播放和睡眠定时
 
 ### Low Priority
 
