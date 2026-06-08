@@ -1,9 +1,4 @@
-import {
-  fetchWithTimeout,
-  getApiUrl,
-  IS_NATIVE,
-  IS_WEB_PROD,
-} from "@/lib/api/config";
+import * as config from "@/lib/api/config";
 import {
   buildBilibiliDurlPlayUrlPath,
   buildBilibiliHeaders,
@@ -74,10 +69,10 @@ function ensureBlob(data: unknown, mimeType: string): Blob | null {
 
 function buildBilibiliAudioProxyUrl(bvid: string, audioUrl: string): string {
   const params = new URLSearchParams({ bvid, url: audioUrl });
-  if (!IS_NATIVE && !IS_WEB_PROD) {
+  if (!config.IS_NATIVE && !config.IS_WEB_PROD) {
     return `${BILIBILI_DEV_AUDIO_PROXY}?${params.toString()}`;
   }
-  return `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/audio?${params.toString()}`;
+  return `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/audio?${params.toString()}`;
 }
 
 /**
@@ -132,7 +127,7 @@ export async function getBilibiliCoverUrl(
 ): Promise<string | null> {
   if (!coverUrl) return null;
 
-  if (IS_NATIVE) {
+  if (config.IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
       method: "GET",
@@ -152,15 +147,16 @@ export async function getBilibiliCoverUrl(
   }
 
   const params = new URLSearchParams({ url: coverUrl });
-  if (!IS_WEB_PROD) return `${BILIBILI_DEV_COVER_PROXY}?${params.toString()}`;
-  return `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/cover?${params.toString()}`;
+  if (!config.IS_WEB_PROD)
+    return `${BILIBILI_DEV_COVER_PROXY}?${params.toString()}`;
+  return `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/cover?${params.toString()}`;
 }
 
 async function fetchBilibiliJson<T>(
   path: string,
   referer?: string
 ): Promise<T | null> {
-  if (IS_NATIVE) {
+  if (config.IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
       method: "GET",
@@ -173,7 +169,7 @@ async function fetchBilibiliJson<T>(
     return typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   }
 
-  const res = await fetchWithTimeout(
+  const res = await config.fetchWithTimeout(
     `/api/bilibili${path}`,
     { headers: buildBilibiliHeaders(referer) },
     NETWORK_TIMEOUT
@@ -187,9 +183,9 @@ export async function searchBilibiliVideos(
   page: number,
   rows = 20
 ): Promise<SearchPageResult<MusicTrack>> {
-  if (IS_WEB_PROD) {
-    const res = await fetchWithTimeout(
-      `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/search`,
+  if (config.IS_WEB_PROD) {
+    const res = await config.fetchWithTimeout(
+      `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/search`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,9 +224,9 @@ async function getBilibiliSongUrlWeb(
   url: string;
   format: import("@otter-music/shared").AudioFormat;
 } | null> {
-  if (IS_WEB_PROD) {
-    const res = await fetchWithTimeout(
-      `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/song-url`,
+  if (config.IS_WEB_PROD) {
+    const res = await config.fetchWithTimeout(
+      `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/song-url`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -327,7 +323,7 @@ export async function getBilibiliSongUrl(trackId: string): Promise<{
   if (!parsed) return null;
 
   // Web端：返回代理URL，浏览器原生流式播放
-  if (!IS_NATIVE) {
+  if (!config.IS_NATIVE) {
     return getBilibiliSongUrlWeb(parsed.bvid, parsed.cid);
   }
 
@@ -354,9 +350,9 @@ export async function searchBilibiliCollections(
   page: number,
   rows = 20
 ): Promise<SearchPageResult<MusicTrack>> {
-  if (IS_WEB_PROD) {
-    const res = await fetchWithTimeout(
-      `${getApiUrl()}${BILIBILI_PROXY_PREFIX}/search-collections`,
+  if (config.IS_WEB_PROD) {
+    const res = await config.fetchWithTimeout(
+      `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/search-collections`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
