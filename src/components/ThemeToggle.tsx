@@ -2,22 +2,18 @@
 
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "next-themes";
+import { useThemePreference } from "@/components/ui/native-theme-provider";
 
-/**
- * 提供系统、浅色、深色三种主题模式切换。
- */
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const currentTheme = theme ?? "system";
+  const { themePref, setThemePref } = useThemePreference();
   const ThemeIcon =
-    currentTheme === "system" ? SunMoon : currentTheme === "dark" ? Moon : Sun;
+    themePref === "system" ? SunMoon : themePref === "dark" ? Moon : Sun;
 
   const handleToggleTheme = () => {
-    setTheme(
-      currentTheme === "system"
+    setThemePref(
+      themePref === "system"
         ? "light"
-        : currentTheme === "light"
+        : themePref === "light"
           ? "dark"
           : "system"
     );
