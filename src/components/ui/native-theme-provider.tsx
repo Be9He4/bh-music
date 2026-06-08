@@ -40,23 +40,51 @@ async function fetchSystemTheme(): Promise<"light" | "dark" | null> {
   }
 }
 
+function getMatchMediaTheme(): "light" | "dark" | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  } catch {
+    return null;
+  }
+}
+
+function readStoredPreference(): ThemePreference {
+  try {
+    const stored = localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark" || stored === "system") {
+      return stored;
+    }
+  } catch {}
+  return "system";
+}
+
 /**
  * 原生平台主题 Provider
  *
  * 解决 Capacitor WebView 中 next-themes 无法正确检测系统主题的问题。
- * 通过原生插件获取真实的系统主题状态，同时支持用户手动切换主题。
- * 当用户选择"跟随系统"时使用原生检测值，否则使用用户显式选择。
+ * 通过原生插件 + matchMedia 双重监听，实现系统主题实时感知。
+ * 当用户选择"跟随系统"时实时响应系统主题变更，无需退出重进。
+ * 使用 next-themes 默认 localStorage key("theme")持久化用户选择。
  */
 export function NativeThemeProvider({
   children,
   ...props
 }: ThemeProviderProps) {
-  const [systemTheme, setSystemTheme] = useState<"light" | "dark" | null>(null);
-  const [themePref, setThemePrefState] = useState<ThemePreference>("system");
+  const [systemTheme, setSystemTheme] = useState<"light" | "dark" | null>(
+    !IS_NATIVE ? null : getMatchMediaTheme()
+  );
+  const [themePref, setThemePrefState] =
+    useState<ThemePreference>(readStoredPreference);
   const [isReady, setIsReady] = useState(!IS_NATIVE);
 
   const setThemePref = useCallback((pref: ThemePreference) => {
     setThemePrefState(pref);
+    try {
+      localStorage.setItem("theme", pref);
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -75,8 +103,15 @@ export function NativeThemeProvider({
 
     App.addListener("resume", handleResume);
 
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemTheme(e.matches ? "dark" : "light");
+    };
+    mql.addEventListener("change", handleChange);
+
     return () => {
       App.removeAllListeners();
+      mql.removeEventListener("change", handleChange);
     };
   }, []);
 
