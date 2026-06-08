@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { RefreshCw, Music, HardDrive, HardDriveDownload } from "lucide-react";
-import { LocalMusicPlugin } from "@/plugins/local-music";
+import { LocalMusicPlugin, LocalMusicFile } from "@/plugins/local-music";
 import { MusicTrack } from "@/types/music";
 import { MusicPlaylistView } from "./MusicPlaylistView";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,30 @@ import { getPlayAllStartIndex } from "@/hooks/usePlayHelper";
 import { useLocalMusicStore } from "@/store/local-music-store";
 import { LocalMusicPermissionDialog } from "./LocalMusicPermissionDialog";
 import { logger } from "@/lib/logger";
+
+function mergeLocalMusicFiles(
+  oldFiles: LocalMusicFile[],
+  newFiles: LocalMusicFile[]
+): LocalMusicFile[] {
+  const oldMap = new Map(oldFiles.map((f) => [f.localPath, f]));
+
+  return newFiles.map((newFile) => {
+    const oldFile = oldMap.get(newFile.localPath);
+    if (!oldFile) return newFile;
+
+    return {
+      ...oldFile,
+      ...newFile,
+      // 新数据缺失时回退到旧数据
+      name: newFile.name || oldFile.name,
+      artist: newFile.artist || oldFile.artist,
+      album: newFile.album || oldFile.album,
+      duration: newFile.duration || oldFile.duration,
+      fileSize: newFile.fileSize || oldFile.fileSize,
+      modifiedTime: newFile.modifiedTime || oldFile.modifiedTime,
+    };
+  });
+}
 
 interface LocalMusicPageProps {
   onBack?: () => void;
@@ -70,8 +94,12 @@ export function LocalMusicPage({
             : await LocalMusicPlugin.scanAllStorage();
 
         if (result.success) {
-          setFiles(result.files);
-          return result.files.length;
+          const merged =
+            type === "full"
+              ? mergeLocalMusicFiles(files, result.files)
+              : result.files;
+          setFiles(merged);
+          return merged.length;
         }
 
         if (result.needManageStorage) {
@@ -89,7 +117,7 @@ export function LocalMusicPage({
         setScanning(false);
       }
     },
-    [setFiles, setScanning]
+    [files, setFiles, setScanning]
   );
 
   /* =========================

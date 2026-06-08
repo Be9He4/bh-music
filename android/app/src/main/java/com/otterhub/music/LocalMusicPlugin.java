@@ -265,10 +265,8 @@ public class LocalMusicPlugin extends Plugin {
                 .put("modifiedTime", file.lastModified())
                 .put("name", parsed[0])
                 .put("artist", parsed[1])
-                .put("album", null) //  专辑信息暂时忽略
+                .put("album", (String) null)
                 .put("duration", 0);
-
-        if (isValid(parsed[0]) && isValid(parsed[1])) return audioFile; // 歌手和标题都完整，直接返回跳过 MetadataRetriever
 
         try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
             setRetrieverDataSource(retriever, file.getAbsolutePath());
@@ -288,7 +286,7 @@ public class LocalMusicPlugin extends Plugin {
                 audioFile.put("duration", duration);
             }
         } catch (Exception ignored) {}
-        
+
         return audioFile;
     }
 

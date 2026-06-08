@@ -85,7 +85,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
                   onClick={() => openUrl(latestVersionInfo!.directUrl)}
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  跳转到发布页
+                  从 GitHub 下载
                 </Button>
               </>
             ) : (
