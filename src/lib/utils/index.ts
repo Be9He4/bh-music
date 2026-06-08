@@ -7,16 +7,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
-export const formatDateZN = (dateStr: string) => {
-  try {
-    return format(new Date(dateStr), "yyyy年MM月dd日", { locale: zhCN });
-  } catch {
-    return dateStr;
-  }
-};
-
 /**
  * 异步重试工具
  * @param fn 异步函数
@@ -34,7 +24,7 @@ export async function retry<T>(
       return await fn();
     } catch (e) {
       error = e;
-      if (i < times) await new Promise(r => setTimeout(r, delay));
+      if (i < times) await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw error;
@@ -52,7 +42,6 @@ export async function processBatchIO<T>(
   worker: (item: T, index: number) => Promise<void>,
   onProgress?: (done: number, total: number) => void,
   concurrency = 6
-  
 ): Promise<void> {
   const total = items.length;
   if (!total) return;
@@ -73,10 +62,10 @@ export async function processBatchIO<T>(
  * 优先使用 scheduler.yield（Chrome 129+），降级到 MessageChannel 宏任务
  */
 const yieldToMain = (): Promise<void> => {
-  if (typeof (globalThis as any).scheduler?.yield === 'function') {
+  if (typeof (globalThis as any).scheduler?.yield === "function") {
     return (globalThis as any).scheduler.yield();
   }
-  return new Promise<void>(resolve => {
+  return new Promise<void>((resolve) => {
     const ch = new MessageChannel();
     ch.port1.onmessage = () => resolve();
     ch.port2.postMessage(null);

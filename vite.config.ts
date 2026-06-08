@@ -300,9 +300,12 @@ export default defineConfig({
         assetFileNames: "assets/[name]-[hash].[ext]",
         manualChunks: (id) => {
           if (id.includes("node_modules")) {
-            if (id.includes("react") || id.includes("react-dom")) {
+            if (id.includes("react") || id.includes("react-dom"))
               return "react-vendor";
-            }
+            if (id.includes("lucide-react")) return "lucide-vendor";
+            if (id.includes("@radix-ui")) return "radix-vendor";
+            if (id.includes("date-fns")) return "date-fns-vendor";
+            if (id.includes("@capacitor")) return "capacitor-vendor";
           }
         },
       },

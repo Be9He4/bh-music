@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Podcast, SquareArrowOutUpRight } from "lucide-react";
 import toast from "react-hot-toast";
-import { formatDateZN } from "@/lib/utils";
+import { formatDateZN } from "@/lib/utils/format-date";
 import { parsePodcastRss } from "@/lib/api/podcast";
 import { usePodcastStore } from "@/store/podcast-store";
 import { forceHttps } from "@otter-music/shared";

@@ -4,10 +4,6 @@
     "classpath": "com.capacitorjs.plugins.app.AppPlugin"
   },
   {
-    "pkg": "@capacitor/app-launcher",
-    "classpath": "com.capacitorjs.plugins.applauncher.AppLauncherPlugin"
-  },
-  {
     "pkg": "@capacitor/clipboard",
     "classpath": "com.capacitorjs.plugins.clipboard.ClipboardPlugin"
   },

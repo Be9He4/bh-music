@@ -1,4 +1,3 @@
-import * as forge from "node-forge";
 import type {
   AudioFormat,
   MusicTrack,
@@ -143,11 +142,12 @@ export function extractWbiKeys(response: {
 /**
  * 为请求参数进行 WBI 签名，返回完整 query string（含 w_rid 和 wts）。
  */
-export function signWbiParams(
+export async function signWbiParams(
   params: Record<string, string | number>,
   imgKey: string,
   subKey: string
-): string {
+): Promise<string> {
+  const forge = await import("node-forge");
   const mixinKey = getMixinKey(imgKey + subKey);
   const currTime = Math.round(Date.now() / 1000);
   const chrFilter = /[!'()*]/g;

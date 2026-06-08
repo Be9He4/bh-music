@@ -62,7 +62,7 @@ export {
 // ============================================================
 
 async function registerKugouDevice(): Promise<string> {
-  const payload = buildKugouDeviceRegistrationPayload(DEVICE_MID);
+  const payload = await buildKugouDeviceRegistrationPayload(DEVICE_MID);
 
   const res = await fetchWithTimeout(payload.url, {
     method: "POST",
@@ -73,7 +73,7 @@ async function registerKugouDevice(): Promise<string> {
   if (!res.ok) throw new Error(`设备注册失败: ${res.status}`);
 
   const raw = new Uint8Array(await res.arrayBuffer());
-  const { dfid } = parseKugouDeviceRegistrationResponse(
+  const { dfid } = await parseKugouDeviceRegistrationResponse(
     raw,
     payload.encryptKey,
     payload.iv

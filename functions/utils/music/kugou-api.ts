@@ -31,7 +31,7 @@ function getServerDeviceMid(): string {
  * 注册服务端酷狗设备并返回 dfid。
  */
 async function registerServerDevice(mid: string): Promise<string> {
-  const payload = buildKugouDeviceRegistrationPayload(mid);
+  const payload = await buildKugouDeviceRegistrationPayload(mid);
 
   const res = await fetch(payload.url, {
     method: "POST",
@@ -42,7 +42,7 @@ async function registerServerDevice(mid: string): Promise<string> {
   if (!res.ok) throw new Error(`Kugou device register failed: ${res.status}`);
 
   const raw = new Uint8Array(await res.arrayBuffer());
-  const { dfid } = parseKugouDeviceRegistrationResponse(
+  const { dfid } = await parseKugouDeviceRegistrationResponse(
     raw,
     payload.encryptKey,
     payload.iv
