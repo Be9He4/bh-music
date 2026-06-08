@@ -45,17 +45,35 @@ export function useOfflinePlaylist(): MusicTrack[] {
           lyric_id: meta.lyric_id,
         });
       } else {
-        // 元数据缺失时用 key 构造最小 track
-        tracks.push({
-          id: trackId,
-          name: `${source}:${id}`,
-          artist: ["未知艺术家"],
-          album: "",
-          source: source as MusicTrack["source"],
-          url_id: id,
-          pic_id: "",
-          lyric_id: "",
-        });
+        // 元数据缺失时，先尝试在已有离线记录中通过 url_id 匹配
+        const matched = Object.values(offlineRecords).find(
+          (r) => r.url_id === id
+        );
+        if (matched) {
+          seen.add(matched.trackId);
+          tracks.push({
+            id: trackId,
+            name: matched.name,
+            artist: matched.artist,
+            album: matched.album,
+            source: matched.trackSource,
+            url_id: matched.url_id,
+            pic_id: matched.pic_id,
+            lyric_id: matched.lyric_id,
+          });
+        } else {
+          // 无法匹配时用 key 构造最小 track
+          tracks.push({
+            id: trackId,
+            name: `${source}:${id}`,
+            artist: ["未知艺术家"],
+            album: "",
+            source: source as MusicTrack["source"],
+            url_id: id,
+            pic_id: "",
+            lyric_id: "",
+          });
+        }
       }
     }
 
