@@ -10,8 +10,22 @@ import { revokeAll } from "@/lib/utils/blob-registry";
 import { stopBilibiliProxyServer } from "@/lib/bilibili/bilibili-native-player";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
+import { useMusicStore } from "@/store/music-store";
 
 export default function App() {
+  const enableStreamCache = useMusicStore((s) => s.enableStreamCache);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const channel = new BroadcastChannel("stream-cache-preference");
+    const broadcast = () =>
+      channel.postMessage({
+        type: "set-stream-cache",
+        enabled: enableStreamCache,
+      });
+    navigator.serviceWorker.ready.then(broadcast).catch(() => {});
+    return () => channel.close();
+  }, [enableStreamCache]);
   // Sync Logic
   const { syncKey } = useSyncStore();
   const syncInProgress = useRef(false);
@@ -28,10 +42,10 @@ export default function App() {
     // 启动时静默检查更新
     useAppStore.getState().checkUpdate(true);
     // 初始化下载记录
-    useDownloadStore.getState().init()
+    useDownloadStore.getState().init();
 
     // 延迟执行缓存清理，避免阻塞首屏
-    if ('requestIdleCallback' in window) {
+    if ("requestIdleCallback" in window) {
       (window as any).requestIdleCallback(() => cleanupCache());
     } else {
       setTimeout(() => cleanupCache(), 5000);

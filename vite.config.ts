@@ -97,8 +97,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       injectRegister: "auto",
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       includeAssets: ["favicon.svg"],
       manifest: {
         name: "Otter Music",
@@ -118,47 +121,12 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        cleanupOutdatedCaches: true,
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => {
-              const secFetchDest = request.headers.get("Sec-Fetch-Dest");
-              if (secFetchDest === "empty") return false;
-              if (!secFetchDest && request.destination === "") return false;
-              return (
-                request.destination === "audio" ||
-                /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(request.url)
-              );
-            },
-            handler: "CacheFirst",
-            options: {
-              cacheName: "audio-stream-cache",
-              expiration: {
-                maxEntries: 300,
-                maxAgeSeconds: 30 * 24 * 60 * 60,
-              },
-              cacheableResponse: {
-                statuses: [0, 200, 206],
-              },
-              rangeRequests: true,
-              // 缓存优先策略：优先使用缓存，同时后台更新
-              // 适合边听边缓存场景，离线时也能播放已缓存内容
-              plugins: [
-                {
-                  cacheWillUpdate: async ({ response }) => {
-                    // 确保只缓存成功的响应
-                    if (response.status === 200 || response.status === 206) {
-                      return response;
-                    }
-                    return null;
-                  },
-                },
-              ],
-            },
-          },
-        ],
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,ico,png,svg,webp}"],
       },
     }),
     {
@@ -276,6 +244,38 @@ export default defineConfig({
         };
       },
     }),
+    {
+      name: "plugin-fetch-proxy",
+      configureServer(server) {
+        server.middlewares.use(
+          "/api/fetch",
+          async (req: IncomingMessage, res: ServerResponse) => {
+            const url = new URL(
+              req.url || "",
+              "http://localhost"
+            ).searchParams.get("url");
+            if (!url) {
+              res.writeHead(400, { "Content-Type": "text/plain" });
+              res.end("missing url parameter");
+              return;
+            }
+            try {
+              const fetchRes = await fetch(url);
+              const text = await fetchRes.text();
+              res.writeHead(fetchRes.status, {
+                "Content-Type":
+                  fetchRes.headers.get("content-type") || "text/plain",
+                "Access-Control-Allow-Origin": "*",
+              });
+              res.end(text);
+            } catch {
+              res.writeHead(502, { "Content-Type": "text/plain" });
+              res.end("fetch failed");
+            }
+          }
+        );
+      },
+    },
   ],
   resolve: {
     alias: {
