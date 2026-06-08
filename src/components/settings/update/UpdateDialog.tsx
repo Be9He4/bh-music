@@ -1,8 +1,13 @@
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { useAppStore } from "@/store";
-import { Download, Loader2 } from "lucide-react";
+import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { openUrl } from "@/lib/utils";
@@ -13,12 +18,8 @@ interface UpdateDialogProps {
 }
 
 export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
-  const {
-    currentVersion,
-    latestVersionInfo,
-    isChecking,
-    checkUpdate,
-  } = useAppStore();
+  const { currentVersion, latestVersionInfo, isChecking, checkUpdate } =
+    useAppStore();
 
   const hasUpdate = Boolean(latestVersionInfo);
 
@@ -55,7 +56,10 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
                 <div className="text-xs text-muted-foreground space-y-1">
                   <div className="flex justify-between">
                     <span>
-                      {format(latestVersionInfo!.publishDate, "yyyy-MM-dd HH:mm")}
+                      {format(
+                        latestVersionInfo!.publishDate,
+                        "yyyy-MM-dd HH:mm"
+                      )}
                     </span>
                     <span>
                       {(latestVersionInfo!.size / 1024 / 1024).toFixed(2)} MB
@@ -73,6 +77,15 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
                 >
                   <Download className="mr-2 h-4 w-4" />
                   立即更新
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => openUrl(latestVersionInfo!.directUrl)}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  跳转到发布页
                 </Button>
               </>
             ) : (

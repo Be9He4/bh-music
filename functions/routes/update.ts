@@ -1,11 +1,11 @@
-import { Hono } from 'hono';
-import { ok, fail, encodeContentDisposition } from '../utils/response';
-import { Env } from '../types/hono';
+import { Hono } from "hono";
+import { ok, fail, encodeContentDisposition } from "../utils/response";
+import { Env } from "../types/hono";
 
 const app = new Hono<{ Bindings: Env }>();
 
 const GITHUB_API_URL =
-  'https://api.github.com/repos/DJChanahCJD/otter-music/releases/latest';
+  "https://api.github.com/repos/DJChanahCJD/otter-music/releases/latest";
 
 interface GitHubRelease {
   tag_name: string;
@@ -30,12 +30,12 @@ interface UpdateInfo {
 /* =========================
    获取最新版本信息
 ========================= */
-app.get('/check', async (c) => {
+app.get("/check", async (c) => {
   try {
     const release: GitHubRelease = await fetchRelease(c.env.GITHUB_TOKEN);
 
-    const apk = release.assets.find(a => a.name.endsWith('.apk'));
-    if (!apk) return fail(c, 'No APK found', 404);
+    const apk = release.assets.find((a) => a.name.endsWith(".apk"));
+    if (!apk) return fail(c, "No APK found", 404);
 
     const updateInfo: UpdateInfo = {
       latestVersion: release.tag_name,
@@ -47,43 +47,50 @@ app.get('/check', async (c) => {
     };
 
     return ok(c, updateInfo);
-
   } catch (e) {
     console.error(e);
-    return fail(c, 'Update check failed', 500);
+    return fail(c, "Update check failed", 500);
   }
 });
 
 /* =========================
    下载代理
 ========================= */
-app.get('/download', async (c) => {
-  const url = c.req.query('url');
-  const filename = c.req.query('filename') || 'app-release.apk';
+app.get("/download", async (c) => {
+  const url = c.req.query("url");
+  const filename = c.req.query("filename") || "app-release.apk";
 
-  if (!url) return fail(c, 'Missing url', 400);
-  if (!isValidGithubUrl(url)) return fail(c, 'Invalid source', 403);
+  if (!url) return fail(c, "Missing url", 400);
+  if (!isValidGithubUrl(url)) return fail(c, "Invalid source", 403);
 
   try {
+    const fetchHeaders: Record<string, string> = {
+      "User-Agent": "Otter-Music-App",
+    };
+    if (c.env.GITHUB_TOKEN) {
+      fetchHeaders.Authorization = `Bearer ${c.env.GITHUB_TOKEN}`;
+    }
+
     const resp = await fetch(url, {
-      headers: { 'User-Agent': 'Otter-Music-App' },
-      redirect: 'follow',
+      headers: fetchHeaders,
+      redirect: "follow",
     });
 
-    if (!resp.ok || !resp.body)
-      return fail(c, 'Download failed', 502);
+    if (!resp.ok || !resp.body) return fail(c, "Download failed", 502);
 
     const headers = new Headers(resp.headers);
-    headers.set('Content-Disposition', encodeContentDisposition(filename, false));
-    headers.set('Content-Type', 'application/vnd.android.package-archive');
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');  // 缓存 1 年
-    headers.delete('Set-Cookie');
+    headers.set(
+      "Content-Disposition",
+      encodeContentDisposition(filename, false)
+    );
+    headers.set("Content-Type", "application/vnd.android.package-archive");
+    headers.set("Cache-Control", "public, max-age=3600");
+    headers.delete("Set-Cookie");
 
     return new Response(resp.body, { status: resp.status, headers });
-
   } catch (e) {
     console.error(e);
-    return fail(c, 'Download error', 500);
+    return fail(c, "Download error", 500);
   }
 });
 
@@ -93,8 +100,8 @@ app.get('/download', async (c) => {
 
 async function fetchRelease(token?: string) {
   const headers: Record<string, string> = {
-    'User-Agent': 'Otter-Music-App',
-    Accept: 'application/vnd.github.v3+json',
+    "User-Agent": "Otter-Music-App",
+    Accept: "application/vnd.github.v3+json",
   };
 
   if (token) {
@@ -104,7 +111,7 @@ async function fetchRelease(token?: string) {
   const resp = await fetch(GITHUB_API_URL, {
     headers,
     cf: {
-      cacheTtl: 600,        // 缓存 10 分钟
+      cacheTtl: 600, // 缓存 10 分钟
       cacheEverything: true,
     },
   } as any);
@@ -116,7 +123,10 @@ async function fetchRelease(token?: string) {
   return resp.json();
 }
 
-function buildProxyUrl(baseUrl: string, asset: { name: string; browser_download_url: string }) {
+function buildProxyUrl(
+  baseUrl: string,
+  asset: { name: string; browser_download_url: string }
+) {
   const origin = new URL(baseUrl).origin;
   return `${origin}/update/download?url=${encodeURIComponent(
     asset.browser_download_url
@@ -126,8 +136,9 @@ function buildProxyUrl(baseUrl: string, asset: { name: string; browser_download_
 function isValidGithubUrl(url: string) {
   try {
     const host = new URL(url).hostname;
-    return ['github.com', 'objects.githubusercontent.com']
-      .some(domain => host.endsWith(domain));
+    return ["github.com", "objects.githubusercontent.com"].some((domain) =>
+      host.endsWith(domain)
+    );
   } catch {
     return false;
   }
