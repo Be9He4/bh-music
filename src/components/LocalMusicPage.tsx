@@ -20,6 +20,7 @@ import {
 import toast from "react-hot-toast";
 import { convertToMusicTrack } from "@/lib/utils/download";
 import { useMusicStore } from "@/store/music-store";
+import { getPlayAllStartIndex } from "@/hooks/usePlayHelper";
 import { useLocalMusicStore } from "@/store/local-music-store";
 import { LocalMusicPermissionDialog } from "./LocalMusicPermissionDialog";
 import { logger } from "@/lib/logger";
@@ -50,7 +51,7 @@ export function LocalMusicPage({
   /* =========================
      Store
   ========================= */
-  const { queue, currentIndex, skipToNext } = useMusicStore();
+  const { queue, currentIndex, skipToNext, isShuffle } = useMusicStore();
   const { files, setFiles, updateFiles, setScanning } = useLocalMusicStore();
 
   /* =========================
@@ -237,7 +238,8 @@ export function LocalMusicPage({
     }
 
     if (tracks.length > 0) {
-      onPlay(tracks[0], tracks, "local");
+      const startIndex = getPlayAllStartIndex(tracks.length, isShuffle);
+      onPlay(tracks[startIndex], tracks, "local");
     }
   };
 
