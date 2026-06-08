@@ -57,9 +57,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
   const activePlaylists = useActivePlaylists();
   const isOnline = useNetworkStatus();
   const offlineTracks = useOfflinePlaylist();
-  const enableStreamCache = useMusicStore((s) => s.enableStreamCache);
-  const showOfflinePlaylist =
-    !isOnline && enableStreamCache && offlineTracks.length > 0;
+  const showOfflinePlaylist = !isOnline;
 
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);

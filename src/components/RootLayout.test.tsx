@@ -32,7 +32,15 @@ vi.mock("@/hooks/useMusicCover", () => ({
 }));
 
 vi.mock("@/components/MusicLayout", () => ({
-  MusicLayout: ({ children, player, tabBar }: { children: ReactNode; player: ReactNode; tabBar: ReactNode }) => (
+  MusicLayout: ({
+    children,
+    player,
+    tabBar,
+  }: {
+    children: ReactNode;
+    player: ReactNode;
+    tabBar: ReactNode;
+  }) => (
     <div>
       <div data-testid="player-slot">{player}</div>
       <div data-testid="content">{children}</div>
@@ -103,17 +111,21 @@ describe("RootLayout", () => {
   let container: HTMLDivElement | undefined;
 
   beforeEach(() => {
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     vi.clearAllMocks();
 
     capacitorMocks.isNativePlatform.mockReturnValue(false);
     capacitorMocks.minimizeApp.mockResolvedValue(undefined);
-    capacitorMocks.addListener.mockImplementation((eventName: string, callback: () => void | Promise<void>) => {
-      if (eventName === "backButton") {
-        backButtonHandler = callback;
+    capacitorMocks.addListener.mockImplementation(
+      (eventName: string, callback: () => void | Promise<void>) => {
+        if (eventName === "backButton") {
+          backButtonHandler = callback;
+        }
+        return Promise.resolve({ remove: vi.fn() });
       }
-      return Promise.resolve({ remove: vi.fn() });
-    });
+    );
 
     useMusicStore.setState({
       queue: [track],
@@ -151,7 +163,7 @@ describe("RootLayout", () => {
           ],
         },
       ],
-      { initialEntries, initialIndex },
+      { initialEntries, initialIndex }
     );
 
     container = document.createElement("div");
@@ -171,15 +183,25 @@ describe("RootLayout", () => {
 
     renderLayout(["/search"]);
 
-    expect(container?.querySelector('[data-testid="fullscreen-state"]')?.textContent).toBe("open");
+    await act(async () => {});
+
+    expect(
+      container?.querySelector('[data-testid="fullscreen-state"]')?.textContent
+    ).toBe("open");
 
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
 
     expect(useMusicStore.getState().isFullScreenPlayer).toBe(false);
-    expect(container?.querySelector('[data-testid="fullscreen-state"]')?.textContent).toBe("closed");
-    expect(addEventListenerSpy.mock.calls.some(([eventName]) => eventName === "popstate")).toBe(false);
+    expect(
+      container?.querySelector('[data-testid="fullscreen-state"]')?.textContent
+    ).toBe("closed");
+    expect(
+      addEventListenerSpy.mock.calls.some(
+        ([eventName]) => eventName === "popstate"
+      )
+    ).toBe(false);
 
     addEventListenerSpy.mockRestore();
   });

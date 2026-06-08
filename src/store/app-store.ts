@@ -2,7 +2,10 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { storeKey } from "./store-keys";
 import { idbStorage } from "@/lib/storage-adapter";
-import { type UpdateInfo, checkUpdate as apiCheckUpdate } from "@/lib/api/update";
+import {
+  type UpdateInfo,
+  checkUpdate as apiCheckUpdate,
+} from "@/lib/api/update";
 import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { toast } from "react-hot-toast";
@@ -101,11 +104,20 @@ export const useAppStore = create<AppState & AppActions>()(
           } else if (!silent) {
             toast.success(`当前已是最新版本 (${currentVersion})`);
           }
-
         } catch (error) {
-          logger.error("app-store", "Update check failed", error, {
-            silent,
-          });
+          if (
+            silent &&
+            error instanceof DOMException &&
+            error.name === "AbortError"
+          ) {
+            logger.info("app-store", "Update check timed out (offline)", {
+              silent,
+            });
+          } else {
+            logger.error("app-store", "Update check failed", error, {
+              silent,
+            });
+          }
           if (!silent) {
             toast.error("检查更新失败，请稍后重试");
           }
