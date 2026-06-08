@@ -10,6 +10,7 @@ const adminFetch = (input: RequestInfo | URL, init: RequestInit = {}) =>
 export interface SyncKeyItem {
   key: string;
   lastSyncTime: number;
+  sizeBytes?: number;
 }
 
 /** 登录，成功后后端 Set-Cookie */
@@ -19,14 +20,12 @@ export const adminLogin = (password: string) =>
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
-    }),
+    })
   );
 
 /** 登出，后端清除 Cookie */
 export const adminLogout = () =>
-  unwrap<null>(
-    adminFetch(`${authUrl()}/logout`, { method: "POST" }),
-  );
+  unwrap<null>(adminFetch(`${authUrl()}/logout`, { method: "POST" }));
 
 /** 列出所有 Sync Key */
 export const adminListKeys = () =>
@@ -39,7 +38,7 @@ export const adminCreateKey = (prefix?: string) =>
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prefix: prefix || undefined }),
-    }),
+    })
   );
 
 /** 删除指定 Sync Key */
@@ -47,5 +46,5 @@ export const adminDeleteKey = (key: string) =>
   unwrap<null>(
     adminFetch(`${syncUrl()}/keys/${encodeURIComponent(key)}`, {
       method: "DELETE",
-    }),
+    })
   );
