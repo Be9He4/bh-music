@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from "react";
+import { filterTracks } from "@/lib/utils/filter-tracks";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MusicTrackList } from "@/components/MusicTrackList";
 import {
@@ -248,16 +249,10 @@ export function NeteaseDetail({
     }
   };
 
-  const filteredTracks = useMemo(() => {
-    if (!searchQuery.trim()) return tracks;
-    const lower = searchQuery.toLowerCase();
-    return tracks.filter(
-      (t) =>
-        t.name.toLowerCase().includes(lower) ||
-        t.artist?.some((a) => a?.toLowerCase().includes(lower)) ||
-        t.album?.toLowerCase().includes(lower)
-    );
-  }, [tracks, searchQuery]);
+  const filteredTracks = useMemo(
+    () => filterTracks(tracks, searchQuery),
+    [tracks, searchQuery]
+  );
 
   const handleLoadMore = async () => {
     if (!id || loadingMore || !hasMore || type !== "artist") return;

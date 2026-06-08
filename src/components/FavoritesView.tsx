@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Play, Search, Heart } from "lucide-react";
+import { filterTracks } from "@/lib/utils/filter-tracks";
 import { MusicTrackList } from "./MusicTrackList";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
@@ -36,16 +37,10 @@ export function FavoritesView({
     Set<string> | undefined
   >();
 
-  const filteredTracks = useMemo(() => {
-    if (!searchQuery.trim()) return tracks;
-    const lower = searchQuery.toLowerCase();
-    return tracks.filter(
-      (t) =>
-        t.name.toLowerCase().includes(lower) ||
-        t.artist?.some((a) => a?.toLowerCase().includes(lower)) ||
-        t.album?.toLowerCase().includes(lower)
-    );
-  }, [tracks, searchQuery]);
+  const filteredTracks = useMemo(
+    () => filterTracks(tracks, searchQuery),
+    [tracks, searchQuery]
+  );
 
   const handleDeduplicate = () => {
     const downloadStore = useDownloadStore.getState();

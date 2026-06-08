@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useMemo } from "react";
+import { filterTracks } from "@/lib/utils/filter-tracks";
 import { MusicTrackList } from "@/components/MusicTrackList";
 import {
   GenericDetailPage,
@@ -108,15 +109,10 @@ export function BilibiliCollectionDetail({
   const activeTracks = tracks.filter((t) => !t.is_deleted);
   const hasMore = isSeries && tracks.length < totalRef.current;
 
-  const filteredTracks = useMemo(() => {
-    if (!searchQuery.trim()) return activeTracks;
-    const lower = searchQuery.toLowerCase();
-    return activeTracks.filter(
-      (t) =>
-        t.name.toLowerCase().includes(lower) ||
-        t.artist?.some((a) => a?.toLowerCase().includes(lower))
-    );
-  }, [activeTracks, searchQuery]);
+  const filteredTracks = useMemo(
+    () => filterTracks(activeTracks, searchQuery),
+    [activeTracks, searchQuery]
+  );
 
   const genericDetail: GenericDetailData | undefined = detail
     ? {

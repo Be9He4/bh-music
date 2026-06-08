@@ -1,4 +1,5 @@
-﻿import { useRef } from "react";
+﻿import { useRef, useState, useMemo } from "react";
+import { filterTracks } from "@/lib/utils/filter-tracks";
 import { MusicTrackList } from "@/components/MusicTrackList";
 import {
   GenericDetailPage,
@@ -39,6 +40,7 @@ export function PodcastDetailPage({
   isPlaying,
 }: PodcastDetailPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { loading, error, detail, tracks, retry } =
     useDetailPage<PodcastDetailData>(async () => {
@@ -88,6 +90,11 @@ export function PodcastDetailPage({
     }
   };
 
+  const filteredTracks = useMemo(
+    () => filterTracks(tracks, searchQuery),
+    [tracks, searchQuery]
+  );
+
   const genericDetail: GenericDetailData | undefined = detail
     ? {
         title: detail.name,
@@ -108,6 +115,10 @@ export function PodcastDetailPage({
       onRetry={retry}
       detail={genericDetail}
       scrollRef={scrollRef}
+      tracks={tracks}
+      onPlayTrack={(track) => onPlay(track, tracks)}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
       action={
         <Button
           variant="ghost"
@@ -120,7 +131,7 @@ export function PodcastDetailPage({
       }
     >
       <MusicTrackList
-        tracks={tracks}
+        tracks={filteredTracks}
         scrollContainerRef={scrollRef}
         onPlay={(track) => onPlay(track, tracks)}
         currentTrackId={currentTrackId}
