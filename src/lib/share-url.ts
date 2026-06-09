@@ -10,7 +10,8 @@ export function getCanonicalShareUrl(track: MusicTrack): string | null {
 
   // B站视频：提取 BV 号并生成官方链接
   if (source === "bilibili") {
-    const bvid = id.startsWith("bilibili_") ? id.slice(9) : id;
+    const stripped = id.startsWith("bilibili_") ? id.slice(9) : id;
+    const bvid = stripped.split("_")[0];
     return `https://www.bilibili.com/video/${bvid}`;
   }
 

@@ -31,6 +31,20 @@ describe("getCanonicalShareUrl", () => {
     expect(url).toBe("https://www.bilibili.com/video/BV1xx411c7mD");
   });
 
+  it("strips trailing _cid from bilibili id", () => {
+    const url = getCanonicalShareUrl(
+      track({ id: "bilibili_BV1fx411N7bU_2164311", source: "bilibili" })
+    );
+    expect(url).toBe("https://www.bilibili.com/video/BV1fx411N7bU");
+  });
+
+  it("strips trailing _cid from bilibili id without prefix", () => {
+    const url = getCanonicalShareUrl(
+      track({ id: "BV1fx411N7bU_2164311", source: "bilibili" })
+    );
+    expect(url).toBe("https://www.bilibili.com/video/BV1fx411N7bU");
+  });
+
   it("returns null for non-bilibili sources (falls back to audio URL)", () => {
     expect(getCanonicalShareUrl(track({ source: "netease" }))).toBeNull();
     expect(getCanonicalShareUrl(track({ source: "_netease" }))).toBeNull();
