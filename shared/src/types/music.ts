@@ -39,6 +39,7 @@ export const searchOptions: Record<string, string> = {
   kuwo: "酷我音乐",
   migu: "Migu",
   bilibili: "B站",
+  qq: "QQ音乐",
   _netease: "Netease",
 };
 
@@ -49,6 +50,7 @@ export const sourceLabels: Record<string, string> = {
   kuwo: "酷我",
   migu: "Migu",
   bilibili: "B站",
+  qq: "QQ",
 };
 
 export const aggregatedSourceOptions: {
@@ -59,7 +61,7 @@ export const aggregatedSourceOptions: {
   {
     value: "joox",
     label: "Joox",
-    description: "QQ音乐海外版，专注东南亚及港台流行资源",
+    description: "QQ音乐海外版",
   },
   {
     value: "netease",
@@ -74,6 +76,11 @@ export const aggregatedSourceOptions: {
     description: "Bilibili官方, 用户上传资源丰富",
   },
   { value: "migu", label: "Migu", description: "咪咕音乐官方" },
+  {
+    value: "qq",
+    label: "QQ音乐",
+    description: "来自小秋音源，国内资源最齐全",
+  },
 ];
 
 export const sourceBadgeStyles: Record<string, string> = {

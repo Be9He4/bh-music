@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { MusicProviderFactory } from "./factory";
 import { MusicTrack } from "@/types/music";
 
+const qqTrack: MusicTrack = {
+  id: "qq_000abc",
+  name: "QQ测试歌曲",
+  artist: ["QQ测试歌手"],
+  album: "QQ测试专辑",
+  pic_id: "https://y.gtimg.cn/music/photo_new/T002R800x800M000abc.jpg",
+  url_id: "",
+  lyric_id: "",
+  source: "qq",
+};
+
 const kugouTrack: MusicTrack = {
   id: "kugou_ABC",
   name: "测试歌曲",
@@ -70,5 +81,14 @@ describe("MusicProviderFactory", () => {
       "/api/bilibili-cover?url=https%3A%2F%2Fexample.com%2Fbilibili-cover.jpg"
     );
     await expect(provider.getLyric(bilibiliTrack)).resolves.toBeNull();
+  });
+
+  it("creates a provider for QQ tracks", async () => {
+    const provider = MusicProviderFactory.getProvider("qq");
+    expect(provider.source).toBe("qq");
+    await expect(provider.getPic(qqTrack)).resolves.toBe(
+      `/api/qqmusic-cover?url=${encodeURIComponent("https://y.gtimg.cn/music/photo_new/T002R800x800M000abc.jpg")}`
+    );
+    await expect(provider.getLyric(qqTrack)).resolves.toBeNull();
   });
 });

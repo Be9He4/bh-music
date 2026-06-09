@@ -317,6 +317,7 @@ export default defineConfig({
     setupFiles: "./src/test/setup.ts",
   },
   server: {
+    // ! 应优先使用正则表达式避免因为前缀匹配和顺序而匹配错误
     proxy: {
       "/api/netease": {
         target: "https://music.163.com",
@@ -349,7 +350,38 @@ export default defineConfig({
           });
         },
       },
-      "/api/qqmusic": {
+      "^/api/qqmusic-search": {
+        target: "https://u.y.qq.com",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/qqmusic-search/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Referer", "https://y.qq.com/");
+            proxyReq.setHeader("Origin", "https://y.qq.com");
+            proxyReq.setHeader("Cookie", "uin=");
+            proxyReq.setHeader(
+              "User-Agent",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            );
+          });
+        },
+      },
+      "^/api/qqmusic-lyric": {
+        target: "https://c.y.qq.com",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/qqmusic-lyric/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Referer", "https://y.qq.com/");
+            proxyReq.setHeader("Cookie", "uin=");
+            proxyReq.setHeader(
+              "User-Agent",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            );
+          });
+        },
+      },
+      "^/api/qqmusic(/|$)": {
         target: "https://i.y.qq.com",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/api\/qqmusic/, ""),
@@ -365,6 +397,17 @@ export default defineConfig({
               "User-Agent",
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             );
+          });
+        },
+      },
+      "^/api/qqmusic-url": {
+        target: "https://lxmusicapi.onrender.com",
+        changeOrigin: true,
+        rewrite: (path: string) =>
+          path.replace(/^\/api\/qqmusic-url/, "/url/tx"),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("X-Request-Key", "share-v3");
           });
         },
       },
