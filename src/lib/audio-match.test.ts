@@ -164,4 +164,59 @@ describe("handleAutoMatch", () => {
       "kCN0Rxo1tdbc0+iNxoyBIg=="
     );
   });
+
+  it("does not retry sources already tried for the same track", async () => {
+    const trackId = "exhaust-track";
+    const sourceTrack = createTrack(trackId, "netease");
+    useMusicStore.setState({
+      queue: [sourceTrack],
+      originalQueue: [sourceTrack],
+    });
+
+    const kuwoMatch = createTrack("kuwo-1", "kuwo");
+    const kuwoSearch = vi
+      .fn()
+      .mockResolvedValue({ items: [kuwoMatch], hasMore: false });
+    vi.mocked(MusicProviderFactory.getProvider).mockImplementation((src) => {
+      if (src === "joox") {
+        return {
+          source: "joox",
+          search: vi.fn().mockResolvedValue({ items: [], hasMore: false }),
+          getUrl: vi.fn(),
+          getPic: vi.fn(),
+          getLyric: vi.fn(),
+        };
+      }
+      if (src === "kuwo") {
+        return {
+          source: "kuwo",
+          search: kuwoSearch,
+          getUrl: vi.fn(),
+          getPic: vi.fn(),
+          getLyric: vi.fn(),
+        };
+      }
+      throw new Error(`Unexpected provider: ${src}`);
+    });
+
+    const first = await handleAutoMatch(sourceTrack);
+    expect(first).toBe(true);
+    expect(kuwoSearch).toHaveBeenCalledTimes(1);
+
+    // 模拟 updateTrackInQueue 后当前 track.source 已变成 kuwo
+    useMusicStore.setState((s) => ({
+      queue: s.queue.map((t) =>
+        t.id === trackId ? { ...t, source: "kuwo" } : t
+      ),
+      originalQueue: s.originalQueue.map((t) =>
+        t.id === trackId ? { ...t, source: "kuwo" } : t
+      ),
+    }));
+
+    const second = await handleAutoMatch(useMusicStore.getState().queue[0]!);
+    expect(second).toBe(false);
+    // 候选池 (joox, netease, kuwo) 减去 tried (netease, kuwo) = [joox]，
+    // 但 joox 搜索返回空数组，所以不会再调 kuwo
+    expect(kuwoSearch).toHaveBeenCalledTimes(1);
+  });
 });

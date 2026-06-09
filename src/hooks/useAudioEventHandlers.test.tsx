@@ -26,12 +26,15 @@ vi.mock("react-hot-toast", () => ({
 
 vi.mock("@/lib/audio-match", () => ({
   handleAutoMatch: vi.fn(),
+  clearAutoMatchTried: vi.fn(),
 }));
 
 describe("useAudioEventHandlers pause confirm", () => {
   beforeEach(() => {
     // Silence React act warnings for root render/unmount in test env.
-    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     vi.useFakeTimers();
     vi.clearAllMocks();
 
@@ -58,7 +61,9 @@ describe("useAudioEventHandlers pause confirm", () => {
       get: () => paused,
     });
 
-    const audioRef = { current: audio } as React.RefObject<HTMLAudioElement | null>;
+    const audioRef = {
+      current: audio,
+    } as React.RefObject<HTMLAudioElement | null>;
     const isSwitchingTrackRef = { current: false };
     const hasRecordedRef = { current: true };
 

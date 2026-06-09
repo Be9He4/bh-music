@@ -6,7 +6,7 @@ import { useHistoryStore } from "@/store/history-store";
 import { useOfflineStore } from "@/store/offline-store";
 import { MediaSession } from "@jofr/capacitor-media-session";
 import toast from "react-hot-toast";
-import { handleAutoMatch } from "@/lib/audio-match";
+import { clearAutoMatchTried, handleAutoMatch } from "@/lib/audio-match";
 import { logger } from "@/lib/logger";
 
 // 曲目切换触发的短暂 pause 事件不应将状态置为暂停，
@@ -149,6 +149,7 @@ export function useAudioEventHandlers(
       hasRecordedRef.current = true;
 
       if (track) {
+        clearAutoMatchTried(track.id);
         useSourceQualityStore.getState().recordSuccess(track.source);
         useHistoryStore.getState().addToHistory(track);
 
