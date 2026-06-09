@@ -56,5 +56,6 @@ registerRoute(
         },
       },
     ],
+    // ! 严禁使用 ignoreSearch， 避免B站音源缓存失效
   })
 );
