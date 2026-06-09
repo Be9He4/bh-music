@@ -11,23 +11,18 @@ function Drawer({
   onOpenChange,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  const register = useExitLayerStore((s) => s.register)
-  const unregister = useExitLayerStore((s) => s.unregister)
+  const push = useExitLayerStore((s) => s.push)
+  const pop = useExitLayerStore((s) => s.pop)
 
   React.useEffect(() => {
-    let id: string | undefined
-    if (open) {
-      id = register({
-        close: () => onOpenChange?.(false),
-        priority: 50,
-      })
-    }
+    if (!open) return
+    const id = push({
+      close: () => onOpenChange?.(false),
+    })
     return () => {
-      if (id) {
-        unregister(id)
-      }
+      pop(id)
     }
-  }, [open, onOpenChange, register, unregister])
+  }, [open, onOpenChange, push, pop])
 
   return <DrawerPrimitive.Root data-slot="drawer" open={open} onOpenChange={onOpenChange} {...props} />
 }

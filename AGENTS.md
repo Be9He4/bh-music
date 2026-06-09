@@ -49,3 +49,20 @@ Otter Music 是一款 Capacitor 混合架构音乐播放器——同一套 React
 - 重要业务逻辑应使用 `src/lib/logger.ts` 记录日志 info、error、warn 等
 - 使用 Tailwind CSS 4 + shadcn/ui (New York)，UI 原语位于 `src/components/ui/`
 - 移动端优先，极简主义。当前 apk 大小仅 2 MB，包体积和性能需要优先考虑。
+
+## 统一退出栈（useExitLayer）
+
+Android 原生返回键与 Web 端 Esc 由 `RootLayout` 统一拦截，转发到 `useExitLayerStore`。所有"占用屏幕的浮层"（Drawer、全屏播放器、封面预览等）都应通过 `src/hooks/useExitLayer` 接入同一个 LIFO 栈，**最后打开的层最先响应 back/Esc**。
+
+- API：`useExitLayer()` 返回 `{ push, pop, handleExit, isEmpty }`。`push({ close })` 在层打开时入栈，`pop(id)` 在层关闭时出栈；`handleExit` 关闭栈顶。
+- 接入模式（与现有 `ui/drawer.tsx`、`RootLayout.tsx`、`MusicCover.tsx` 一致）：
+  ```ts
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = push({ close: () => setOpen(false) });
+    return () => pop(id);
+  }, [isOpen, push, pop]);
+  ```
+- **不要**用 `priority` 数字或硬编码串联关闭顺序——栈序就是用户的"打开时间"直觉，新接入的层应直接走 `push/pop`。
+- **不要**把"导航跳转"（如点击按钮跳路由）当成退出行为。back/Esc 走栈；主动跳路由是业务动作，不归栈管。
+- 修改退出栈或新增接入点时，补充或更新 `src/hooks/useExitLayer.test.ts` 及对应组件单测。

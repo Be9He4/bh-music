@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { RootLayout } from "./RootLayout";
 import { useMusicStore } from "@/store/music-store";
+import { useExitLayerStore } from "@/hooks/useExitLayer";
 import type { MusicTrack } from "@/types/music";
 
 vi.mock("@/lib/storage-adapter", () => ({
@@ -137,6 +138,8 @@ describe("RootLayout", () => {
       isFullScreenPlayer: false,
       favorites: [],
     });
+
+    useExitLayerStore.setState({ stack: [] });
   });
 
   afterEach(() => {
@@ -236,5 +239,40 @@ describe("RootLayout", () => {
     });
 
     expect(router.state.location.pathname).toBe("/search");
+  });
+
+  it("handles nested fullscreen + drawer in LIFO order on back", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    window.history.replaceState({ idx: 0 }, "");
+
+    // 模拟一个 Drawer 先入栈
+    const drawerClose = vi.fn();
+    useExitLayerStore.getState().push({ close: drawerClose });
+
+    renderLayout(["/"]);
+
+    // 全屏页入栈（晚于 Drawer）
+    await act(async () => {
+      useMusicStore.setState({ isFullScreenPlayer: true });
+    });
+
+    expect(useExitLayerStore.getState().stack).toHaveLength(2);
+
+    // 第一次 back：先关全屏
+    await act(async () => {
+      await backButtonHandler?.();
+    });
+
+    expect(useMusicStore.getState().isFullScreenPlayer).toBe(false);
+    expect(drawerClose).not.toHaveBeenCalled();
+    expect(useExitLayerStore.getState().stack).toHaveLength(1);
+
+    // 第二次 back：再关 Drawer
+    await act(async () => {
+      await backButtonHandler?.();
+    });
+
+    expect(drawerClose).toHaveBeenCalledTimes(1);
+    expect(useExitLayerStore.getState().stack).toHaveLength(0);
   });
 });

@@ -24,7 +24,7 @@ export function RootLayout() {
   const navigate = useNavigate();
   const { isFullScreenPlayer, setIsFullScreenPlayer: setStoreFullScreen } =
     useMusicStore();
-  const { handleExit: handleExitLayer, register, unregister } = useExitLayer();
+  const { handleExit: handleExitLayer, push, pop } = useExitLayer();
 
   // Back Button Logic
   const locationRef = useRef(location);
@@ -34,21 +34,14 @@ export function RootLayout() {
   }, [location]);
 
   useEffect(() => {
-    let id: string | undefined;
-
-    if (isFullScreenPlayer) {
-      id = register({
-        close: () => setStoreFullScreen(false),
-        priority: 100,
-      });
-    }
-
+    if (!isFullScreenPlayer) return;
+    const id = push({
+      close: () => setStoreFullScreen(false),
+    });
     return () => {
-      if (id) {
-        unregister(id);
-      }
+      pop(id);
     };
-  }, [isFullScreenPlayer, setStoreFullScreen, register, unregister]);
+  }, [isFullScreenPlayer, setStoreFullScreen, push, pop]);
 
   const isRootTabPath = useCallback((path: string) => {
     return ROOT_TAB_PATHS.includes(path as (typeof ROOT_TAB_PATHS)[number]);

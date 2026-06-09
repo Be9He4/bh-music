@@ -1,74 +1,62 @@
 "use client";
 
-import { useEffect } from "react";
 import { create } from "zustand";
 
 interface ExitLayer {
   id: string;
   close: () => void;
-  priority: number;
 }
 
 interface ExitLayerStore {
-  layers: ExitLayer[];
-  register: (layer: Omit<ExitLayer, "id">) => string;
-  unregister: (id: string) => void;
+  stack: ExitLayer[];
+  push: (layer: Omit<ExitLayer, "id">) => string;
+  pop: (id: string) => void;
   handleExit: () => boolean;
 }
 
-export const useExitLayerStore = create<ExitLayerStore>((set, get) => ({
-  layers: [],
+const generateId = () =>
+  `exit-layer-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
-  register: (layer) => {
-    const id = `exit-layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export const useExitLayerStore = create<ExitLayerStore>((set, get) => ({
+  stack: [],
+
+  push: (layer) => {
+    const id = generateId();
     set((state) => ({
-      layers: [...state.layers, { ...layer, id }].sort((a, b) => b.priority - a.priority),
+      stack: [...state.stack, { ...layer, id }],
     }));
     return id;
   },
 
-  unregister: (id) => {
+  pop: (id) => {
     set((state) => ({
-      layers: state.layers.filter((layer) => layer.id !== id),
+      stack: state.stack.filter((layer) => layer.id !== id),
     }));
   },
 
   handleExit: () => {
-    const { layers } = get();
-    if (layers.length === 0) return false;
+    const { stack } = get();
+    if (stack.length === 0) return false;
 
-    const topLayer = layers[0];
+    const topLayer = stack[stack.length - 1];
     topLayer.close();
+    set((state) => ({
+      stack: state.stack.filter((layer) => layer.id !== topLayer.id),
+    }));
     return true;
   },
 }));
 
 export function useExitLayer() {
-  const register = useExitLayerStore((state) => state.register);
-  const unregister = useExitLayerStore((state) => state.unregister);
+  const push = useExitLayerStore((state) => state.push);
+  const pop = useExitLayerStore((state) => state.pop);
   const handleExit = useExitLayerStore((state) => state.handleExit);
-  const layers = useExitLayerStore((state) => state.layers);
+  const stack = useExitLayerStore((state) => state.stack);
 
   return {
-    register,
-    unregister,
+    push,
+    pop,
     handleExit,
-    hasLayers: layers.length > 0,
+    isEmpty: stack.length === 0,
   };
-}
-
-export function useRegisterExitLayer(close: () => void, isOpen: boolean, priority = 10) {
-  const { register, unregister } = useExitLayer();
-
-  useEffect(() => {
-    let id: string | undefined;
-    if (isOpen) {
-      id = register({ close, priority });
-    }
-    return () => {
-      if (id) {
-        unregister(id);
-      }
-    };
-  }, [isOpen, close, register, unregister]);
 }

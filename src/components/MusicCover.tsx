@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Music2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { ensurePermission, triggerBlobDownload } from "@/lib/utils/download";
+import { useExitLayer } from "@/hooks/useExitLayer";
 import toast from "react-hot-toast";
 
 interface MusicCoverProps {
@@ -31,7 +32,16 @@ export function MusicCover({
   const [error, setError] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { push, pop } = useExitLayer();
   const coverUrl = forceHttps(src);
+
+  useEffect(() => {
+    if (!isPreviewOpen) return;
+    const id = push({ close: () => setIsPreviewOpen(false) });
+    return () => {
+      pop(id);
+    };
+  }, [isPreviewOpen, push, pop]);
 
   const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,6 +107,7 @@ export function MusicCover({
         isPreviewOpen &&
         createPortal(
           <div
+            data-testid="cover-preview-portal"
             className="fixed inset-0 z-500 flex flex-col items-center justify-center bg-black select-none animate-in fade-in duration-200"
             onClick={() => setIsPreviewOpen(false)}
           >
