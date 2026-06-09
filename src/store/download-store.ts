@@ -1,95 +1,121 @@
-import { create } from 'zustand'
+import { create } from "zustand";
 import {
   saveDownloadRecordsToDisk,
   loadDownloadRecordsFromDisk,
-} from '@/lib/utils/download'
+} from "@/lib/utils/download";
+import type { MusicSource } from "@/types/music";
+
+export interface DownloadRecord {
+  uri: string;
+  cachedAt: number;
+  name: string;
+  artist: string[];
+  album: string;
+  trackSource: MusicSource;
+  url_id: string;
+  pic_id: string;
+  lyric_id: string;
+}
 
 interface DownloadStoreState {
-  /**
-   * key -> uri
-   */
-  records: Record<string, string>
+  records: Record<string, DownloadRecord | string>;
 
-  /** 初始化：从磁盘恢复 */
-  init: () => Promise<void>
+  init: () => Promise<void>;
 
-  hasRecord: (key: string) => boolean
-  getUri: (key: string) => string | undefined
-  addRecord: (key: string, uri: string) => Promise<void>
-  removeRecord: (key: string) => Promise<void>
-  clear: () => Promise<void>
+  hasRecord: (key: string) => boolean;
+  getUri: (key: string) => string | undefined;
+  getRecord: (key: string) => DownloadRecord | undefined;
+  addRecord: (key: string, record: DownloadRecord) => Promise<void>;
+  removeRecord: (key: string) => Promise<void>;
+  clear: () => Promise<void>;
 }
 
 export const useDownloadStore = create<DownloadStoreState>((set, get) => ({
   records: {},
 
-  /**
-   * App 启动时调用
-   * 只从磁盘恢复一次
-   */
   init: async () => {
     try {
-      const diskRecords = await loadDownloadRecordsFromDisk()
-      // console.log('从磁盘加载下载记录:', diskRecords)
+      const diskRecords = await loadDownloadRecordsFromDisk();
+      if (!diskRecords || typeof diskRecords !== "object") return;
 
-      if (diskRecords && typeof diskRecords === 'object') {
-        set({ records: diskRecords })
+      let migrated = false;
+      for (const key of Object.keys(diskRecords)) {
+        const val = diskRecords[key];
+        if (typeof val === "string") {
+          diskRecords[key] = {
+            uri: val,
+            cachedAt: 0,
+            name: "",
+            artist: [],
+            album: "",
+            trackSource: "unknown" as MusicSource,
+            url_id: "",
+            pic_id: "",
+            lyric_id: "",
+          };
+          migrated = true;
+        }
+      }
+
+      set({ records: diskRecords as Record<string, DownloadRecord | string> });
+
+      if (migrated) {
+        saveDownloadRecordsToDisk(diskRecords).catch(() => {});
       }
     } catch (error) {
-      console.error('恢复下载记录失败:', error)
+      console.error("恢复下载记录失败:", error);
     }
   },
 
   hasRecord: (key) => !!get().records[key],
 
-  getUri: (key) => get().records[key],
+  getUri: (key) => {
+    const r = get().records[key];
+    if (!r) return undefined;
+    if (typeof r === "string") return r;
+    return r.uri;
+  },
 
-  /**
-   * 添加记录
-   * 1. 更新内存
-   * 2. 同步写入磁盘
-   */
-  addRecord: async (key, uri) => {
-    // 使用函数式更新，避免并发写入时的读-改-写竞态
-    let latestRecords: Record<string, string> = {};
-    set(s => {
-      latestRecords = { ...s.records, [key]: uri };
+  getRecord: (key) => {
+    const r = get().records[key];
+    if (!r || typeof r === "string") return undefined;
+    return r;
+  },
+
+  addRecord: async (key, record) => {
+    let latestRecords: Record<string, DownloadRecord | string> = {};
+    set((s) => {
+      latestRecords = { ...s.records, [key]: record };
       return { records: latestRecords };
     });
 
     try {
-      await saveDownloadRecordsToDisk(latestRecords)
+      await saveDownloadRecordsToDisk(latestRecords);
     } catch (error) {
-      console.error('保存下载记录失败:', error)
+      console.error("保存下载记录失败:", error);
     }
   },
 
-  /**
-   * 删除记录
-   */
   removeRecord: async (key) => {
-    const records = { ...get().records }
-    delete records[key]
+    const records = { ...get().records };
+    delete records[key];
 
-    set({ records })
+    set({ records });
 
     try {
-      await saveDownloadRecordsToDisk(records)
+      await saveDownloadRecordsToDisk(records);
     } catch (error) {
-      console.error('删除下载记录失败:', error)
+      console.error("删除下载记录失败:", error);
     }
   },
 
-  /**
-   * 清空记录
-   */
   clear: async () => {
-    set({ records: {} })
+    set({ records: {} });
 
     try {
-      await saveDownloadRecordsToDisk({})
+      await saveDownloadRecordsToDisk({});
     } catch (error) {
-      console.error('清空下载记录失败:', error)
+      console.error("清空下载记录失败:", error);
     }
   },
-}))
+}));

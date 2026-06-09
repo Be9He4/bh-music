@@ -6,7 +6,7 @@ import { MusicSource } from "@/types/music";
 
 export interface OfflineTrackRecord {
   trackId: string;
-  source: "stream-cache" | "download";
+  source: "stream-cache";
   url: string;
   cachedAt: number;
   name: string;

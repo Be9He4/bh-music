@@ -64,11 +64,7 @@ export function StreamCacheSetting() {
                 window.confirm("确定要清空所有音频缓存吗？此操作不可恢复。")
               ) {
                 await clearAudioCache();
-                // 只清理流媒体缓存记录，保留下载记录
-                const { records, removeRecord } = useOfflineStore.getState();
-                Object.values(records)
-                  .filter((r) => r.source === "stream-cache")
-                  .forEach((r) => removeRecord(r.trackId));
+                useOfflineStore.getState().clear();
                 setStats({ entryCount: 0, approxSize: 0 });
                 toastUtils.info("音频缓存已清空");
               }

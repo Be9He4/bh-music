@@ -16,7 +16,7 @@ import { base64ToBlob } from "@/lib/utils/base64";
 import { LocalMusicFile } from "@/plugins/local-music";
 import { useDownloadStore } from "@/store/download-store";
 import { useMusicStore } from "@/store/music-store";
-import { useOfflineStore } from "@/store/offline-store";
+
 import { toastUtils } from "./toast";
 import { getProxyUrl, isProxyUrl } from "@/lib/api/config";
 import { logger } from "@/lib/logger";
@@ -276,12 +276,8 @@ async function downloadNative(
     }
 
     const key = buildDownloadKey(track.source, track.id);
-    await useDownloadStore.getState().addRecord(key, fileUri.uri);
-
-    useOfflineStore.getState().addRecord({
-      trackId: track.id,
-      source: "download",
-      url: fileUri.uri,
+    await useDownloadStore.getState().addRecord(key, {
+      uri: fileUri.uri,
       cachedAt: Date.now(),
       name: track.name,
       artist: track.artist,
@@ -496,7 +492,7 @@ export function triggerBlobDownload(
 
 /* ================= 下载记录持久化 ================= */
 export async function saveDownloadRecordsToDisk(
-  records: Record<string, string>
+  records: Record<string, unknown>
 ) {
   if (!Capacitor.isNativePlatform()) return;
 
@@ -517,7 +513,7 @@ export async function saveDownloadRecordsToDisk(
 
 export async function loadDownloadRecordsFromDisk(): Promise<Record<
   string,
-  string
+  unknown
 > | null> {
   if (!Capacitor.isNativePlatform()) return null;
 
