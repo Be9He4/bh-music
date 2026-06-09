@@ -53,7 +53,7 @@ import java.util.concurrent.Executors;
 public class LocalMusicPlugin extends Plugin {
 
     private static final String PERMISSION_ALIAS = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ? "audio" : "storage";
-    private static final String[] AUDIO_EXTENSIONS = {".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".wma", ".ape", ".opus", ".m4b"};
+    private static final String[] AUDIO_EXTENSIONS = {".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".wma", ".ape", ".opus", ".m4b", ".m4s"};
     private static final int MAX_DEPTH = 20;
     private static final int MAX_FILES = 10000;
 
