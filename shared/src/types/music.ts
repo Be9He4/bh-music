@@ -95,8 +95,26 @@ export const sourceBadgeStyles: Record<string, string> = {
   migu: "text-pink-500 border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10",
   bilibili:
     "text-pink-500/70 border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10",
+  lx_netease:
+    "text-red-500/70 border-red-500/20 bg-red-500/10 hover:bg-red-500/15",
+  lx_qq:
+    "text-yellow-500/70 border-yellow-500/20 bg-yellow-500/10 hover:bg-yellow-500/15",
+  lx_migu:
+    "text-pink-500 border-pink-500/30 bg-pink-500/10 hover:bg-pink-500/15",
+  lx_kuwo:
+    "text-amber-500/70 border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/15",
+  lx_kugou:
+    "text-sky-500/70 border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/15",
   default:
     "text-muted-foreground/70 border-border bg-muted/30 hover:bg-muted/50",
+};
+
+export type SourceCategory = "gd" | "official" | "lx";
+
+export const SOURCE_CATEGORY_LABELS: Record<SourceCategory, string> = {
+  official: "官方音源",
+  gd: "GD音源",
+  lx: "洛雪音源",
 };
 
 export type MusicSource =
@@ -109,6 +127,11 @@ export type MusicSource =
   | "bilibili"
   | "migu"
   | "qq"
+  | "lx_netease"
+  | "lx_qq"
+  | "lx_migu"
+  | "lx_kuwo"
+  | "lx_kugou"
   | "fivesing"
   | "tk"
   | "wy"

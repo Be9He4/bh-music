@@ -12,7 +12,7 @@ import {
 } from "@/lib/qqmusic/qqmusic-api";
 
 export class QqApiProvider implements IMusicProvider {
-  source = "qq" as const;
+  source = "qq";
 
   async search(
     query: string,

@@ -7,6 +7,7 @@ import { kugouRoutes } from "./music/kugou";
 import { kuwoRoutes } from "./music/kuwo";
 import { miguRoutes } from "./music/migu";
 import { bilibiliRoutes } from "./music/bilibili";
+import { lxRoutes } from "./music/lx";
 import { getFromCache, putToCache } from "@utils/cache";
 
 export const musicRoutes = new Hono<{ Bindings: Env }>();
@@ -68,3 +69,4 @@ musicRoutes.route("/kugou", kugouRoutes);
 musicRoutes.route("/kuwo", kuwoRoutes);
 musicRoutes.route("/migu", miguRoutes);
 musicRoutes.route("/bilibili", bilibiliRoutes);
+musicRoutes.route("/lx", lxRoutes);

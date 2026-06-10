@@ -293,6 +293,143 @@ async function getKugouGlobalPlaylistDetail(
 }
 
 // ============================================================
+// 搜索
+// ============================================================
+
+export interface KugouSearchResult {
+  items: {
+    id: string;
+    name: string;
+    artist: string[];
+    album: string;
+    pic_id: string;
+    url_id: string;
+    lyric_id: string;
+    source: string;
+    album_id: string | undefined;
+  }[];
+  total: number;
+}
+
+export async function searchKugouMusic(
+  query: string,
+  page: number,
+  limit: number
+): Promise<KugouSearchResult> {
+  if (IS_WEB_PROD) {
+    const res = await fetchWithTimeout(
+      `${getApiUrl()}${KUGOU_PROXY_PREFIX}/search`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, page, limit }),
+      }
+    );
+    if (!res.ok) return { items: [], total: 0 };
+    return res.json();
+  }
+
+  if (IS_NATIVE) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const targetPage = Math.max(1, page + 1);
+    const url = `https://songsearch.kugou.com/song_search_v2?keyword=${encodeURIComponent(query)}&page=${targetPage}&pagesize=${limit}`;
+    const res = await CapacitorHttp.request({ method: "GET", url });
+    if (res.status >= 400) return { items: [], total: 0 };
+    const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+    const lists = data?.data?.lists || [];
+    return {
+      items: lists.map(convertSearchItem),
+      total: data?.data?.total || 0,
+    };
+  }
+
+  // dev
+  const targetPage = Math.max(1, page + 1);
+  const res = await fetchWithTimeout(
+    `/api/kugou-search/song_search_v2?keyword=${encodeURIComponent(query)}&page=${targetPage}&pagesize=${limit}`
+  );
+  if (!res.ok) return { items: [], total: 0 };
+  const data = await res.json();
+  const lists = data?.data?.lists || [];
+  return {
+    items: lists.map(convertSearchItem),
+    total: data?.data?.total || 0,
+  };
+}
+
+// ============================================================
+// 歌词
+// ============================================================
+
+export async function getKugouLyric(hash: string): Promise<string | null> {
+  if (IS_WEB_PROD) {
+    const res = await fetchWithTimeout(
+      `${getApiUrl()}${KUGOU_PROXY_PREFIX}/lyric`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hash }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.lyric || null;
+  }
+
+  const timestamp = Date.now();
+  const url = `https://wwwapi.kugou.com/yy/index.php?r=play/getdata&callback=jQuery&mid=1&hash=${hash}&platid=4&_=${timestamp}`;
+
+  if (IS_NATIVE) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const res = await CapacitorHttp.request({ method: "GET", url });
+    if (res.status >= 400) return null;
+    const text =
+      typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    return parseCallbackLyric(text);
+  }
+
+  // dev
+  const res = await fetchWithTimeout(
+    `/api/kugou-lyric/yy/index.php?r=play/getdata&callback=jQuery&mid=1&hash=${hash}&platid=4&_=${timestamp}`
+  );
+  if (!res.ok) return null;
+  const text = await res.text();
+  return parseCallbackLyric(text);
+}
+
+function convertSearchItem(item: Record<string, unknown>) {
+  const rawId = String(item.FileHash || "");
+  return {
+    id: `kugou_${rawId}`,
+    name: String(item.SongName || "未知歌曲"),
+    artist: splitArtists(String(item.SingerName || "未知歌手")),
+    album: String(item.AlbumName || ""),
+    pic_id: "",
+    url_id: rawId,
+    lyric_id: rawId,
+    source: "kugou",
+    album_id: item.AlbumID ? String(item.AlbumID) : undefined,
+  };
+}
+
+function splitArtists(raw: string): string[] {
+  return raw
+    .split(/[、,/&]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseCallbackLyric(text: string): string | null {
+  const jsonStr = text.replace(/^jQuery\d*_?\d*\(/, "").replace(/\);?\s*$/, "");
+  try {
+    const data = JSON.parse(jsonStr) as { data?: { lyrics?: string } };
+    return data.data?.lyrics || null;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================
 // 工具
 // ============================================================
 
