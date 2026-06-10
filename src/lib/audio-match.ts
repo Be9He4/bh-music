@@ -96,7 +96,8 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
       5,
       undefined,
       (item, originalIndex) =>
-        scoreAutoMatchCandidate(track, item, originalIndex)
+        scoreAutoMatchCandidate(track, item, originalIndex),
+      track
     );
 
     if (!match) {

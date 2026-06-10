@@ -25,23 +25,22 @@ export function HistoryPage({
   onClear,
   onBack,
 }: HistoryPageProps) {
-  const clearAction = history.length > 0 && (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-      onClick={() => {
-        if (confirm("确定清空播放历史吗？")) {
-          onClear();
-        }
-      }}
-    >
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  );
-
   return (
-    <PageLayout title="播放历史" onBack={onBack} action={clearAction}>
+    <PageLayout
+      title="播放历史"
+      onBack={onBack}
+      action={
+        history.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => confirm("确定清空播放历史吗？") && onClear()}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )
+      }
+    >
       <MusicPlaylistView
         title="播放历史"
         tracks={history}

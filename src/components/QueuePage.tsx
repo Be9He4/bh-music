@@ -25,32 +25,31 @@ export function QueuePage({
   onClear,
   onBack,
 }: QueuePageProps) {
-  const clearAction = queue.length > 0 && (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-      onClick={() => {
-        if (confirm("确定清空播放列表吗？")) {
-          onClear();
-        }
-      }}
-    >
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  );
-
   return (
-    <PageLayout title="播放列表" onBack={onBack} action={clearAction}>
-      <MusicPlaylistView
+    <PageLayout
       title="播放列表"
-      tracks={queue}
-      icon={<ListVideo className="h-8 w-8 text-primary/80" />}
-      onPlay={onPlay}
-      onRemove={onRemove}
-      currentTrackId={currentTrackId}
-      isPlaying={isPlaying}
-    />
+      onBack={onBack}
+      action={
+        queue.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => confirm("确定清空播放列表吗？") && onClear()}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )
+      }
+    >
+      <MusicPlaylistView
+        title="播放列表"
+        tracks={queue}
+        icon={<ListVideo className="h-8 w-8 text-primary/80" />}
+        onPlay={onPlay}
+        onRemove={onRemove}
+        currentTrackId={currentTrackId}
+        isPlaying={isPlaying}
+      />
     </PageLayout>
   );
 }

@@ -14,6 +14,7 @@ import {
   searchBilibiliVideos,
 } from "@/lib/bilibili/bilibili-api";
 import { IMusicProvider } from "../interface";
+import { normalizeText } from "@/lib/utils/music-key";
 
 const audioFormatCache = new Map<string, AudioFormat>();
 
@@ -82,5 +83,22 @@ export class BilibiliApiProvider implements IMusicProvider {
 
   async getSongDetail(id: string): Promise<unknown> {
     return getBilibiliVideoDetail(id);
+  }
+
+  getAutoMatchPredicate(target: MusicTrack) {
+    const targetName = normalizeText(target.name);
+    const targetArtist = normalizeText(target.artist[0] || "");
+    return (candidate: MusicTrack) => {
+      const blob = [
+        candidate.name,
+        candidate.artist[0] || "",
+        candidate.album || "",
+      ]
+        .map(normalizeText)
+        .join(" ");
+      if (!blob.includes(targetName)) return false;
+      if (targetArtist && !blob.includes(targetArtist)) return false;
+      return true;
+    };
   }
 }

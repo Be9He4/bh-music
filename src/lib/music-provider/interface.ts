@@ -56,4 +56,9 @@ export interface IMusicProvider {
     page: number,
     count: number
   ): Promise<SearchPageResult<MusicTrack>>;
+
+  /** 自定义自动换源匹配谓词（可选） */
+  getAutoMatchPredicate?(
+    target: MusicTrack
+  ): (candidate: MusicTrack) => boolean;
 }
