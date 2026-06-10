@@ -5,7 +5,7 @@ import {
   getAggregatedSourcesForMatch,
 } from "@/hooks/use-aggregated-sources";
 import { musicApi } from "@/lib/music-api";
-import { sourceLabels, type MusicSource, type MusicTrack } from "@/types/music";
+import { sourceLabels, type MusicTrack } from "@/types/music";
 import {
   isNameMatch,
   isArtistMatch,
@@ -14,15 +14,6 @@ import {
   convertT2SOnly,
 } from "./utils/music-key";
 import { logger } from "@/lib/logger";
-
-// 防止换源在多源间反复横跳：同一曲目记录已尝试过的源，
-// 下次换源时直接从候选池中剔除。曲目成功播放时由
-// clearAutoMatchTried 清理。
-const triedSourcesByTrackId = new Map<string, Set<MusicSource>>();
-
-export function clearAutoMatchTried(trackId: string): void {
-  triedSourcesByTrackId.delete(trackId);
-}
 
 /**
  * 计算自动换源的单源内排序分数，优先保证歌名与歌手完全一致。
@@ -73,14 +64,10 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
       setFavorites,
       updateTrackInPlaylists,
     } = useMusicStore.getState();
-    const tried = triedSourcesByTrackId.get(track.id) ?? new Set<MusicSource>();
-    triedSourcesByTrackId.set(track.id, tried);
-    tried.add(track.source);
     const aggregatedSources = getAggregatedSourcesForMatch().filter(
-      (source) => !tried.has(source)
+      (source) => source !== track.source
     );
     if (aggregatedSources.length === 0) {
-      toast.dismiss(toastId);
       return false;
     }
     const match = await musicApi.searchBestMatch(
@@ -105,7 +92,6 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
       return false;
     }
 
-    tried.add(match.source);
     updateTrackInQueue(track.id, match);
     updateTrackInPlaylists(track.id, match);
     if (isFavorite(track.id)) {

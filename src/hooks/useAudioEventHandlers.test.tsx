@@ -26,7 +26,6 @@ vi.mock("react-hot-toast", () => ({
 
 vi.mock("@/lib/audio-match", () => ({
   handleAutoMatch: vi.fn(),
-  clearAutoMatchTried: vi.fn(),
 }));
 
 describe("useAudioEventHandlers pause confirm", () => {
