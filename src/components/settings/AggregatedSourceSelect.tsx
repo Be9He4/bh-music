@@ -53,7 +53,7 @@ function SortableSourceItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 py-2"
+      className="flex items-center gap-4 py-2"
     >
       <button
         className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
@@ -62,8 +62,6 @@ function SortableSourceItem({
       >
         <GripVertical className="h-4 w-4" />
       </button>
-
-      <Checkbox checked={config.enabled} onCheckedChange={onToggleEnabled} />
 
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-sm text-foreground">{opt.label}</span>
@@ -84,6 +82,8 @@ function SortableSourceItem({
           <EyeOff className="h-4 w-4" />
         )}
       </button>
+
+      <Checkbox checked={config.enabled} onCheckedChange={onToggleEnabled} />
     </div>
   );
 }

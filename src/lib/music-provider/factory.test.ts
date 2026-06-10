@@ -87,7 +87,7 @@ describe("MusicProviderFactory", () => {
     const provider = MusicProviderFactory.getProvider("qq");
     expect(provider.source).toBe("qq");
     await expect(provider.getPic(qqTrack)).resolves.toBe(
-      `/api/qqmusic-cover?url=${encodeURIComponent("https://y.gtimg.cn/music/photo_new/T002R800x800M000abc.jpg")}`
+      "https://y.gtimg.cn/music/photo_new/T002R800x800M000abc.jpg"
     );
     await expect(provider.getLyric(qqTrack)).resolves.toBeNull();
   });

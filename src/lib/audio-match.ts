@@ -28,7 +28,18 @@ function scoreAutoMatchCandidate(
     normalizeArtists(target.artist).join("/") ===
     normalizeArtists(candidate.artist).join("/");
 
-  if (sameArtistSet) score += 100;
+  if (sameArtistSet) {
+    score += 100;
+  } else {
+    const tSet = new Set(normalizeArtists(target.artist));
+    const cSet = new Set(normalizeArtists(candidate.artist));
+    for (const a of tSet) {
+      if (cSet.has(a)) {
+        score += 40;
+        break;
+      }
+    }
+  }
 
   if (normalizeText(target.name) === normalizeText(candidate.name))
     score += 100;
