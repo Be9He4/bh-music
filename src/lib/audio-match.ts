@@ -70,22 +70,17 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
     if (aggregatedSources.length === 0) {
       return false;
     }
-    const match = await musicApi.searchBestMatch(
-      `${track.name} ${track.artist[0]}`,
-      aggregatedSources,
-      (item: MusicTrack) => {
-        // 1. 标准化名称匹配
+    const match = await musicApi.searchBestMatch({
+      query: `${track.name} ${track.artist[0]}`,
+      sources: aggregatedSources,
+      predicate: (item: MusicTrack) => {
         if (!isNameMatch(track.name, item.name)) return false;
-
-        // 2. 歌手匹配 (集合交集)
         return isArtistMatch(track.artist, item.artist);
       },
-      5,
-      undefined,
-      (item, originalIndex) =>
+      ranker: (item, originalIndex) =>
         scoreAutoMatchCandidate(track, item, originalIndex),
-      track
-    );
+      targetTrack: track,
+    });
 
     if (!match) {
       toast.error("未找到可用音源", { id: toastId });

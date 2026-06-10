@@ -50,12 +50,11 @@ describe("musicApi.searchBestMatch", () => {
       getLyric: vi.fn(),
     });
 
-    const match = await musicApi.searchBestMatch(
-      "Song Artist",
-      ["joox"],
-      () => true,
-      5
-    );
+    const match = await musicApi.searchBestMatch({
+      query: "Song Artist",
+      sources: ["joox"],
+      predicate: () => true,
+    });
 
     expect(match).toBe(first);
   });
@@ -74,14 +73,12 @@ describe("musicApi.searchBestMatch", () => {
       getLyric: vi.fn(),
     });
 
-    const match = await musicApi.searchBestMatch(
-      "Song Artist",
-      ["joox"],
-      () => true,
-      5,
-      undefined,
-      (track) => (track.id === "stronger" ? 10 : 1)
-    );
+    const match = await musicApi.searchBestMatch({
+      query: "Song Artist",
+      sources: ["joox"],
+      predicate: () => true,
+      ranker: (track) => (track.id === "stronger" ? 10 : 1),
+    });
 
     expect(match).toBe(stronger);
   });

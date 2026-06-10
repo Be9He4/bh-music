@@ -18,7 +18,8 @@ export function useAudioEventHandlers(
   isSwitchingTrackRef: React.MutableRefObject<boolean>,
   hasRecordedRef: React.MutableRefObject<boolean>
 ) {
-  const autoMatchedTrackIdRef = useRef<string | null>(null);
+  const autoMatchRef = useRef({ index: -1, count: 0 });
+  const MAX_AUTO_MATCH_PER_TRACK = 3;
   const recoveryAttemptedRef = useRef(false);
   const pauseConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -85,11 +86,16 @@ export function useAudioEventHandlers(
         track?.source === "_netease" &&
         duration >= 30 &&
         duration <= 45 &&
-        state.enableAutoMatch &&
-        autoMatchedTrackIdRef.current !== track.id
+        state.enableAutoMatch
       ) {
-        autoMatchedTrackIdRef.current = track.id;
-        void handleAutoMatch(track);
+        const am = autoMatchRef.current;
+        if (am.index !== state.currentIndex) {
+          autoMatchRef.current = { index: state.currentIndex, count: 1 };
+          void handleAutoMatch(track);
+        } else if (am.count < MAX_AUTO_MATCH_PER_TRACK) {
+          am.count++;
+          void handleAutoMatch(track);
+        }
       }
     };
 

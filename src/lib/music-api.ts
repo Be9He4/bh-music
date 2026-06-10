@@ -56,15 +56,23 @@ export const musicApi = {
 
   /* ---------------- 最佳匹配搜索（串行） ---------------- */
 
-  async searchBestMatch(
-    query: string,
-    sources: MusicSource[],
-    predicate: (track: MusicTrack) => boolean,
-    count = 5,
-    signal?: AbortSignal,
-    ranker?: (track: MusicTrack, originalIndex: number) => number,
-    targetTrack?: MusicTrack
-  ): Promise<MusicTrack | null> {
+  async searchBestMatch({
+    query,
+    sources,
+    predicate,
+    count = 20,
+    signal,
+    ranker,
+    targetTrack,
+  }: {
+    query: string;
+    sources: MusicSource[];
+    predicate: (track: MusicTrack) => boolean;
+    count?: number;
+    signal?: AbortSignal;
+    ranker?: (track: MusicTrack, originalIndex: number) => number;
+    targetTrack?: MusicTrack;
+  }): Promise<MusicTrack | null> {
     for (const source of sources) {
       if (signal?.aborted) return null;
       try {
