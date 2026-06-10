@@ -66,3 +66,7 @@ Android 原生返回键与 Web 端 Esc 由 `RootLayout` 统一拦截，转发到
 - **不要**用 `priority` 数字或硬编码串联关闭顺序——栈序就是用户的"打开时间"直觉，新接入的层应直接走 `push/pop`。
 - **不要**把"导航跳转"（如点击按钮跳路由）当成退出行为。back/Esc 走栈；主动跳路由是业务动作，不归栈管。
 - 修改退出栈或新增接入点时，补充或更新 `src/hooks/useExitLayer.test.ts` 及对应组件单测。
+
+## 其他
+
+- dnd-kit拖拽排序需要确保`touch-none select-none`,避免移动端选中逻辑拦截了拖拽逻辑

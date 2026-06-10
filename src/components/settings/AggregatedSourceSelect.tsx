@@ -6,12 +6,14 @@ import { Radio, GripVertical, Eye, EyeOff } from "lucide-react";
 import { SettingItem } from "./SettingItem";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -23,45 +25,29 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
-function SortableSourceItem({
-  config,
-  onToggleEnabled,
-  onToggleVisible,
-}: {
+interface SourceItemProps {
   config: SourceConfig;
   onToggleEnabled: () => void;
   onToggleVisible: () => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: config.source });
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
+function SourceItem({
+  config,
+  onToggleEnabled,
+  onToggleVisible,
+  dragHandleProps,
+}: SourceItemProps) {
   const opt = aggregatedSourceOptions.find((o) => o.value === config.source)!;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-4 py-2"
-    >
-      <button
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
-        {...attributes}
-        {...listeners}
+    <div className="flex items-center gap-4 py-2">
+      <div
+        {...dragHandleProps}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 p-1 touch-none select-none"
       >
         <GripVertical className="h-4 w-4" />
-      </button>
+      </div>
 
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-sm text-foreground">{opt.label}</span>
@@ -88,16 +74,58 @@ function SortableSourceItem({
   );
 }
 
+function SortableSourceItem({
+  config,
+  onToggleEnabled,
+  onToggleVisible,
+}: {
+  config: SourceConfig;
+  onToggleEnabled: () => void;
+  onToggleVisible: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: config.source });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <SourceItem
+        config={config}
+        onToggleEnabled={onToggleEnabled}
+        onToggleVisible={onToggleVisible}
+        dragHandleProps={listeners}
+      />
+    </div>
+  );
+}
+
 export function AggregatedSourceSelect() {
   const { sourceConfigs, setSourceConfigs } = useMusicStore();
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -137,6 +165,10 @@ export function AggregatedSourceSelect() {
     .filter(Boolean)
     .join("\u3001");
 
+  const activeConfig = activeId
+    ? sourceConfigs.find((c) => c.source === activeId)
+    : null;
+
   return (
     <SettingItem
       icon={Radio}
@@ -148,10 +180,11 @@ export function AggregatedSourceSelect() {
       showChevron
       isExpanded={showSourcePicker}
       expandedContent={
-        <div onClick={(e) => e.stopPropagation()}>
+        <div>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             modifiers={[restrictToVerticalAxis]}
           >
@@ -168,6 +201,17 @@ export function AggregatedSourceSelect() {
                 />
               ))}
             </SortableContext>
+            <DragOverlay>
+              {activeConfig ? (
+                <div className="shadow-xl rounded-lg bg-card border">
+                  <SourceItem
+                    config={activeConfig}
+                    onToggleEnabled={() => {}}
+                    onToggleVisible={() => {}}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
       }
