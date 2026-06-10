@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { MusicTrack } from "@/types/music";
 import { useOfflineStore } from "@/store/offline-store";
 import { useLocalMusicStore } from "@/store/local-music-store";
@@ -13,10 +14,12 @@ import { Capacitor } from "@capacitor/core";
 export function useOfflinePlaylist(): MusicTrack[] {
   const offlineRecords = useOfflineStore((s) => s.records);
   const localFiles = useLocalMusicStore((s) => s.files);
-  const downloadStore = useDownloadStore((s) => ({
-    records: s.records,
-    getRecord: s.getRecord,
-  }));
+  const downloadStore = useDownloadStore(
+    useShallow((s) => ({
+      records: s.records,
+      getRecord: s.getRecord,
+    }))
+  );
 
   return useMemo(() => {
     const seen = new Set<string>();
