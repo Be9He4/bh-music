@@ -154,11 +154,11 @@ shared/                     # 跨端共享类型
 
 ## TODO
 
-- [ ] 评估是否学习 musicfree 那种插件化机制(CommonJS + 沙箱 VM)
+- [ ] 支持自定义缓存功能（开关、缓存大小、缓存过期时间）
 
 ### Low Priority
 
-- [ ] 适配平板端，优化移动端体验
+- [ ] 适配平板端，优化移动端体验（全局手势模式下很少遮挡问题，但经典导航模式不太适配）
 - [ ] UI 重构（极简高效，打开即听）
 - [ ] 是否引入 GSAP 动画库
 - [ ] 私人 DJ 功能，参考 Claudio 实现，可以根据喜欢、播放历史、你当地的时间、天气来给你推荐歌曲（taste.md, ELEVENLABS 播报）
@@ -166,16 +166,24 @@ shared/                     # 跨端共享类型
 ### Not TODO
 
 - 不接入 JOOX、KUWO 等官方接口：当前网易云官方接口够用，无需增加复杂度；接入 JOOX 还需要做代理
-- 不实现音效选择：Web 端限制多，且收益低。
+- 不接入 musicfree/洛雪 的插件生态（可以手动维护其音源）
+- 不实现音效选择：Web 端限制多，且收益低
 
 ## 参考资料
 
 - [GD Studio](https://music-api.gdstudio.xyz/api.php)：免费音源 API 服务支持
-- [Listen1](https://github.com/listen1/listen1_chrome_extension/blob/master/js/provider/netease.js)：网易云接口实现参考
+- [洛雪音乐音源](https://github.com/Huibq/keep-alive)
+- [Listen1](https://github.com/listen1/listen1_chrome_extension/blob/master/js/provider)：网易云/咪咕/B站官方接口实现参考
 
 ## 🤝 贡献
 
 欢迎提交 Issue 或 Pull Request！
+
+## 免责声明
+
+本项目不存储任何音频资源，接口均来自互联网公开技术资料，仅供技术交流。
+
+严禁商业用途，由此产生的版权风险由使用者自行承担。
 
 ## License
 
