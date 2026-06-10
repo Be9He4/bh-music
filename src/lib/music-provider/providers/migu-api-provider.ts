@@ -12,7 +12,7 @@ import {
 } from "@/types/music";
 
 export class MiguApiProvider implements IMusicProvider {
-  source = "migu";
+  source = "migu" as const;
 
   async search(
     query: string,

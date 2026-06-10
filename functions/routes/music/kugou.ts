@@ -4,10 +4,6 @@ import {
   fetchKugouPlaylistDetail,
   resolveKugouShortUrl,
 } from "../../utils/music/kugou-api";
-import {
-  getKugouLyric,
-  searchKugouMusic,
-} from "../../utils/music/kugou-search";
 
 export const kugouRoutes = new Hono<{ Bindings: Env }>();
 
@@ -40,45 +36,6 @@ kugouRoutes.post("/playlist", async (c) => {
     return c.json(await fetchKugouPlaylistDetail(playlistId));
   } catch (e: any) {
     console.error("Kugou API error:", e);
-    return c.json({ error: e.message || "Internal error" }, 500);
-  }
-});
-
-/**
- * 酷狗音乐搜索。
- */
-kugouRoutes.post("/search", async (c) => {
-  const {
-    query,
-    page = 0,
-    limit = 20,
-  } = await c.req.json<{
-    query: string;
-    page?: number;
-    limit?: number;
-  }>();
-  if (!query) return c.json({ error: "query required" }, 400);
-
-  try {
-    return c.json(await searchKugouMusic(query, page, limit));
-  } catch (e: any) {
-    console.error("Kugou search error:", e);
-    return c.json({ error: e.message || "Internal error" }, 500);
-  }
-});
-
-/**
- * 酷狗歌词获取。
- */
-kugouRoutes.post("/lyric", async (c) => {
-  const { hash } = await c.req.json<{ hash: string }>();
-  if (!hash) return c.json({ error: "hash required" }, 400);
-
-  try {
-    const lyric = await getKugouLyric(hash);
-    return c.json({ lyric });
-  } catch (e: any) {
-    console.error("Kugou lyric error:", e);
     return c.json({ error: e.message || "Internal error" }, 500);
   }
 });

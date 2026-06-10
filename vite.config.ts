@@ -411,16 +411,6 @@ export default defineConfig({
           });
         },
       },
-      "^/api/lx-url": {
-        target: "https://lxmusicapi.onrender.com",
-        changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api\/lx-url/, ""),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.setHeader("X-Request-Key", "share-v3");
-          });
-        },
-      },
       "/api/kugou-global": {
         target: "https://gateway.kugou.com",
         changeOrigin: true,
@@ -456,32 +446,6 @@ export default defineConfig({
             proxyReq.setHeader(
               "User-Agent",
               "Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi"
-            );
-          });
-        },
-      },
-      "/api/kugou-search": {
-        target: "https://songsearch.kugou.com",
-        changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api\/kugou-search/, ""),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.setHeader(
-              "User-Agent",
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            );
-          });
-        },
-      },
-      "/api/kugou-lyric": {
-        target: "https://wwwapi.kugou.com",
-        changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api\/kugou-lyric/, ""),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.setHeader(
-              "User-Agent",
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             );
           });
         },

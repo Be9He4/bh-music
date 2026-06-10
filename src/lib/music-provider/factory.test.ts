@@ -91,34 +91,4 @@ describe("MusicProviderFactory", () => {
     );
     await expect(provider.getLyric(qqTrack)).resolves.toBeNull();
   });
-
-  it("creates a provider for LX Netease tracks", () => {
-    const provider = MusicProviderFactory.getProvider("lx_netease");
-    expect(provider.source).toBe("lx_netease");
-  });
-
-  it("creates a provider for LX QQ tracks", () => {
-    const provider = MusicProviderFactory.getProvider("lx_qq");
-    expect(provider.source).toBe("lx_qq");
-  });
-
-  it("creates a provider for LX Migu tracks", () => {
-    const provider = MusicProviderFactory.getProvider("lx_migu");
-    expect(provider.source).toBe("lx_migu");
-  });
-
-  it("creates a placeholder provider for LX Kuwo tracks", async () => {
-    const provider = MusicProviderFactory.getProvider("lx_kuwo");
-    expect(provider.source).toBe("lx_kuwo");
-    await expect(provider.search("测试", 1, 20)).resolves.toEqual({
-      items: [],
-      hasMore: false,
-    });
-    await expect(provider.getLyric(kugouTrack)).resolves.toBeNull();
-  });
-
-  it("creates a provider for LX Kugou tracks", async () => {
-    const provider = MusicProviderFactory.getProvider("lx_kugou");
-    expect(provider.source).toBe("lx_kugou");
-  });
 });
