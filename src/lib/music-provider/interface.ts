@@ -61,4 +61,7 @@ export interface IMusicProvider {
   getAutoMatchPredicate?(
     target: MusicTrack
   ): (candidate: MusicTrack) => boolean;
+
+  /** 自定义自动换源搜索词（可选），用于优化特定音源的搜索结果 */
+  getAutoMatchQuery?(target: MusicTrack, baseQuery: string): string;
 }

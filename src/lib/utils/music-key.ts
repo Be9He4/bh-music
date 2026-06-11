@@ -13,7 +13,8 @@ Object.entries({ 妳: "你", 祢: "你", 牠: "它", 祂: "他" }).forEach(([k, 
 const RE_BRACKETS_G = /[([{【（].*?[)\]}】）]/g;
 const RE_BRACKETS_S = /[([{【（](.*?)[)\]}】）]/;
 const RE_CHINESE = /[\u4e00-\u9fa5]/g;
-const RE_SYMBOLS = /[^\w\u4e00-\u9fa5]/g;
+const RE_SYMBOLS = /[^\p{L}\p{N}_]/gu;
+// \p{L} = 所有语言的字母, \p{N} = 所有数字 —— 避免误删韩文/日文等非 CJK 文字
 const RE_SPACES = /\s+/g;
 
 /* -------------------------------------------------- */

@@ -85,6 +85,10 @@ export class BilibiliApiProvider implements IMusicProvider {
     return getBilibiliVideoDetail(id);
   }
 
+  getAutoMatchQuery(_target: MusicTrack, baseQuery: string): string {
+    return `${baseQuery} 高音质 Hi-Res 无损 HiFi`;
+  }
+
   getAutoMatchPredicate(target: MusicTrack) {
     const targetName = normalizeText(target.name);
     const targetArtist = normalizeText(target.artist[0] || "");
