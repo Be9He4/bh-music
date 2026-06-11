@@ -1,9 +1,12 @@
-const CACHE_NAME = 'audio-stream-cache';
+const CACHE_NAME = "audio-stream-cache";
 
 export function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  if (bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1
+  );
   const val = bytes / Math.pow(1024, i);
   return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
@@ -25,14 +28,25 @@ export async function getAudioCacheStats(): Promise<CacheStats> {
 
 export async function getStorageUsage(): Promise<number> {
   try {
-    if ('storage' in navigator && 'estimate' in navigator.storage) {
+    if ("storage" in navigator && "estimate" in navigator.storage) {
       const est = await navigator.storage.estimate();
       return est.usage ?? 0;
     }
-  } catch { /* unavailable */ }
+  } catch {
+    /* unavailable */
+  }
   return 0;
 }
 
 export async function clearAudioCache(): Promise<void> {
   await caches.delete(CACHE_NAME);
+}
+
+export async function deleteAudioCacheEntry(url: string): Promise<boolean> {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    return await cache.delete(url);
+  } catch {
+    return false;
+  }
 }

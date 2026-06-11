@@ -68,6 +68,14 @@ describe("music-key match helpers", () => {
   it("supports artist contains match", () => {
     expect(isArtistContainsMatch(["周杰伦JayChou"], ["周杰伦"])).toBe(true);
   });
+
+  it("rejects artist match where raw differs only by symbols", () => {
+    expect(isArtistMatch(["周杰伦."], ["周杰伦"])).toBe(false);
+  });
+
+  it("rejects artist contains match where raw differs only by symbols", () => {
+    expect(isArtistContainsMatch(["周杰伦."], ["周杰伦"])).toBe(false);
+  });
 });
 
 describe("applySearchIntentSort", () => {
