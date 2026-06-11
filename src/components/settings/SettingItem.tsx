@@ -31,12 +31,16 @@ export function SettingItem({
     <div
       className={cn(
         "p-4 rounded-xl bg-card/50 border border-border/50 transition-colors",
-        onClick && "cursor-pointer hover:bg-muted/20",
         className
       )}
-      onClick={onClick}
     >
-      <div className="flex items-center justify-between min-h-[28px]">
+      <div
+        className={cn(
+          "flex items-center justify-between min-h-7",
+          onClick && "cursor-pointer hover:bg-muted/20"
+        )}
+        onClick={onClick}
+      >
         <div className="flex items-center gap-3 flex-1 overflow-hidden">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Icon className="h-4 w-4 text-primary" />
@@ -68,14 +72,14 @@ export function SettingItem({
       <div
         className={cn(
           "grid transition-all duration-200 ease-in-out",
-          isExpanded ? "grid-rows-[1fr] opacity-100 mt-3 pt-3 border-t border-border/50" : "grid-rows-[0fr] opacity-0"
+          isExpanded
+            ? "grid-rows-[1fr] opacity-100 mt-3 pt-3 border-t border-border/50"
+            : "grid-rows-[0fr] opacity-0"
         )}
       >
-        <div className="overflow-hidden">
-          {expandedContent}
-        </div>
+        <div className="overflow-hidden">{expandedContent}</div>
       </div>
-      
+
       {children}
     </div>
   );
