@@ -64,4 +64,7 @@ export interface IMusicProvider {
 
   /** 自定义自动换源搜索词（可选），用于优化特定音源的搜索结果 */
   getAutoMatchQuery?(target: MusicTrack, baseQuery: string): string;
+
+  /** 自定义自动换源搜索数量（可选），用于需要更大搜索范围以提升命中率的音源 */
+  getAutoMatchCount?(target: MusicTrack): number;
 }

@@ -86,7 +86,11 @@ export class BilibiliApiProvider implements IMusicProvider {
   }
 
   getAutoMatchQuery(_target: MusicTrack, baseQuery: string): string {
-    return `${baseQuery} 高音质 Hi-Res 无损 HiFi`;
+    return `${baseQuery} 高音质 无损 HiFi Hi-Res`;
+  }
+
+  getAutoMatchCount(_target: MusicTrack): number {
+    return 40;
   }
 
   getAutoMatchPredicate(target: MusicTrack) {
