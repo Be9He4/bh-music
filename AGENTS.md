@@ -67,6 +67,13 @@ Android 原生返回键与 Web 端 Esc 由 `RootLayout` 统一拦截，转发到
 - **不要**把"导航跳转"（如点击按钮跳路由）当成退出行为。back/Esc 走栈；主动跳路由是业务动作，不归栈管。
 - 修改退出栈或新增接入点时，补充或更新 `src/hooks/useExitLayer.test.ts` 及对应组件单测。
 
+## 音源 Provider 能力规范
+
+`IMusicProvider` 定义了核心能力（`search`/`getUrl`/`getPic`/`getLyric`）和可选扩展能力。新增音源时：
+
+- **必须**实现 `searchArtist` 和 `searchAlbum`（最低限度委托给 `this.search`）。`MusicTrackMobileMenu` 据此决定歌手/专辑搜索是否限定在当前音源（`searchSource = track.source`）还是回退到聚合搜索（`"all"`）。
+- `getArtistDetail`/`getAlbumDetail`/`getSongDetail` 为可选能力，仅在音源有独立详情页路由时才需实现。当前详情页（`NeteaseDetail`）耦合网易云 API，其他音源无需实现这些方法，走搜索回退即可。
+
 ## 其他
 
 - dnd-kit拖拽排序需要确保`touch-none select-none`,避免移动端选中逻辑拦截了拖拽逻辑
