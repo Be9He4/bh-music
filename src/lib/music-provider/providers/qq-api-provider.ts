@@ -41,4 +41,20 @@ export class QqApiProvider implements IMusicProvider {
     if (songmid.startsWith("qq_")) songmid = songmid.slice(3);
     return getQqMusicLyric(songmid);
   }
+
+  async searchArtist(
+    query: string,
+    page: number,
+    count: number
+  ): Promise<SearchPageResult<MusicTrack>> {
+    return this.search(query, page, count);
+  }
+
+  async searchAlbum(
+    query: string,
+    page: number,
+    count: number
+  ): Promise<SearchPageResult<MusicTrack>> {
+    return this.search(query, page, count);
+  }
 }
