@@ -68,13 +68,8 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
   });
 
   try {
-    const {
-      updateTrackInQueue,
-      isFavorite,
-      favorites,
-      setFavorites,
-      updateTrackInPlaylists,
-    } = useMusicStore.getState();
+    const { updateTrackInQueue, updateTrackInPlaylists, contextId } =
+      useMusicStore.getState();
     const aggregatedSources = getAggregatedSourcesForMatch().filter(
       (source) => source !== track.source
     );
@@ -99,10 +94,14 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
     }
 
     updateTrackInQueue(track.id, match);
-    updateTrackInPlaylists(track.id, match);
-    if (isFavorite(track.id)) {
-      setFavorites(favorites.map((t) => (t.id === track.id ? match : t)));
+
+    if (contextId?.startsWith("playlist-")) {
+      updateTrackInPlaylists(track.id, match);
     }
+    // contextId === "favorites" 时启用（需恢复 isFavorite, favorites, setFavorites 析构）：
+    // if (contextId === "favorites" && isFavorite(track.id)) {
+    //   setFavorites(favorites.map((t) => (t.id === track.id ? match : t)));
+    // }
 
     const sourceLabel = sourceLabels[match.source] || match.source;
     toast.success(`已自动切换至: ${sourceLabel}`, { id: toastId });

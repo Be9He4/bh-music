@@ -168,4 +168,97 @@ describe("handleAutoMatch", () => {
       "kCN0Rxo1tdbc0+iNxoyBIg=="
     );
   });
+
+  it("only updates queue when contextId is 'search'", async () => {
+    const sourceTrack = createTrack("old", "netease");
+    const match = createTrack("new", "joox");
+    useMusicStore.setState({
+      queue: [sourceTrack],
+      originalQueue: [sourceTrack],
+      favorites: [sourceTrack],
+      playlists: [
+        { id: "p1", name: "歌单", tracks: [sourceTrack], createdAt: 0 },
+      ],
+      contextId: "search",
+    });
+    const search = vi
+      .fn()
+      .mockResolvedValue({ items: [match], hasMore: false });
+    vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
+      search,
+      getUrl: vi.fn(),
+      getPic: vi.fn(),
+      getLyric: vi.fn(),
+    });
+
+    await handleAutoMatch(sourceTrack);
+
+    const state = useMusicStore.getState();
+    expect(state.queue[0]?.id).toBe("new");
+    expect(state.favorites[0]?.id).toBe("old");
+    expect(state.playlists[0]?.tracks[0]?.id).toBe("old");
+  });
+
+  it("updates queue and playlists when contextId is 'playlist-xxx'", async () => {
+    const sourceTrack = createTrack("old", "netease");
+    const match = createTrack("new", "joox");
+    useMusicStore.setState({
+      queue: [sourceTrack],
+      originalQueue: [sourceTrack],
+      favorites: [sourceTrack],
+      playlists: [
+        { id: "p1", name: "歌单", tracks: [sourceTrack], createdAt: 0 },
+      ],
+      contextId: "playlist-p1",
+    });
+    const search = vi
+      .fn()
+      .mockResolvedValue({ items: [match], hasMore: false });
+    vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
+      search,
+      getUrl: vi.fn(),
+      getPic: vi.fn(),
+      getLyric: vi.fn(),
+    });
+
+    await handleAutoMatch(sourceTrack);
+
+    const state = useMusicStore.getState();
+    expect(state.queue[0]?.id).toBe("new");
+    expect(state.playlists[0]?.tracks[0]?.id).toBe("new");
+    expect(state.favorites[0]?.id).toBe("old");
+  });
+
+  it("does not update favorites when contextId is 'favorites'", async () => {
+    const sourceTrack = createTrack("old", "netease");
+    const match = createTrack("new", "joox");
+    useMusicStore.setState({
+      queue: [sourceTrack],
+      originalQueue: [sourceTrack],
+      favorites: [sourceTrack],
+      playlists: [
+        { id: "p1", name: "歌单", tracks: [sourceTrack], createdAt: 0 },
+      ],
+      contextId: "favorites",
+    });
+    const search = vi
+      .fn()
+      .mockResolvedValue({ items: [match], hasMore: false });
+    vi.mocked(MusicProviderFactory.getProvider).mockReturnValue({
+      source: "joox",
+      search,
+      getUrl: vi.fn(),
+      getPic: vi.fn(),
+      getLyric: vi.fn(),
+    });
+
+    await handleAutoMatch(sourceTrack);
+
+    const state = useMusicStore.getState();
+    expect(state.queue[0]?.id).toBe("new");
+    expect(state.favorites[0]?.id).toBe("old");
+    expect(state.playlists[0]?.tracks[0]?.id).toBe("old");
+  });
 });

@@ -95,17 +95,29 @@ export class BilibiliApiProvider implements IMusicProvider {
 
   getAutoMatchPredicate(target: MusicTrack) {
     const targetName = normalizeText(target.name);
-    const targetArtist = normalizeText(target.artist[0] || "");
+    // 将所有歌手名称标准化
+    const targetArtists = target.artist.map(normalizeText).filter(Boolean);
+
     return (candidate: MusicTrack) => {
       const blob = [
         candidate.name,
-        candidate.artist[0] || "",
+        candidate.artist.join(" "),
         candidate.album || "",
       ]
         .map(normalizeText)
         .join(" ");
+
+      // 1. 必须包含歌名
       if (!blob.includes(targetName)) return false;
-      if (targetArtist && !blob.includes(targetArtist)) return false;
+
+      // 2. 只要包含原曲的任意一位歌手即可放行（B 站搜索结果排序足够可信）
+      if (targetArtists.length > 0) {
+        const hasAnyArtist = targetArtists.some((artist) =>
+          blob.includes(artist)
+        );
+        if (!hasAnyArtist) return false;
+      }
+
       return true;
     };
   }
