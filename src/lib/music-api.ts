@@ -89,20 +89,24 @@ export const musicApi = {
           targetTrack && provider.getAutoMatchCount
             ? provider.getAutoMatchCount(targetTrack)
             : count;
+        const effectiveRanker =
+          targetTrack && provider.getAutoMatchRanker
+            ? provider.getAutoMatchRanker(targetTrack)
+            : ranker;
         const res = await provider.search(
           effectiveQuery,
           1,
           effectiveCount,
           signal
         );
-        const match = ranker
+        const match = effectiveRanker
           ? res.items
               .map((track, originalIndex) => ({ track, originalIndex }))
               .filter(({ track }) => effectivePredicate(track))
               .sort(
                 (a, b) =>
-                  ranker(b.track, b.originalIndex) -
-                    ranker(a.track, a.originalIndex) ||
+                  effectiveRanker(b.track, b.originalIndex) -
+                    effectiveRanker(a.track, a.originalIndex) ||
                   a.originalIndex - b.originalIndex
               )[0]?.track
           : res.items.find(effectivePredicate);
