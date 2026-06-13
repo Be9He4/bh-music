@@ -88,6 +88,7 @@ export interface MusicState {
   lastMineTab: "recommend" | "created" | "subscribed" | "albums";
   lastFeaturedTab: string;
   enableAutoMatch: boolean;
+  bilibiliKeepOriginalMeta: boolean;
   fullScreenBackgroundMode: FullScreenBackgroundMode;
   showSourceBadge: boolean;
   sleepTimerDuration: number;
@@ -107,6 +108,7 @@ export interface MusicState {
   ) => void;
   setLastFeaturedTab: (tab: string) => void;
   setEnableAutoMatch: (enable: boolean) => void;
+  setBilibiliKeepOriginalMeta: (enable: boolean) => void;
   setFullScreenBackgroundMode: (mode: FullScreenBackgroundMode) => void;
   setShowSourceBadge: (show: boolean) => void;
   downloadQuality: string;
@@ -354,6 +356,7 @@ export const useMusicStore = create<MusicState>()(
       lastMineTab: "recommend",
       lastFeaturedTab: "",
       enableAutoMatch: true,
+      bilibiliKeepOriginalMeta: true,
       fullScreenBackgroundMode: "theme",
       showSourceBadge: true,
       sleepTimerDuration: 30,
@@ -375,6 +378,8 @@ export const useMusicStore = create<MusicState>()(
       setLastMineTab: (lastMineTab) => set({ lastMineTab }),
       setLastFeaturedTab: (lastFeaturedTab) => set({ lastFeaturedTab }),
       setEnableAutoMatch: (enableAutoMatch) => set({ enableAutoMatch }),
+      setBilibiliKeepOriginalMeta: (bilibiliKeepOriginalMeta) =>
+        set({ bilibiliKeepOriginalMeta }),
       setFullScreenBackgroundMode: (fullScreenBackgroundMode) =>
         set({ fullScreenBackgroundMode }),
       setShowSourceBadge: (showSourceBadge) => set({ showSourceBadge }),
@@ -723,6 +728,7 @@ export const useMusicStore = create<MusicState>()(
         lastMineTab: state.lastMineTab,
         lastFeaturedTab: state.lastFeaturedTab,
         enableAutoMatch: state.enableAutoMatch,
+        bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
         fullScreenBackgroundMode: state.fullScreenBackgroundMode,
         showSourceBadge: state.showSourceBadge,
         downloadQuality: state.downloadQuality,

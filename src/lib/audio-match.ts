@@ -93,14 +93,21 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
       return false;
     }
 
-    updateTrackInQueue(track.id, match);
+    // 仅对 B 站音源保留原歌曲的 name 和 artist，避免标题杂乱与作者错位
+    const { bilibiliKeepOriginalMeta } = useMusicStore.getState();
+    const finalTrack: MusicTrack =
+      match.source === "bilibili" && bilibiliKeepOriginalMeta
+        ? { ...match, name: track.name, artist: track.artist }
+        : match;
+
+    updateTrackInQueue(track.id, finalTrack);
 
     if (contextId?.startsWith("playlist-")) {
-      updateTrackInPlaylists(track.id, match);
+      updateTrackInPlaylists(track.id, finalTrack);
     }
     // contextId === "favorites" 时启用（需恢复 isFavorite, favorites, setFavorites 析构）：
     // if (contextId === "favorites" && isFavorite(track.id)) {
-    //   setFavorites(favorites.map((t) => (t.id === track.id ? match : t)));
+    //   setFavorites(favorites.map((t) => (t.id === track.id ? finalTrack : t)));
     // }
 
     const sourceLabel = sourceLabels[match.source] || match.source;

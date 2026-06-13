@@ -60,6 +60,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     setVolume,
     enableAutoMatch,
     setEnableAutoMatch,
+    bilibiliKeepOriginalMeta,
+    setBilibiliKeepOriginalMeta,
     showSourceBadge,
     setShowSourceBadge,
     fullScreenBackgroundMode,
@@ -167,6 +169,18 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <SettingsSection title="高级设置">
           <ApiUrlConfig />
+          <SettingItem
+            icon={Wand2}
+            title="B站换源保留原信息"
+            subtitle="自动换源到B站时保留原标题和歌手"
+            action={
+              <Switch
+                checked={bilibiliKeepOriginalMeta}
+                onCheckedChange={setBilibiliKeepOriginalMeta}
+                disabled={!enableAutoMatch}
+              />
+            }
+          />
         </SettingsSection>
 
         <SettingsSection title="关于系统">
