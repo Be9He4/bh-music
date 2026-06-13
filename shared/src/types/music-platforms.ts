@@ -430,3 +430,77 @@ export interface MiguV3SearchSongRaw {
   toneControl?: string;
   copyright?: number;
 }
+
+// ============================================================
+// QQ 音乐
+// ============================================================
+
+export interface QqPlaylistResponse {
+  code: number;
+  subcode?: number;
+  msg?: string;
+  cdlist: QqCdItem[];
+}
+
+export interface QqCdItem {
+  dissid: string;
+  dissname: string;
+  logo: string;
+  songnum: number;
+  songlist: QqSongRaw[];
+}
+
+export interface QqSongRaw {
+  songid: string;
+  songmid: string;
+  songname: string;
+  singer: QqSingerRaw[];
+  albumname: string;
+  albummid: string;
+  interval: number;
+}
+
+export interface QqSingerRaw {
+  name: string;
+}
+
+export interface QqPlaylistDetail {
+  name: string;
+  coverUrl: string;
+  trackCount: number;
+  songs: QqSongRaw[];
+}
+
+export interface QqSearchSongRaw {
+  id?: string;
+  mid?: string;
+  songid?: string;
+  songmid?: string;
+  title?: string;
+  songname?: string;
+  singer: QqSingerRaw[];
+  album?: { id?: string; mid?: string; title?: string };
+  albumid?: string;
+  albummid?: string;
+  albumname?: string;
+}
+
+export interface QqSearchResponse {
+  req_1: {
+    code: number;
+    data: {
+      meta: { sum: number };
+      body: { song: { list: QqSearchSongRaw[] } };
+    };
+  };
+}
+
+export interface QqVkeyResponse {
+  req_1: {
+    code: number;
+    data: {
+      sip: string[];
+      midurlinfo: { purl: string; filename: string }[];
+    };
+  };
+}

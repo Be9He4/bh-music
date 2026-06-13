@@ -1,15 +1,24 @@
 import type { MusicTrack, SearchPageResult, SongLyric } from "@/types/music";
 import {
-  QQ_BASE_URL,
   type QqPlaylistDetail,
-  type QqPlaylistResponse,
-  type QqSongRaw,
-} from "./qqmusic-types";
+  type QqSearchResponse,
+  type QqVkeyResponse,
+  QQ_API_URL,
+  QQ_FILE_CONFIG,
+  QQ_LYRIC_URL,
+  QQ_REFERER,
+  buildQqPlaylistApiPath,
+  buildVkeyRequestBody,
+  convertQqSearchSongToMusicTrack,
+  convertQqSongToMusicTrack,
+  decodeQqHtmlEntities,
+  extractVkeyUrl,
+  parseQqPlaylistResponse,
+} from "@otter-music/shared";
 import { IS_NATIVE, IS_WEB_PROD, getApiUrl } from "@/lib/api/config";
 
 const QQ_PROXY_PREFIX = "/music-api/qqmusic";
 const NETWORK_TIMEOUT = 12000;
-const QQ_REFERER = "https://y.qq.com/";
 
 /**
  * 从 QQ 音乐分享链接中提取歌单数字 ID。
@@ -37,33 +46,12 @@ export function parseQqMusicUrl(urlStr: string): string | null {
   }
 }
 
-/**
- * 将 QQ 音乐歌曲对象转换为应用内部的 MusicTrack 格式。
- */
-export function convertQqSongToMusicTrack(song: QqSongRaw): MusicTrack {
-  const picUrl = song.albummid
-    ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${song.albummid}.jpg`
-    : "";
-
-  return {
-    id: `qq_${song.songmid}`,
-    name: song.songname,
-    artist: song.singer.map((s) => s.name),
-    album: song.albumname,
-    pic_id: picUrl,
-    url_id: song.songmid,
-    lyric_id: song.songmid,
-    source: "qq",
-  };
-}
-
-/**
- * 构建 QQ 音乐歌单 API 请求路径（不含域名/代理前缀）。
- * 抽离为纯函数以便测试。
- */
-export function buildQqPlaylistApiPath(playlistId: string): string {
-  return `/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&json=1&utf8=1&nosign=1&disstid=${encodeURIComponent(playlistId)}&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=GB2312&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
-}
+// Re-export for convenience
+export {
+  convertQqSongToMusicTrack,
+  buildQqPlaylistApiPath,
+  parseQqPlaylistResponse,
+};
 
 async function fetchWithTimeout(
   url: string,
@@ -107,7 +95,7 @@ export async function getQqPlaylistDetail(
 
   if (IS_NATIVE) {
     // 原生环境直接请求
-    const url = `${QQ_BASE_URL}${buildQqPlaylistApiPath(playlistId)}`;
+    const url = `https://i.y.qq.com${buildQqPlaylistApiPath(playlistId)}`;
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
       method: "GET",
@@ -155,71 +143,12 @@ export async function getQqPlaylistDetail(
   };
 }
 
-/**
- * 解析 QQ 音乐接口响应，优先按纯 JSON 处理，失败后兼容 JSONP 包装。
- */
-export function parseQqPlaylistResponse(text: string): QqPlaylistResponse {
-  try {
-    return JSON.parse(text) as QqPlaylistResponse;
-  } catch (jsonError) {
-    const jsonpMatch = text.trim().match(/^[\w$.]+\s*\(([\s\S]*)\)\s*;?$/);
-    if (!jsonpMatch) throw jsonError;
-    return JSON.parse(jsonpMatch[1]) as QqPlaylistResponse;
-  }
-}
-
 // --- QQ 音乐搜索 ---
 
 const PAGE_SIZE = 20;
-const QQ_SEARCH_URL = "https://u.y.qq.com/cgi-bin/musicu.fcg";
-const QQ_LYRIC_URL =
-  "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg";
-const QQ_MEDIA_URL = "https://lxmusicapi.onrender.com/url/tx";
 
 const QQ_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36";
-
-interface QqSearchResponse {
-  req_1: {
-    code: number;
-    data: {
-      meta: { sum: number };
-      body: { song: { list: QqSearchSongRaw[] } };
-    };
-  };
-}
-
-interface QqSearchSongRaw {
-  id?: string;
-  mid?: string;
-  songid?: string;
-  songmid?: string;
-  title?: string;
-  songname?: string;
-  singer: { name: string }[];
-  album?: { id?: string; mid?: string; title?: string };
-  albumid?: string;
-  albummid?: string;
-  albumname?: string;
-}
-
-function convertQqSearchSongToMusicTrack(song: QqSearchSongRaw): MusicTrack {
-  const songmid = song.mid || song.songmid || "";
-  const albummid = song.album?.mid || song.albummid || "";
-  const picUrl = albummid
-    ? `https://y.gtimg.cn/music/photo_new/T002R800x800M000${albummid}.jpg`
-    : "";
-  return {
-    id: `qq_${songmid}`,
-    name: song.title || song.songname || "",
-    artist: (song.singer || []).map((s) => s.name),
-    album: song.album?.title || song.albumname || "",
-    pic_id: picUrl,
-    url_id: songmid,
-    lyric_id: songmid,
-    source: "qq",
-  };
-}
 
 export async function searchQqMusic(
   query: string,
@@ -242,7 +171,7 @@ export async function searchQqMusic(
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
       method: "POST",
-      url: QQ_SEARCH_URL,
+      url: QQ_API_URL,
       headers: {
         "Content-Type": "application/json",
         Referer: QQ_REFERER,
@@ -303,61 +232,64 @@ export async function searchQqMusic(
   };
 }
 
-// --- QQ 音乐音频 URL ---
+// --- QQ 音乐音频 URL (vkey 直连) ---
 
-const QUALITY_MAP: Record<number, string> = {
-  128: "128k",
-  192: "320k",
-  320: "320k",
-};
-
-function mapBrToQuality(br?: number): string {
-  if (!br) return "320k";
-  return QUALITY_MAP[br] || (br <= 128 ? "128k" : "320k");
-}
-
+/**
+ * 通过 QQ 音乐 vkey API 获取音频直链。
+ * 支持质量降级：320k → 128k → m4a，不可播放时返回 null。
+ * - Web 生产: 走 Worker 代理
+ * - 原生: 直连 u.y.qq.com
+ * - 开发: 走 Vite 代理
+ */
 export async function getQqMusicUrl(
   songmid: string,
-  br?: number
+  _br?: number
 ): Promise<string | null> {
-  const quality = mapBrToQuality(br);
+  const qualityKeys = QQ_FILE_CONFIG.map((c) => c.key);
+  const body = buildVkeyRequestBody(songmid, qualityKeys);
 
   if (IS_WEB_PROD) {
     const apiUrl = getApiUrl();
     const res = await fetchWithTimeout(`${apiUrl}${QQ_PROXY_PREFIX}/proxy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "url", songmid, quality }),
+      body: JSON.stringify({ type: "url", songmid, quality: qualityKeys[0] }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { url?: string };
-    return data.url || null;
+    return data.url ?? null;
   }
 
   if (IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
     const res = await CapacitorHttp.request({
-      method: "GET",
-      url: `${QQ_MEDIA_URL}/${songmid}/${quality}`,
-      headers: { "X-Request-Key": "share-v3" },
+      method: "POST",
+      url: QQ_API_URL,
+      headers: {
+        "Content-Type": "application/json",
+        Referer: QQ_REFERER,
+        "User-Agent": QQ_USER_AGENT,
+      },
+      data: JSON.stringify(body),
     });
     if (res.status >= 400) return null;
     const data =
       typeof res.data === "string"
-        ? (JSON.parse(res.data) as { url?: string })
-        : (res.data as { url?: string });
-    return data.url || null;
+        ? (JSON.parse(res.data) as QqVkeyResponse)
+        : (res.data as QqVkeyResponse);
+    return extractVkeyUrl(data);
   }
 
   // dev
   try {
-    const res = await fetchWithTimeout(
-      `/api/qqmusic-url/${songmid}/${quality}`,
-      { headers: { "X-Request-Key": "share-v3" } }
-    );
+    const res = await fetchWithTimeout(`/api/qqmusic-url/cgi-bin/musicu.fcg`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     if (!res.ok) return null;
-    const data = (await res.json()) as { url?: string };
-    return data.url || null;
+    const data = (await res.json()) as QqVkeyResponse;
+    return extractVkeyUrl(data);
   } catch {
     return null;
   }
@@ -372,19 +304,6 @@ function decodeBase64Utf8(base64: string): string {
     bytes[i] = binary.charCodeAt(i);
   }
   return new TextDecoder("utf-8").decode(bytes);
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) =>
-      String.fromCharCode(parseInt(code, 16))
-    )
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
 }
 
 function parseJsonpLyric(
@@ -427,8 +346,8 @@ export async function getQqMusicLyric(
     const parsed = parseJsonpLyric(rawText);
     if (!parsed) return null;
     return {
-      lyric: decodeHtmlEntities(parsed.lyric),
-      tlyric: parsed.trans ? decodeHtmlEntities(parsed.trans) : undefined,
+      lyric: decodeQqHtmlEntities(parsed.lyric),
+      tlyric: parsed.trans ? decodeQqHtmlEntities(parsed.trans) : undefined,
     };
   }
 
@@ -441,7 +360,7 @@ export async function getQqMusicLyric(
   const parsed = parseJsonpLyric(rawText);
   if (!parsed) return null;
   return {
-    lyric: decodeHtmlEntities(parsed.lyric),
-    tlyric: parsed.trans ? decodeHtmlEntities(parsed.trans) : undefined,
+    lyric: decodeQqHtmlEntities(parsed.lyric),
+    tlyric: parsed.trans ? decodeQqHtmlEntities(parsed.trans) : undefined,
   };
 }

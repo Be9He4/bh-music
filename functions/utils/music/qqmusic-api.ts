@@ -1,65 +1,32 @@
-import type { MusicTrack, SearchPageResult } from "@otter-music/shared";
+import {
+  type MusicTrack,
+  type QqPlaylistDetail,
+  type QqVkeyResponse,
+  type SearchPageResult,
+  QQ_API_URL,
+  QQ_FILE_CONFIG,
+  QQ_REFERER,
+  buildVkeyRequestBody,
+  convertQqSearchSongToMusicTrack,
+  decodeQqHtmlEntities,
+  extractVkeyUrl,
+  parseQqPlaylistResponse,
+} from "@otter-music/shared";
 import forge from "node-forge";
-
-interface QqPlaylistResponse {
-  code: number;
-  subcode?: number;
-  msg?: string;
-  cdlist: QqCdItem[];
-}
-
-interface QqCdItem {
-  dissid: string;
-  dissname: string;
-  logo: string;
-  songnum: number;
-  songlist: QqSongRaw[];
-}
-
-interface QqSongRaw {
-  songid: string;
-  songmid: string;
-  songname: string;
-  singer: { name: string }[];
-  albumname: string;
-  albummid: string;
-  interval: number;
-}
-
-export interface QqPlaylistDetail {
-  name: string;
-  coverUrl: string;
-  trackCount: number;
-  songs: QqSongRaw[];
-}
 
 // --- API 调用 ---
 
-const API_URL =
-  "https://i.y.qq.com/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg";
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const QQ_REFERER = "https://y.qq.com/";
-
-/**
- * 解析 QQ 音乐接口响应，优先按纯 JSON 处理，失败后兼容 JSONP 包装。
- */
-function parseQqPlaylistResponse(text: string): QqPlaylistResponse {
-  try {
-    return JSON.parse(text) as QqPlaylistResponse;
-  } catch (jsonError) {
-    const jsonpMatch = text.trim().match(/^[\w$.]+\s*\(([\s\S]*)\)\s*;?$/);
-    if (!jsonpMatch) throw jsonError;
-    return JSON.parse(jsonpMatch[1]) as QqPlaylistResponse;
-  }
-}
+const QQ_PLAYLIST_API_URL =
+  "https://i.y.qq.com/qzone-music/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg";
 
 /**
  * 构建 QQ 音乐歌单 API 完整请求 URL。
  * 抽离为纯函数以便测试。
  */
 export function buildQqPlaylistApiUrl(id: string): string {
-  return `${API_URL}?type=1&json=1&utf8=1&nosign=1&disstid=${encodeURIComponent(id)}&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=GB2312&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
+  return `${QQ_PLAYLIST_API_URL}?type=1&json=1&utf8=1&nosign=1&disstid=${encodeURIComponent(id)}&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=GB2312&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
 }
 
 /**
@@ -102,29 +69,11 @@ export async function fetchQqPlaylistDetail(
 
 // --- QQ 音乐搜索 (Worker 端) ---
 
-function convertQqSearchSongToMusicTrack(song: any): MusicTrack {
-  const songmid = song.mid || song.songmid || "";
-  const albummid = song.album?.mid || song.albummid || "";
-  const picUrl = albummid
-    ? `https://y.gtimg.cn/music/photo_new/T002R800x800M000${albummid}.jpg`
-    : "";
-  return {
-    id: `qq_${songmid}`,
-    name: song.title || song.songname || "",
-    artist: (song.singer || []).map((s: any) => s.name),
-    album: song.album?.title || song.albumname || "",
-    pic_id: picUrl,
-    url_id: songmid,
-    lyric_id: songmid,
-    source: "qq",
-  };
-}
-
 export async function fetchQqMusicSearch(
   query: string,
   page: number
 ): Promise<SearchPageResult<MusicTrack>> {
-  const res = await fetch("https://u.y.qq.com/cgi-bin/musicu.fcg", {
+  const res = await fetch(QQ_API_URL, {
     method: "POST",
     headers: {
       Referer: QQ_REFERER,
@@ -157,21 +106,6 @@ export async function fetchQqMusicSearch(
 
 // --- QQ 音乐歌词 (Worker 端) ---
 
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_, code: string) =>
-      String.fromCharCode(Number(code))
-    )
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) =>
-      String.fromCharCode(parseInt(code, 16))
-    )
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
-}
-
 export async function fetchQqMusicLyric(songmid: string) {
   const res = await fetch(
     `https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${encodeURIComponent(songmid)}&pcachetime=${Date.now()}&g_tk=5381&loginUin=0&hostUin=0&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`,
@@ -195,21 +129,36 @@ export async function fetchQqMusicLyric(songmid: string) {
     tlyric = forge.util.decodeUtf8(forge.util.decode64(data.trans));
   }
   return {
-    lyric: decodeHtmlEntities(lyric),
-    tlyric: tlyric ? decodeHtmlEntities(tlyric) : undefined,
+    lyric: decodeQqHtmlEntities(lyric),
+    tlyric: tlyric ? decodeQqHtmlEntities(tlyric) : undefined,
   };
 }
 
-// --- QQ 音乐音频 URL (Worker 端) ---
+// --- QQ 音乐音频 URL (Worker 端, vkey 直连) ---
 
+/**
+ * 通过 QQ 音乐 vkey API 获取音频直链。
+ * 支持质量降级：320k → 128k → m4a，不可播放时返回空 url。
+ */
 export async function fetchQqMusicUrl(
   songmid: string,
-  quality: string
+  _quality: string
 ): Promise<{ url?: string }> {
-  const res = await fetch(
-    `https://lxmusicapi.onrender.com/url/tx/${songmid}/${quality}`,
-    { headers: { "X-Request-Key": "share-v3" } }
-  );
+  const qualityKeys = QQ_FILE_CONFIG.map((c) => c.key);
+  const body = buildVkeyRequestBody(songmid, qualityKeys);
+
+  const res = await fetch(QQ_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Referer: QQ_REFERER,
+      "User-Agent": USER_AGENT,
+    },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) return {};
-  return (await res.json()) as { url?: string };
+
+  const data = (await res.json()) as QqVkeyResponse;
+  const url = extractVkeyUrl(data);
+  return url ? { url } : {};
 }
