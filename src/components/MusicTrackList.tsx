@@ -44,6 +44,9 @@ import {
   Check,
   MoreVertical,
   ListPlus,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -51,6 +54,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MusicTrackItem } from "./MusicTrackItem";
 import { AddToPlaylistDrawer } from "./AddToPlaylistDrawer";
 import { downloadMusicTrackBatch } from "@/lib/utils/download";
@@ -59,6 +68,13 @@ import { MusicTrack } from "@/types/music";
 import toast from "react-hot-toast";
 import { processBatchCPU } from "@/lib/utils";
 import { useShallow } from "zustand/react/shallow";
+import {
+  TrackSortKey,
+  sortTracks,
+  sortFields,
+  toggleSortKey,
+  parseSortKey,
+} from "@/lib/utils/sort-tracks";
 
 interface MusicTrackListProps {
   tracks: MusicTrack[];
@@ -80,6 +96,8 @@ interface MusicTrackListProps {
   showItemRemove?: boolean;
   preselectedIds?: Set<string>;
   onSelectionModeChange?: (active: boolean) => void;
+  sortKey?: TrackSortKey;
+  onSortChange?: (key: TrackSortKey) => void;
 }
 
 const ROW_HEIGHT = 48; // 缩小默认估算行高
@@ -138,12 +156,21 @@ export function MusicTrackList({
   showItemRemove = true,
   preselectedIds,
   onSelectionModeChange,
+  sortKey: controlledSortKey,
+  onSortChange,
 }: MusicTrackListProps) {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [localSortKey, setLocalSortKey] = useState<TrackSortKey>("default");
   const internalRef = useRef<HTMLDivElement | null>(null);
+
+  const effectiveSortKey = controlledSortKey ?? localSortKey;
+  const displayTracks = useMemo(
+    () => sortTracks(tracks, effectiveSortKey),
+    [tracks, effectiveSortKey]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -156,8 +183,12 @@ export function MusicTrackList({
     })
   );
 
-  const enableDnd = isSelectionMode && !!onReorder;
-  const trackIds = useMemo(() => tracks.map((t) => t.id), [tracks]);
+  const enableDnd =
+    isSelectionMode && !!onReorder && effectiveSortKey === "default";
+  const trackIds = useMemo(
+    () => displayTracks.map((t) => t.id),
+    [displayTracks]
+  );
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -200,11 +231,11 @@ export function MusicTrackList({
 
   const toggleSelectAll = useCallback(() => {
     setSelectedIds(
-      selectedIds.size === tracks.length
+      selectedIds.size === displayTracks.length
         ? new Set()
-        : new Set(tracks.map((t) => t.id))
+        : new Set(displayTracks.map((t) => t.id))
     );
-  }, [selectedIds.size, tracks]);
+  }, [selectedIds.size, displayTracks]);
 
   // 外部预选：去重等功能触发时，合并 ID 并进入选择模式
   useEffect(() => {
@@ -287,13 +318,13 @@ export function MusicTrackList({
   };
 
   const virtualizer = useVirtualizer({
-    count: tracks.length + 1,
+    count: displayTracks.length + 1,
     getScrollElement: () => scrollContainerRef?.current ?? internalRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
   });
 
-  if (tracks.length === 0 && !loading) {
+  if (displayTracks.length === 0 && !loading) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground/60">
         <Search className="h-8 w-8 mb-3 opacity-20" />
@@ -309,7 +340,51 @@ export function MusicTrackList({
           <>
             <div className="text-center">#</div>
             <div>标题</div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 mr-1.5"
+                  >
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {sortFields.map((o) => {
+                    const { field, dir } = parseSortKey(effectiveSortKey);
+                    const isActive = field === o.value;
+
+                    return (
+                      <DropdownMenuItem
+                        key={o.value}
+                        onClick={() => {
+                          const next = toggleSortKey(effectiveSortKey, o.value);
+                          if (onSortChange) {
+                            onSortChange(next);
+                          } else {
+                            setLocalSortKey(next);
+                          }
+                        }}
+                      >
+                        {isActive && (
+                          <>
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            {dir === "asc" && (
+                              <ArrowUp className="w-3 h-3 mr-1" />
+                            )}
+                            {dir === "desc" && (
+                              <ArrowDown className="w-3 h-3 mr-1" />
+                            )}
+                          </>
+                        )}
+                        {o.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="icon"
@@ -432,7 +507,7 @@ export function MusicTrackList({
             style={{ height: virtualizer.getTotalSize() }}
           >
             {virtualizer.getVirtualItems().map((item) => {
-              const track = tracks[item.index];
+              const track = displayTracks[item.index];
               const content = track ? (
                 <MusicTrackItem
                   track={track}
