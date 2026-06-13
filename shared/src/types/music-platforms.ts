@@ -421,6 +421,8 @@ export interface MiguV3SearchSongRaw {
   albumId?: number | string;
   album?: string;
   img1?: string;
+  img2?: string;
+  img3?: string;
   ext?: {
     lrcUrl?: string;
     trcUrl?: string;

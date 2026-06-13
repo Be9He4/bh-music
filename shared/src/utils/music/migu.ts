@@ -102,7 +102,13 @@ export function convertMiguSongToMusicTrack(song: MiguSongRaw): MusicTrack {
   const encodedId = contentId
     ? `migu_${copyrightId}_${contentId}`
     : `migu_${copyrightId}`;
-  const coverUrl = song.albumImgs?.find((item) => item.img)?.img || "";
+  // 按 imgSizeType 降序排列，优先取高分辨率封面（03 > 02 > 01）
+  const sortedImgs = (song.albumImgs || []).slice().sort((a, b) => {
+    const sizeA = a.imgSizeType || "";
+    const sizeB = b.imgSizeType || "";
+    return sizeB.localeCompare(sizeA);
+  });
+  const coverUrl = sortedImgs.find((item) => item.img)?.img || "";
 
   return {
     id: encodedId,
@@ -194,18 +200,16 @@ export function convertMiguV3SearchSongToMusicTrack(
   return {
     id: encodedId,
     name: song.songName || "未知歌曲",
-    artist: (song.singerList || [])
-      .map((s) => s.name || "")
-      .filter(Boolean),
+    artist: (song.singerList || []).map((s) => s.name || "").filter(Boolean),
     album: song.album || "",
-    pic_id: forceHttps(song.img1 || ""),
+    // 优先使用 img3 > img2 > img1，获取最大可用封面
+    pic_id: forceHttps(song.img3 || song.img2 || song.img1 || ""),
     url_id: encodedId,
     lyric_id: forceHttps(song.ext?.lrcUrl || ""),
     source: "migu",
-    artist_ids: (song.singerList || [])
-      .map((s) => s.id || "")
-      .filter(Boolean),
-    album_id: typeof song.albumId === "number" ? String(song.albumId) : song.albumId,
+    artist_ids: (song.singerList || []).map((s) => s.id || "").filter(Boolean),
+    album_id:
+      typeof song.albumId === "number" ? String(song.albumId) : song.albumId,
   };
 }
 
