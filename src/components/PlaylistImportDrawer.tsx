@@ -141,6 +141,7 @@ export function PlaylistImportDrawer({
   const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"link" | "file" | "text">("link");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // 文本导入状态
   const [textInput, setTextInput] = useState("");
@@ -263,10 +264,12 @@ export function PlaylistImportDrawer({
     }
   };
 
-  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  /** 处理文件导入核心逻辑 */
+  const processFile = async (file: File) => {
+    if (!file.name.endsWith(".json")) {
+      toastUtils.error("仅支持 .json 格式文件");
+      return;
+    }
     try {
       const { name, tracks } = await importPlaylist(file);
       savePlaylistToStore(name, undefined, tracks);
@@ -276,6 +279,38 @@ export function PlaylistImportDrawer({
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processFile(file);
   };
 
   const handleTextValidate = () => {
@@ -404,12 +439,20 @@ export function PlaylistImportDrawer({
 
           <TabsContent value="file" className="mt-4">
             <div
-              className="border-2 border-dashed border-muted-foreground/25 rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/20 transition-colors"
+              className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/20 transition-colors ${
+                isDragOver
+                  ? "border-primary bg-primary/10"
+                  : "border-muted-foreground/25"
+              }`}
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <Upload className="h-10 w-10 text-muted-foreground/60 mx-auto mb-3" />
               <p className="text-sm font-medium text-foreground">
-                点击选择 JSON 文件
+                点击或拖拽 JSON 文件到此处
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 仅支持本应用导出的 .json 格式歌单文件
