@@ -77,3 +77,4 @@ Android 原生返回键与 Web 端 Esc 由 `RootLayout` 统一拦截，转发到
 ## 其他
 
 - dnd-kit拖拽排序需要确保`touch-none select-none`,避免移动端选中逻辑拦截了拖拽逻辑
+- 避免把 store 都放到 music-store
