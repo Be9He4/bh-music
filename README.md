@@ -55,8 +55,6 @@
 
 > [!NOTE]
 > 最低支持版本：minSdkVersion = 24 (Android 7.0)
->
-> Android 13（API 33）以下设备可能存在部分 CSS 样式兼容问题，建议升级系统。
 
 > [!IMPORTANT]
 > 在线体验：[Otter Music](https://otter-music.pages.dev/)
