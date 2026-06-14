@@ -14,6 +14,7 @@ import { useDownloadStore } from "@/store/download-store";
 import { buildDownloadKey } from "@/lib/utils/download";
 import toast from "react-hot-toast";
 import { createTrackFromUrl, deduplicateTracks } from "@/lib/utils/music";
+import { sortTracks, TrackSortKey } from "@/lib/utils/sort-tracks";
 import { toastUtils } from "@/lib/utils/toast";
 import { exportPlaylist } from "@/lib/utils/playlist-backup";
 import { musicApi } from "@/lib/music-api";
@@ -95,6 +96,12 @@ export function MusicPlaylistView({
         .getState()
         .replaceActivePlaylistTracks(playlistId, newOrder);
     }
+  };
+
+  const handleSort = (key: TrackSortKey) => {
+    if (!playlistId || !isPersonalPlaylist) return;
+    const sorted = sortTracks(tracks, key);
+    useMusicStore.getState().reorderPlaylistTracks(playlistId, sorted);
   };
 
   const filteredTracks = useMemo(
@@ -267,6 +274,7 @@ export function MusicPlaylistView({
                 onAddByUrl={
                   isPersonalPlaylist ? () => setIsAddByUrlOpen(true) : undefined
                 }
+                onSort={isPersonalPlaylist ? handleSort : undefined}
               />
             )}
 

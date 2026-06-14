@@ -12,6 +12,7 @@ import { useDownloadStore } from "@/store/download-store";
 import { buildDownloadKey } from "@/lib/utils/download";
 import toast from "react-hot-toast";
 import { createTrackFromUrl, deduplicateTracks } from "@/lib/utils/music";
+import { sortTracks, TrackSortKey } from "@/lib/utils/sort-tracks";
 import { toastUtils } from "@/lib/utils/toast";
 import { exportPlaylist } from "@/lib/utils/playlist-backup";
 import { AddByUrlDrawer } from "./AddByUrlDrawer";
@@ -80,6 +81,11 @@ export function FavoritesView({
     useMusicStore.getState().removeBatchFromFavorites(tracks.map((t) => t.id));
   };
 
+  const handleSort = (key: TrackSortKey) => {
+    const sorted = sortTracks(tracks, key);
+    useMusicStore.getState().reorderFavorites(sorted);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -109,6 +115,7 @@ export function FavoritesView({
               onDeduplicate={handleDeduplicate}
               onExport={() => exportPlaylist("我喜欢的音乐", tracks)}
               onAddByUrl={() => setIsAddByUrlOpen(true)}
+              onSort={handleSort}
             />
 
             <div className="relative ml-auto w-32 md:w-48">

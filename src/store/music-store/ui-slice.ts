@@ -49,7 +49,7 @@ export const createUiSlice: StateCreator<MusicState, [], [], UiSlice> = (
   lastMineTab: "recommend",
   lastFeaturedTab: "",
   enableAutoMatch: true,
-  bilibiliKeepOriginalMeta: true,
+  bilibiliKeepOriginalMeta: false,
   bilibiliAutoMatchSuffix: "",
   fullScreenBackgroundMode: "theme",
   showSourceBadge: true,

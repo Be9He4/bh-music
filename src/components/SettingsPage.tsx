@@ -208,7 +208,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                 onChange={(e) => setBilibiliAutoMatchSuffix(e.target.value)}
                 placeholder="高音质/无损/HiFi/..."
                 disabled={!enableAutoMatch}
-                className="h-7 w-50 text-sm bg-transparent border-muted"
+                className="h-7 w-40 text-sm bg-transparent border-muted"
               />
             }
           />

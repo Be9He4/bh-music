@@ -21,6 +21,7 @@ export interface PlaylistSlice {
     playlistId: string,
     tracks: MusicTrack[]
   ) => void;
+  reorderPlaylistTracks: (playlistId: string, tracks: MusicTrack[]) => void;
   updateTrackInPlaylists: (trackId: string, newTrack: MusicTrack) => number;
 }
 
@@ -138,6 +139,13 @@ export const createPlaylistSlice: StateCreator<
     set((s) => ({
       playlists: updateList(s.playlists, pid, (p) => ({
         tracks: replaceActiveWithTombstones(p.tracks, tracks),
+        is_deleted: false,
+      })),
+    })),
+  reorderPlaylistTracks: (pid, tracks) =>
+    set((s) => ({
+      playlists: updateList(s.playlists, pid, (p) => ({
+        tracks: [...tracks, ...p.tracks.filter((t) => t.is_deleted)],
         is_deleted: false,
       })),
     })),
