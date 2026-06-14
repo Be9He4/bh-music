@@ -1,4 +1,5 @@
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { MusicTrack } from "@/types/music";
 import { useCallback } from "react";
 
@@ -19,7 +20,15 @@ export function getPlayAllStartIndex(
 
 export function usePlayHelper() {
   const { playContext, togglePlay, queue, currentIndex, isShuffle } =
-    useMusicStore();
+    useMusicStore(
+      useShallow((state) => ({
+        playContext: state.playContext,
+        togglePlay: state.togglePlay,
+        queue: state.queue,
+        currentIndex: state.currentIndex,
+        isShuffle: state.isShuffle,
+      }))
+    );
 
   const currentTrack = queue[currentIndex] || null;
 

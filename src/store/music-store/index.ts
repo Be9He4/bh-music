@@ -4,6 +4,7 @@ import { storeKey } from "../store-keys";
 import { idbStorage } from "@/lib/storage-adapter";
 import { cleanTrack } from "@/lib/utils/music";
 import { cleanPlaylist } from "./shared";
+import { DEFAULT_SOURCE_CONFIGS } from "@/types/music";
 
 import { createFavoritesSlice } from "./favorites-slice";
 import { createPlaylistSlice } from "./playlist-slice";
@@ -32,6 +33,20 @@ export const useMusicStore = create<MusicState>()(
     {
       name: storeKey.MusicStore,
       storage: createJSONStorage(() => idbStorage),
+      merge: (persisted, current) => {
+        const state = { ...current, ...(persisted as Partial<MusicState>) };
+        // 合并 sourceConfigs：保留用户配置，追加新增音源
+        const existingSources = new Set(
+          state.sourceConfigs.map((c) => c.source)
+        );
+        const newConfigs = DEFAULT_SOURCE_CONFIGS.filter(
+          (c) => !existingSources.has(c.source)
+        );
+        if (newConfigs.length > 0) {
+          state.sourceConfigs = [...state.sourceConfigs, ...newConfigs];
+        }
+        return state;
+      },
       partialize: (state) => ({
         favorites: state.favorites.map(cleanTrack),
         playlists: state.playlists.map(cleanPlaylist),

@@ -5,6 +5,7 @@ import {
   SearchPageResult,
   SongLyric,
 } from "@otter-music/shared";
+import { useMusicStore } from "@/store/music-store";
 import {
   getBilibiliCollectionDetail,
   getBilibiliCoverUrl,
@@ -105,7 +106,8 @@ export class BilibiliApiProvider implements IMusicProvider {
   }
 
   getAutoMatchQuery(_target: MusicTrack, baseQuery: string): string {
-    return `${baseQuery} 纯享 高音质 无损 HiFi Hi-Res`;
+    const suffix = useMusicStore.getState().bilibiliAutoMatchSuffix;
+    return suffix ? `${baseQuery} ${suffix}` : baseQuery;
   }
 
   getAutoMatchCount(_target: MusicTrack): number {

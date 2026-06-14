@@ -29,7 +29,7 @@ export function parseSortKey(sortKey: TrackSortKey): {
 
 /**
  * 点击排序字段时切换排序状态
- * 规则：default -> field-asc -> field-desc -> default
+ * 规则：default -> field-asc <-> field-desc（同一字段仅在升降序间切换，不回到 default）
  * @param current 当前排序键
  * @param field 点击的字段
  * @returns 新的排序键
@@ -43,7 +43,9 @@ export function toggleSortKey(
   const { field: currentField, dir } = parseSortKey(current);
 
   if (currentField === field) {
-    return dir === "asc" ? (`${field}-desc` as TrackSortKey) : "default";
+    return dir === "asc"
+      ? (`${field}-desc` as TrackSortKey)
+      : (`${field}-asc` as TrackSortKey);
   }
 
   return `${field}-asc` as TrackSortKey;
@@ -67,13 +69,19 @@ export function sortTracks(
   const sorted = [...tracks];
   switch (field) {
     case "name":
-      sorted.sort((a, b) => sign * a.name.localeCompare(b.name, "zh-CN"));
+      sorted.sort(
+        (a, b) =>
+          sign * a.name.localeCompare(b.name, "zh-CN", { sensitivity: "base" })
+      );
       break;
     case "artist":
       sorted.sort((a, b) => {
         const artistA = a.artist?.[0] || "";
         const artistB = b.artist?.[0] || "";
-        return sign * artistA.localeCompare(artistB, "zh-CN");
+        return (
+          sign *
+          artistA.localeCompare(artistB, "zh-CN", { sensitivity: "base" })
+        );
       });
       break;
   }

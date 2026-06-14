@@ -368,9 +368,11 @@ export function MusicTrackList({
                           }
                         }}
                       >
-                        {isActive && (
+                        {isActive && field === "default" && (
+                          <Check className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        {isActive && field !== "default" && (
                           <>
-                            <Check className="w-3.5 h-3.5 mr-1" />
                             {dir === "asc" && (
                               <ArrowUp className="w-3 h-3 mr-1" />
                             )}

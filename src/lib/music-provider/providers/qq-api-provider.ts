@@ -3,6 +3,7 @@ import {
   SearchPageResult,
   MusicTrack,
   SongLyric,
+  type MusicSource,
 } from "@otter-music/shared";
 import { IMusicProvider } from "../interface";
 import {
@@ -12,7 +13,7 @@ import {
 } from "@/lib/qqmusic/qqmusic-api";
 
 export class QqApiProvider implements IMusicProvider {
-  source = "qq" as const;
+  source: MusicSource = "qq";
 
   async search(
     query: string,

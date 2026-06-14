@@ -350,7 +350,7 @@ export function PlaylistImportDrawer({
 
   return (
     <Drawer open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DrawerContent className="max-h-[92vh] outline-none">
+      <DrawerContent className="max-h-[92vh] outline-none overflow-hidden flex flex-col">
         <DrawerHeader className="pb-2">
           <DrawerTitle className="text-center text-lg font-bold">
             导入歌单
@@ -359,7 +359,7 @@ export function PlaylistImportDrawer({
 
         <Tabs
           defaultValue="link"
-          className="px-5"
+          className="px-5 flex-1 min-h-0 flex flex-col overflow-hidden"
           onValueChange={(v) => setActiveTab(v as "link" | "file" | "text")}
         >
           <TabsList className="w-full">
@@ -469,7 +469,7 @@ export function PlaylistImportDrawer({
 
           <TabsContent
             value="text"
-            className="mt-4 flex flex-col overflow-hidden"
+            className="mt-4 flex-1 min-h-0 overflow-hidden flex flex-col"
           >
             <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
               {/* JSON 输入区 */}

@@ -11,6 +11,8 @@ import { NeteaseProvider } from "./providers/netease-provider";
 import { QqApiProvider } from "./providers/qq-api-provider";
 import { NeteaseApiProvider } from "./providers/netease-api-provider";
 import { BilibiliApiProvider } from "./providers/bilibili-api-provider";
+import { LxKuwoProvider } from "./providers/lx-kuwo-provider";
+import { LxQqProvider } from "./providers/lx-qq-provider";
 
 export class MusicProviderFactory {
   private static instances = new Map<string, IMusicProvider>();
@@ -56,6 +58,12 @@ export class MusicProviderFactory {
         break;
       case "bilibili":
         provider = new BilibiliApiProvider();
+        break;
+      case "lx_kuwo":
+        provider = new LxKuwoProvider();
+        break;
+      case "lx_qq":
+        provider = new LxQqProvider();
         break;
       default:
         throw new Error(`不支持的音乐源: ${source}`);

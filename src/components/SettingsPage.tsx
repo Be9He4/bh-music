@@ -12,8 +12,9 @@ import {
   useMusicStore,
   type FullScreenBackgroundMode,
 } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { Slider } from "./ui/slider";
-import { Image, Palette, Volume2, Wand2, Trash2, Tag } from "lucide-react";
+import { Image, Palette, Volume2, Wand2, Trash2, Tag, Tv } from "lucide-react";
 import { Switch } from "./ui/switch";
 import {
   Select,
@@ -31,6 +32,7 @@ import { IssueLogs } from "./settings/IssueLogs";
 import { StreamCacheSetting } from "./settings/StreamCacheSetting";
 import { SleepTimerSetting } from "./settings/SleepTimerSetting";
 import { PlaybackSpeedSetting } from "./settings/PlaybackSpeedSetting";
+import { Input } from "./ui/input";
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -62,11 +64,28 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     setEnableAutoMatch,
     bilibiliKeepOriginalMeta,
     setBilibiliKeepOriginalMeta,
+    bilibiliAutoMatchSuffix,
+    setBilibiliAutoMatchSuffix,
     showSourceBadge,
     setShowSourceBadge,
     fullScreenBackgroundMode,
     setFullScreenBackgroundMode,
-  } = useMusicStore();
+  } = useMusicStore(
+    useShallow((state) => ({
+      volume: state.volume,
+      setVolume: state.setVolume,
+      enableAutoMatch: state.enableAutoMatch,
+      setEnableAutoMatch: state.setEnableAutoMatch,
+      bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
+      setBilibiliKeepOriginalMeta: state.setBilibiliKeepOriginalMeta,
+      bilibiliAutoMatchSuffix: state.bilibiliAutoMatchSuffix,
+      setBilibiliAutoMatchSuffix: state.setBilibiliAutoMatchSuffix,
+      showSourceBadge: state.showSourceBadge,
+      setShowSourceBadge: state.setShowSourceBadge,
+      fullScreenBackgroundMode: state.fullScreenBackgroundMode,
+      setFullScreenBackgroundMode: state.setFullScreenBackgroundMode,
+    }))
+  );
 
   return (
     <PageLayout title="系统设置" onBack={onBack}>
@@ -167,11 +186,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           />
         </SettingsSection>
 
-        <SettingsSection title="高级设置">
-          <ApiUrlConfig />
+        <SettingsSection title="B站设置">
           <SettingItem
             icon={Wand2}
-            title="B站换源保留原信息"
+            title="换源保留原信息"
             subtitle="自动换源到B站时保留原标题和歌手"
             action={
               <Switch
@@ -181,6 +199,23 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               />
             }
           />
+          <SettingItem
+            icon={Tv}
+            title="换源搜索关键词"
+            action={
+              <Input
+                value={bilibiliAutoMatchSuffix}
+                onChange={(e) => setBilibiliAutoMatchSuffix(e.target.value)}
+                placeholder="高音质/无损/HiFi/..."
+                disabled={!enableAutoMatch}
+                className="h-7 w-50 text-sm bg-transparent border-muted"
+              />
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="高级设置">
+          <ApiUrlConfig />
         </SettingsSection>
 
         <SettingsSection title="关于系统">
