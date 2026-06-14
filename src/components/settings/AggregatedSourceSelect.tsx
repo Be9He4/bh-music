@@ -1,4 +1,5 @@
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { aggregatedSourceOptions, type SourceConfig } from "@/types/music";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
@@ -111,7 +112,12 @@ function SortableSourceItem({
 }
 
 export function AggregatedSourceSelect() {
-  const { sourceConfigs, setSourceConfigs } = useMusicStore();
+  const { sourceConfigs, setSourceConfigs } = useMusicStore(
+    useShallow((state) => ({
+      sourceConfigs: state.sourceConfigs,
+      setSourceConfigs: state.setSourceConfigs,
+    }))
+  );
   const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 

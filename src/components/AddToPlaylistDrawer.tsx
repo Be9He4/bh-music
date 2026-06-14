@@ -1,4 +1,5 @@
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { useActivePlaylists } from "@/hooks/use-active-playlists";
 import type { MusicTrack, Playlist } from "@/types/music";
 import { Plus } from "lucide-react";
@@ -15,14 +16,14 @@ interface AddToPlaylistDrawerProps {
   onDone?: () => void;
 }
 
-function PlaylistItem({ 
-  playlist, 
-  onClick 
-}: { 
-  playlist: Playlist; 
+function PlaylistItem({
+  playlist,
+  onClick,
+}: {
+  playlist: Playlist;
   onClick: () => void;
 }) {
-  const validTracks = playlist.tracks.filter(t => !t.is_deleted);
+  const validTracks = playlist.tracks.filter((t) => !t.is_deleted);
   const trackCount = validTracks.length;
 
   return (
@@ -36,15 +37,31 @@ function PlaylistItem({
         iconClassName="h-5 w-5 text-muted-foreground/70"
       />
       <div className="ml-4 flex-1 overflow-hidden flex flex-col justify-center gap-0.5">
-        <p className="text-base font-medium truncate leading-tight">{playlist.name}</p>
-        <p className="text-xs text-muted-foreground/80 truncate">{trackCount} 首歌曲</p>
+        <p className="text-base font-medium truncate leading-tight">
+          {playlist.name}
+        </p>
+        <p className="text-xs text-muted-foreground/80 truncate">
+          {trackCount} 首歌曲
+        </p>
       </div>
     </div>
   );
 }
 
-export function AddToPlaylistDrawer({ open, onOpenChange, track, tracks, onDone }: AddToPlaylistDrawerProps) {
-  const { addToPlaylist, addBatchToPlaylist, createPlaylist } = useMusicStore();
+export function AddToPlaylistDrawer({
+  open,
+  onOpenChange,
+  track,
+  tracks,
+  onDone,
+}: AddToPlaylistDrawerProps) {
+  const { addToPlaylist, addBatchToPlaylist, createPlaylist } = useMusicStore(
+    useShallow((state) => ({
+      addToPlaylist: state.addToPlaylist,
+      addBatchToPlaylist: state.addBatchToPlaylist,
+      createPlaylist: state.createPlaylist,
+    }))
+  );
   const playlists = useActivePlaylists();
 
   const isBatch = !track && !!tracks?.length;
@@ -83,9 +100,14 @@ export function AddToPlaylistDrawer({ open, onOpenChange, track, tracks, onDone 
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[85vh] flex flex-col p-0 gap-0 outline-none" onClick={(e) => e.stopPropagation()}>
+      <DrawerContent
+        className="h-[85vh] flex flex-col p-0 gap-0 outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
         <DrawerHeader className="px-5 pt-6 pb-4 shrink-0">
-          <DrawerTitle className="text-lg font-semibold text-center">{title}</DrawerTitle>
+          <DrawerTitle className="text-lg font-semibold text-center">
+            {title}
+          </DrawerTitle>
         </DrawerHeader>
 
         <div className="flex-1 min-h-0">

@@ -1,4 +1,5 @@
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import {
   Select,
   SelectContent,
@@ -10,7 +11,12 @@ import { Music } from "lucide-react";
 import { SettingItem } from "./SettingItem";
 
 export function DownloadQualitySelect() {
-  const { downloadQuality, setDownloadQuality } = useMusicStore();
+  const { downloadQuality, setDownloadQuality } = useMusicStore(
+    useShallow((state) => ({
+      downloadQuality: state.downloadQuality,
+      setDownloadQuality: state.setDownloadQuality,
+    }))
+  );
 
   return (
     <SettingItem

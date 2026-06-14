@@ -4,6 +4,7 @@ import { MusicNowPlayingBar } from "@/components/MusicNowPlayingBar";
 import { MusicTabBar } from "@/components/MusicTabBar";
 import { GlobalMusicPlayer } from "@/components/GlobalMusicPlayer";
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
 import { toastUtils } from "@/lib/utils/toast";
 import { useExitLayer } from "@/hooks/useExitLayer";
@@ -23,7 +24,12 @@ export function RootLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isFullScreenPlayer, setIsFullScreenPlayer: setStoreFullScreen } =
-    useMusicStore();
+    useMusicStore(
+      useShallow((state) => ({
+        isFullScreenPlayer: state.isFullScreenPlayer,
+        setIsFullScreenPlayer: state.setIsFullScreenPlayer,
+      }))
+    );
   const { handleExit: handleExitLayer, push, pop } = useExitLayer();
 
   // Back Button Logic
@@ -110,7 +116,24 @@ export function RootLayout() {
     addToFavorites,
     removeFromFavorites,
     coverUrl,
-  } = useMusicStore();
+  } = useMusicStore(
+    useShallow((state) => ({
+      queue: state.queue,
+      currentIndex: state.currentIndex,
+      isPlaying: state.isPlaying,
+      isLoading: state.isLoading,
+      isRepeat: state.isRepeat,
+      isShuffle: state.isShuffle,
+      togglePlay: state.togglePlay,
+      setCurrentIndexAndPlay: state.setCurrentIndexAndPlay,
+      toggleRepeat: state.toggleRepeat,
+      toggleShuffle: state.toggleShuffle,
+      isFavorite: state.isFavorite,
+      addToFavorites: state.addToFavorites,
+      removeFromFavorites: state.removeFromFavorites,
+      coverUrl: state.coverUrl,
+    }))
+  );
 
   const currentTrack = queue[currentIndex] || null;
 

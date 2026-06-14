@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { useNeteaseStore } from "@/store/netease-store";
 import { SongDetail } from "@/lib/netease/netease-raw-types";
 import { ArtistAlbumSheet } from "@/components/ArtistAlbumSheet";
@@ -85,7 +86,12 @@ export function NeteaseDetail({
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { createPlaylist, setPlaylistTracks } = useMusicStore();
+  const { createPlaylist, setPlaylistTracks } = useMusicStore(
+    useShallow((state) => ({
+      createPlaylist: state.createPlaylist,
+      setPlaylistTracks: state.setPlaylistTracks,
+    }))
+  );
   const isShuffle = useMusicStore((state) => state.isShuffle);
   const { cookie } = useNeteaseStore();
   const { toggleAlbumInSession } = useMarketSession();

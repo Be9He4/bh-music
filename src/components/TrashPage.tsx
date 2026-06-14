@@ -2,6 +2,7 @@
 
 import { PageLayout } from "@/components/PageLayout";
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCcw, Music, ListMusic, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,10 +10,18 @@ import toast from "react-hot-toast";
 import { format } from "date-fns";
 
 // 统一的列表项组件
-function DeletedItem({ 
-  icon: Icon, title, subtitle, date, onRestore 
-}: { 
-  icon: React.ElementType, title: string, subtitle: string, date?: number, onRestore: () => void 
+function DeletedItem({
+  icon: Icon,
+  title,
+  subtitle,
+  date,
+  onRestore,
+}: {
+  icon: React.ElementType;
+  title: string;
+  subtitle: string;
+  date?: number;
+  onRestore: () => void;
 }) {
   return (
     <div className="group flex items-center p-3 rounded-xl hover:bg-muted/40 transition-all">
@@ -21,14 +30,16 @@ function DeletedItem({
       </div>
       <div className="flex-1 min-w-0 mr-4">
         <div className="font-medium truncate text-[14px]">{title}</div>
-        <div className="text-[12px] text-muted-foreground/80 truncate">{subtitle}</div>
+        <div className="text-[12px] text-muted-foreground/80 truncate">
+          {subtitle}
+        </div>
       </div>
       <div className="text-[12px] text-muted-foreground/50 mr-4 hidden sm:block tracking-wide">
         {date ? format(date, "yyyy-MM-dd HH:mm") : "-"}
       </div>
-      <Button 
-        variant="ghost" 
-        size="icon" 
+      <Button
+        variant="ghost"
+        size="icon"
         className="text-muted-foreground/60 hover:text-primary hover:bg-muted transition-colors"
         onClick={() => {
           onRestore();
@@ -42,7 +53,13 @@ function DeletedItem({
 }
 
 // 统一的空状态组件
-function EmptyState({ icon: Icon, text }: { icon: React.ElementType, text: string }) {
+function EmptyState({
+  icon: Icon,
+  text,
+}: {
+  icon: React.ElementType;
+  text: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-muted-foreground/50 py-16">
       <Icon className="h-12 w-12 mb-3 stroke-[1.5]" />
@@ -52,8 +69,16 @@ function EmptyState({ icon: Icon, text }: { icon: React.ElementType, text: strin
 }
 
 export function TrashPage() {
-  const { favorites, playlists, restoreFromFavorites, restorePlaylist } = useMusicStore();
-  
+  const { favorites, playlists, restoreFromFavorites, restorePlaylist } =
+    useMusicStore(
+      useShallow((state) => ({
+        favorites: state.favorites,
+        playlists: state.playlists,
+        restoreFromFavorites: state.restoreFromFavorites,
+        restorePlaylist: state.restorePlaylist,
+      }))
+    );
+
   const deletedTracks = favorites.filter((t) => t.is_deleted);
   const deletedPlaylists = playlists.filter((p) => p.is_deleted);
 
@@ -66,20 +91,30 @@ export function TrashPage() {
             <span>内容将保留 7 天，逾期后将永久移除。</span>
           </div>
         </div>
-        
-        <Tabs defaultValue="tracks" className="flex-1 flex flex-col overflow-hidden px-4 pb-4">
+
+        <Tabs
+          defaultValue="tracks"
+          className="flex-1 flex flex-col overflow-hidden px-4 pb-4"
+        >
           <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 rounded-lg p-1">
-            <TabsTrigger value="tracks" className="rounded-md">我的喜欢 ({deletedTracks.length})</TabsTrigger>
-            <TabsTrigger value="playlists" className="rounded-md">我的歌单 ({deletedPlaylists.length})</TabsTrigger>
+            <TabsTrigger value="tracks" className="rounded-md">
+              我的喜欢 ({deletedTracks.length})
+            </TabsTrigger>
+            <TabsTrigger value="playlists" className="rounded-md">
+              我的歌单 ({deletedPlaylists.length})
+            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="tracks" className="flex-1 overflow-y-auto mt-0 pb-24 outline-none">
+
+          <TabsContent
+            value="tracks"
+            className="flex-1 overflow-y-auto mt-0 pb-24 outline-none"
+          >
             {deletedTracks.length === 0 ? (
               <EmptyState icon={Music} text="暂无删除的歌曲" />
             ) : (
               <div className="space-y-0.5">
                 {deletedTracks.map((track) => (
-                  <DeletedItem 
+                  <DeletedItem
                     key={track.id}
                     icon={Music}
                     title={track.name}
@@ -94,14 +129,17 @@ export function TrashPage() {
               </div>
             )}
           </TabsContent>
-          
-          <TabsContent value="playlists" className="flex-1 overflow-y-auto mt-0 pb-24 outline-none">
+
+          <TabsContent
+            value="playlists"
+            className="flex-1 overflow-y-auto mt-0 pb-24 outline-none"
+          >
             {deletedPlaylists.length === 0 ? (
               <EmptyState icon={ListMusic} text="暂无删除的歌单" />
             ) : (
               <div className="space-y-0.5">
                 {deletedPlaylists.map((playlist) => (
-                  <DeletedItem 
+                  <DeletedItem
                     key={playlist.id}
                     icon={ListMusic}
                     title={playlist.name}

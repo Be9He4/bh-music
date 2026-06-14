@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { SettingItem } from "./SettingItem";
 import { LocalMusicPlugin } from "@/plugins/local-music";
 import { FolderOpen, RotateCcw } from "lucide-react";
@@ -12,7 +13,12 @@ export function DownloadDirectorySelect() {
 }
 
 function DownloadDirectorySelectInner() {
-  const { downloadDirectory, setDownloadDirectory } = useMusicStore();
+  const { downloadDirectory, setDownloadDirectory } = useMusicStore(
+    useShallow((state) => ({
+      downloadDirectory: state.downloadDirectory,
+      setDownloadDirectory: state.setDownloadDirectory,
+    }))
+  );
   const [picking, setPicking] = useState(false);
 
   const handlePick = useCallback(async () => {

@@ -20,6 +20,7 @@ import {
 import toast from "react-hot-toast";
 import { convertToMusicTrack } from "@/lib/utils/download";
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { getPlayAllStartIndex } from "@/hooks/usePlayHelper";
 import { useLocalMusicStore } from "@/store/local-music-store";
 import { LocalMusicPermissionDialog } from "./LocalMusicPermissionDialog";
@@ -75,7 +76,14 @@ export function LocalMusicPage({
   /* =========================
      Store
   ========================= */
-  const { queue, currentIndex, skipToNext, isShuffle } = useMusicStore();
+  const { queue, currentIndex, skipToNext, isShuffle } = useMusicStore(
+    useShallow((state) => ({
+      queue: state.queue,
+      currentIndex: state.currentIndex,
+      skipToNext: state.skipToNext,
+      isShuffle: state.isShuffle,
+    }))
+  );
   const { files, setFiles, updateFiles, setScanning } = useLocalMusicStore();
 
   /* =========================
