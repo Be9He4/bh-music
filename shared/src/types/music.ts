@@ -172,6 +172,7 @@ export interface MusicTrack {
   update_time?: number;
   is_deleted?: boolean;
   privilege?: NeteasePrivilege;
+  fee?: number; // 通用付费标识（0=免费, 1=VIP, 4=付费）
   artist_ids?: string[];
   album_id?: string;
   audioFormat?: AudioFormat;

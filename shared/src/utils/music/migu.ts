@@ -96,6 +96,13 @@ function normalizeArtists(song: MiguSongRaw): string[] {
     .filter(Boolean);
 }
 
+function extractMiguFee(song: {
+  copyright?: number | string;
+}): number | undefined {
+  if (song.copyright === 1 || song.copyright === "1") return 1;
+  return undefined;
+}
+
 export function convertMiguSongToMusicTrack(song: MiguSongRaw): MusicTrack {
   const copyrightId = song.copyrightId || song.songId || "unknown";
   const contentId = song.contentId || "";
@@ -123,6 +130,7 @@ export function convertMiguSongToMusicTrack(song: MiguSongRaw): MusicTrack {
       | string[]
       | undefined,
     album_id: song.albumId,
+    fee: extractMiguFee(song),
   };
 }
 
@@ -210,6 +218,7 @@ export function convertMiguV3SearchSongToMusicTrack(
     artist_ids: (song.singerList || []).map((s) => s.id || "").filter(Boolean),
     album_id:
       typeof song.albumId === "number" ? String(song.albumId) : song.albumId,
+    fee: extractMiguFee(song),
   };
 }
 

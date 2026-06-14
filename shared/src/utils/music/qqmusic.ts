@@ -47,6 +47,19 @@ export function parseQqPlaylistResponse(text: string): QqPlaylistResponse {
   }
 }
 
+function extractQqFee(song: {
+  pay?: {
+    payplay?: number;
+    paydownload?: number;
+    pay_play?: number;
+    pay_down?: number;
+  };
+}): number | undefined {
+  const payPlay = song.pay?.payplay ?? song.pay?.pay_play;
+  if (payPlay === 1) return 1;
+  return undefined;
+}
+
 /**
  * 将 QQ 音乐歌单中的歌曲对象转换为 MusicTrack。
  */
@@ -64,6 +77,7 @@ export function convertQqSongToMusicTrack(song: QqSongRaw): MusicTrack {
     url_id: song.songmid,
     lyric_id: song.songmid,
     source: "qq",
+    fee: extractQqFee(song),
   };
 }
 
@@ -91,6 +105,7 @@ export function convertQqSearchSongToMusicTrack(
     url_id: songmid,
     lyric_id: songmid,
     source: "qq",
+    fee: extractQqFee(song),
   };
 }
 

@@ -136,6 +136,7 @@ export interface MiguSongRaw {
   albumImgs?: Array<{ img?: string; imgSizeType?: string }>;
   artists?: Array<{ id?: string; name?: string }>;
   lrcUrl?: string;
+  copyright?: number | string;
 }
 
 export interface MiguSongUrlResponse {
@@ -458,6 +459,12 @@ export interface QqSongRaw {
   albumname: string;
   albummid: string;
   interval: number;
+  pay?: {
+    payplay?: number;
+    paydownload?: number;
+    pay_play?: number;
+    pay_down?: number;
+  };
 }
 
 export interface QqSingerRaw {
@@ -483,6 +490,12 @@ export interface QqSearchSongRaw {
   albumid?: string;
   albummid?: string;
   albumname?: string;
+  pay?: {
+    payplay?: number;
+    paydownload?: number;
+    pay_play?: number;
+    pay_down?: number;
+  };
 }
 
 export interface QqSearchResponse {

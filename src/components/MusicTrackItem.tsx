@@ -17,7 +17,6 @@ import { MusicTrackVariants } from "./MusicTrackVariants";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { DatabaseZap, DollarSign, Gem, GripVertical } from "lucide-react";
-import { NeteasePrivilege } from "@/lib/netease/netease-types";
 import { useDownloadStore } from "@/store/download-store";
 
 // 预定义 Badge 样式，避免每次渲染都重新计算
@@ -34,11 +33,21 @@ const PRIVILEGE_BADGES = {
   },
 } as const;
 
-function getNeteaseBadge(p?: NeteasePrivilege) {
-  if (!p || p.pl > 0) return null; // 可完整播放则不显示任何标记
+function getPrivilegeBadge(track: MusicTrack) {
+  // 网易云：沿用原有逻辑（需要 pl 判断可播放性）
+  if (track.source === "netease" || track.source === "_netease") {
+    const p = track.privilege;
+    if (!p || p.pl > 0) return null; // 可完整播放则不显示任何标记
+    if (p.fee === 1) return PRIVILEGE_BADGES[1];
+    if (p.fee === 4) return PRIVILEGE_BADGES[4];
+    return null;
+  }
 
-  if (p.fee === 1) return PRIVILEGE_BADGES[1];
-  if (p.fee === 4) return PRIVILEGE_BADGES[4];
+  // QQ / 咪咕：直接读 fee
+  if (track.source === "qq" || track.source === "migu") {
+    if (track.fee === 1) return PRIVILEGE_BADGES[1];
+    if (track.fee === 4) return PRIVILEGE_BADGES[4];
+  }
 
   return null;
 }
@@ -107,7 +116,7 @@ export function MusicTrackItem({
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
   const variants = (track as MergedMusicTrack).variants || [];
-  const badge = getNeteaseBadge(track.privilege);
+  const badge = getPrivilegeBadge(track);
 
   return (
     <div
