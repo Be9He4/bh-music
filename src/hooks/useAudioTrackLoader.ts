@@ -273,6 +273,7 @@ export function useAudioTrackLoader(
         }
         await waitForAudioReady(audio);
         audio.currentTime = startTime ?? currentAudioTime;
+        audio.playbackRate = useMusicStore.getState().playbackSpeed;
         await audio.play();
       };
 
