@@ -8,10 +8,20 @@ import { useShallow } from "zustand/react/shallow";
 
 interface PlayerProgressBarProps {
   className?: string;
+  leftTimeSuffix?: React.ReactNode;
+  centerContent?: React.ReactNode;
+  onLeftTimeClick?: () => void;
+  onRightTimeClick?: () => void;
+  onCenterClick?: () => void;
 }
 
 export function PlayerProgressBar({
   className,
+  leftTimeSuffix,
+  centerContent,
+  onLeftTimeClick,
+  onRightTimeClick,
+  onCenterClick,
 }: PlayerProgressBarProps) {
   const { currentTime, duration, seek } = useMusicStore(
     useShallow((state) => ({
@@ -44,12 +54,15 @@ export function PlayerProgressBar({
     dragTimeRef.current = time;
   };
 
-  const handleMove = React.useCallback((clientX: number) => {
-    const p = getPercent(clientX);
-    const time = p * duration;
-    setDragTime(time);
-    dragTimeRef.current = time;
-  }, [duration]);
+  const handleMove = React.useCallback(
+    (clientX: number) => {
+      const p = getPercent(clientX);
+      const time = p * duration;
+      setDragTime(time);
+      dragTimeRef.current = time;
+    },
+    [duration]
+  );
 
   const handleEnd = React.useCallback(() => {
     seek(dragTimeRef.current);
@@ -97,18 +110,56 @@ export function PlayerProgressBar({
             style={{ width: `${displayProgress}%` }}
           >
             {/* 拖拽/悬停时显示的小圆点指示器 */}
-            <div 
+            <div
               className={cn(
                 "w-3 h-3 bg-white rounded-full shadow-md translate-x-1.5 transition-opacity duration-200",
-                isDragging ? "opacity-100 scale-110" : "opacity-0 group-hover:opacity-100"
-              )} 
+                isDragging
+                  ? "opacity-100 scale-110"
+                  : "opacity-0 group-hover:opacity-100"
+              )}
             />
           </div>
         </div>
       </div>
-      <div className="flex justify-between text-xs text-white/60 font-medium mt-1.5 px-0.5 tracking-wider">
-        <span>{formatMediaTime(isDragging ? dragTime : currentTime)}</span>
-        <span>{formatMediaTime(duration)}</span>
+      <div className="relative flex justify-between text-xs text-white/60 font-medium mt-1.5 px-0.5 tracking-wider">
+        <span
+          className={cn(
+            "flex items-baseline gap-0.5",
+            onLeftTimeClick &&
+              "cursor-pointer hover:text-white transition-colors"
+          )}
+          onClick={onLeftTimeClick}
+          role={onLeftTimeClick ? "button" : undefined}
+          tabIndex={onLeftTimeClick ? 0 : undefined}
+        >
+          {formatMediaTime(isDragging ? dragTime : currentTime)}
+          {leftTimeSuffix}
+        </span>
+        {centerContent && (
+          <span
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2",
+              onCenterClick &&
+                "cursor-pointer hover:text-white transition-colors"
+            )}
+            onClick={onCenterClick}
+            role={onCenterClick ? "button" : undefined}
+            tabIndex={onCenterClick ? 0 : undefined}
+          >
+            {centerContent}
+          </span>
+        )}
+        <span
+          className={cn(
+            onRightTimeClick &&
+              "cursor-pointer hover:text-white transition-colors"
+          )}
+          onClick={onRightTimeClick}
+          role={onRightTimeClick ? "button" : undefined}
+          tabIndex={onRightTimeClick ? 0 : undefined}
+        >
+          {formatMediaTime(duration)}
+        </span>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useMusicStore } from "@/store/music-store";
+import { formatTime } from "@/lib/utils/time";
 
 const FADE_OUT_DURATION = 10;
 const FADE_OUT_STEPS = 20;
@@ -190,17 +191,11 @@ export function useSleepTimer(
     sleepTimerRemainingRef.current = sleepTimerRemaining;
   }, [sleepTimerRemaining]);
 
-  const formatRemaining = useCallback((seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }, []);
-
   return {
     isActive: sleepTimerIsActive,
     remaining: sleepTimerRemaining,
     duration: sleepTimerDuration,
-    formattedRemaining: formatRemaining(sleepTimerRemaining),
+    formattedRemaining: formatTime(sleepTimerRemaining),
     startTimer,
     cancelTimer,
   };

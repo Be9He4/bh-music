@@ -2,12 +2,14 @@ package com.otterhub.music;
 
 import android.content.res.Configuration;
 import android.os.Bundle;
+import androidx.activity.enableEdgeToEdge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        enableEdgeToEdge();
         registerPlugin(LocalMusicPlugin.class);
         registerPlugin(BilibiliProxyPlugin.class);
         super.onCreate(savedInstanceState);

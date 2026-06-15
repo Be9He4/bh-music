@@ -20,13 +20,20 @@ import {
   Play,
   Pause,
   SquareArrowOutUpRight,
+  Moon,
+  ClockFading,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useMounted } from "@/hooks/use-mounted";
 import { PlayerQueueDrawer } from "./PlayerQueueDrawer";
 import { MusicTrackMobileMenu } from "./MusicTrackMobileMenu";
 import { AddToPlaylistDrawer } from "./AddToPlaylistDrawer";
+import { QualityDrawer } from "./settings/QualityDrawer";
+import { PlaybackSpeedDrawer } from "./settings/PlaybackSpeedDrawer";
+import { SleepTimerDrawer } from "./settings/SleepTimerDrawer";
 import { downloadMusicTrack } from "@/lib/utils/download";
+import { getQualityShortLabel } from "@/lib/utils/quality";
+import { formatTime } from "@/lib/utils/time";
 import {
   useMusicStore,
   type FullScreenBackgroundMode,
@@ -167,6 +174,9 @@ export function FullScreenPlayer({
   const [showLyrics, setShowLyrics] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [qualityDrawerOpen, setQualityDrawerOpen] = useState(false);
+  const [speedDrawerOpen, setSpeedDrawerOpen] = useState(false);
+  const [sleepDrawerOpen, setSleepDrawerOpen] = useState(false);
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [colorInfo, setColorInfo] = useState<{
@@ -194,6 +204,9 @@ export function FullScreenPlayer({
     playTrackAsNext,
     currentAudioUrl,
     fullScreenBackgroundMode,
+    playbackSpeed,
+    sleepTimerIsActive,
+    sleepTimerRemaining,
   } = useMusicStore(
     useShallow((state) => ({
       queue: state.queue,
@@ -206,6 +219,9 @@ export function FullScreenPlayer({
       currentAudioUrl: state.currentAudioUrl,
       quality: state.quality,
       fullScreenBackgroundMode: state.fullScreenBackgroundMode,
+      playbackSpeed: state.playbackSpeed,
+      sleepTimerIsActive: state.sleepTimerIsActive,
+      sleepTimerRemaining: state.sleepTimerRemaining,
     }))
   );
 
@@ -272,7 +288,6 @@ export function FullScreenPlayer({
 
   if (!isMounted) return null;
 
-  const modeTitle = isRepeat ? "单曲循环" : isShuffle ? "随机播放" : "列表循环";
   const handleModeToggle = () => {
     if (!isShuffle && !isRepeat) onToggleRepeat();
     else if (isRepeat) {
@@ -319,9 +334,14 @@ export function FullScreenPlayer({
         >
           <ChevronDown className="h-6 w-6" />
         </Button>
-        <p className="text-xs uppercase tracking-widest text-white/50">
-          {!showLyrics && modeTitle}
-        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs tracking-widest text-white/50 hover:text-white hover:bg-white/10 h-8 px-3"
+          onClick={() => setQualityDrawerOpen(true)}
+        >
+          {!showLyrics && getQualityShortLabel(quality)}
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -435,7 +455,27 @@ export function FullScreenPlayer({
       </div>
 
       <div className="shrink-0 px-8 relative z-10">
-        <PlayerProgressBar className="relative" />
+        <PlayerProgressBar
+          className="relative"
+          leftTimeSuffix={
+            playbackSpeed !== 1.0 ? (
+              <span className="ml-1 text-[0.7em] align-sub opacity-70">
+                x{playbackSpeed.toFixed(1)}
+              </span>
+            ) : null
+          }
+          centerContent={
+            sleepTimerIsActive ? (
+              <span className="flex items-center gap-1 text-[0.85em]">
+                <ClockFading className="w-2.5 h-2.5" />
+                {formatTime(sleepTimerRemaining)}
+              </span>
+            ) : null
+          }
+          onLeftTimeClick={() => setSpeedDrawerOpen(true)}
+          onRightTimeClick={() => setSleepDrawerOpen(true)}
+          onCenterClick={() => setSleepDrawerOpen(true)}
+        />
       </div>
 
       <div className="shrink-0 flex items-center justify-between px-8 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] relative z-10">
@@ -504,6 +544,19 @@ export function FullScreenPlayer({
           }
         />
       </div>
+
+      <QualityDrawer
+        open={qualityDrawerOpen}
+        onOpenChange={setQualityDrawerOpen}
+      />
+      <PlaybackSpeedDrawer
+        open={speedDrawerOpen}
+        onOpenChange={setSpeedDrawerOpen}
+      />
+      <SleepTimerDrawer
+        open={sleepDrawerOpen}
+        onOpenChange={setSleepDrawerOpen}
+      />
     </div>,
     document.body
   );
