@@ -206,7 +206,11 @@ export function useAudioTrackLoader(
   const requestIdRef = useRef(0);
   const prevUrlRecoveryKeyRef = useRef(urlRecoveryKey);
 
-  const prevTrackRef = useRef<{ id?: string; source?: string } | null>(null);
+  const prevTrackRef = useRef<{
+    id?: string;
+    source?: string;
+    quality?: string;
+  } | null>(null);
   const remoteUrlRef = useRef<string | null>(null);
   const fallbackStageRef = useRef<{
     trackKey: string | null;
@@ -260,7 +264,7 @@ export function useAudioTrackLoader(
         return remoteUrl;
       };
 
-      const setSourceAndPlay = async (audioUrl: string) => {
+      const setSourceAndPlay = async (audioUrl: string, startTime?: number) => {
         if (audio.src !== audioUrl) {
           setCurrentAudioUrl(audioUrl);
           audio.src = "";
@@ -268,7 +272,7 @@ export function useAudioTrackLoader(
           audio.load();
         }
         await waitForAudioReady(audio);
-        audio.currentTime = currentAudioTime;
+        audio.currentTime = startTime ?? currentAudioTime;
         await audio.play();
       };
 
@@ -276,10 +280,21 @@ export function useAudioTrackLoader(
         setIsLoading(true);
 
         const isRecovery = prevUrlRecoveryKeyRef.current !== urlRecoveryKey;
+        const qualityChanged =
+          prevTrackRef.current?.quality !== quality &&
+          prevTrackRef.current?.id === currentTrackId &&
+          prevTrackRef.current?.source === currentTrackSource;
+
+        // 不支持音质调整的音源：quality 变化时无需重载
+        const qualityAgnosticSources = ["local", "bilibili", "podcast"];
+        const shouldSkipQualityReload =
+          qualityChanged && qualityAgnosticSources.includes(currentTrackSource);
 
         if (
           prevTrackRef.current?.id === currentTrackId &&
           prevTrackRef.current?.source === currentTrackSource &&
+          (prevTrackRef.current?.quality === quality ||
+            shouldSkipQualityReload) &&
           !isSwitchingTrackRef.current &&
           !isRecovery
         ) {
@@ -292,10 +307,24 @@ export function useAudioTrackLoader(
           prevUrlRecoveryKeyRef.current = urlRecoveryKey;
         }
 
+        // 音质变更时清除 URL 缓存，确保用新音质重新请求
+        if (qualityChanged && !shouldSkipQualityReload) {
+          remoteUrlRef.current = null;
+          fallbackStageRef.current = { trackKey: "", stage: "none" };
+        }
+
         isSwitchingTrackRef.current = true;
         hasRecordedRef.current = false;
 
-        audio.pause();
+        // 音质变更时不暂停，尽量无缝切换
+        if (!qualityChanged) {
+          audio.pause();
+        }
+
+        // 音质变更时记录当前实际播放位置，用于恢复
+        const resumeTime = qualityChanged
+          ? audio.currentTime
+          : currentAudioTime;
 
         const isLocal = (currentTrackSource as string) === "local";
         const isOnline = navigator.onLine;
@@ -311,7 +340,7 @@ export function useAudioTrackLoader(
           try {
             const remoteUrl = await getRemoteUrl();
             if (remoteUrl) {
-              await setSourceAndPlay(remoteUrl);
+              await setSourceAndPlay(remoteUrl, resumeTime);
               return;
             }
           } catch {
@@ -360,7 +389,7 @@ export function useAudioTrackLoader(
             }
           }
 
-          await setSourceAndPlay(primaryUrl);
+          await setSourceAndPlay(primaryUrl, resumeTime);
         } catch (primaryError) {
           console.error("Primary audio load failed:", primaryError);
 
@@ -371,13 +400,13 @@ export function useAudioTrackLoader(
           ) {
             try {
               audio.src = "";
-              await setSourceAndPlay(localDownloadUrl);
+              await setSourceAndPlay(localDownloadUrl, resumeTime);
               return;
             } catch {
               useDownloadStore.getState().removeRecord(downloadKey);
               toast.error("播放失败，已切换在线播放");
               const remoteUrl = await getRemoteUrl();
-              await setSourceAndPlay(remoteUrl);
+              await setSourceAndPlay(remoteUrl, resumeTime);
               return;
             }
           }
@@ -392,7 +421,7 @@ export function useAudioTrackLoader(
             const proxyUrl = getProxyUrl(remoteUrl);
             fallbackStageRef.current.stage = "proxy";
             toast("已切换备用线路", { icon: "🌐", id: "proxy-notice" });
-            await setSourceAndPlay(proxyUrl);
+            await setSourceAndPlay(proxyUrl, resumeTime);
             return;
           }
 
@@ -459,6 +488,7 @@ export function useAudioTrackLoader(
     prevTrackRef.current = {
       id: currentTrackId,
       source: currentTrackSource,
+      quality,
     };
 
     return () => {
