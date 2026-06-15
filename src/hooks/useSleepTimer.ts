@@ -6,201 +6,159 @@ const FADE_OUT_DURATION = 10;
 const FADE_OUT_STEPS = 20;
 const TICK_INTERVAL = 1000;
 
-/**
- * 睡眠定时器 Hook
- *
- * 管理倒计时逻辑、播放联动、音量淡出和取消操作。
- * 使用 audio.volume 渐变实现淡出，避免 Web Audio API 的
- * createMediaElementSource 重复绑定问题。
- */
 export function useSleepTimer(
   audioRef: React.RefObject<HTMLAudioElement | null>
 ) {
+  // 1. 状态获取
   const isPlaying = useMusicStore((s) => s.isPlaying);
-  const setIsPlaying = useMusicStore((s) => s.setIsPlaying);
   const volume = useMusicStore((s) => s.volume);
   const sleepTimerDuration = useMusicStore((s) => s.sleepTimerDuration);
   const sleepTimerRemaining = useMusicStore((s) => s.sleepTimerRemaining);
   const sleepTimerIsActive = useMusicStore((s) => s.sleepTimerIsActive);
   const sleepTimerEndTime = useMusicStore((s) => s.sleepTimerEndTime);
+
+  const setIsPlaying = useMusicStore((s) => s.setIsPlaying);
   const setSleepTimerRemaining = useMusicStore((s) => s.setSleepTimerRemaining);
   const setSleepTimerIsActive = useMusicStore((s) => s.setSleepTimerIsActive);
   const setSleepTimerEndTime = useMusicStore((s) => s.setSleepTimerEndTime);
   const setSleepTimerDuration = useMusicStore((s) => s.setSleepTimerDuration);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const originalVolumeRef = useRef<number>(1);
-  const isFadingRef = useRef<boolean>(false);
-  const isPlayingRef = useRef<boolean>(isPlaying);
-  const sleepTimerEndTimeRef = useRef<number>(sleepTimerEndTime);
-  const sleepTimerRemainingRef = useRef<number>(sleepTimerRemaining);
+  // 2. Refs 管理
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isFadingRef = useRef(false);
 
-  const clearFadeInterval = useCallback(() => {
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
-    }
+  // 核心优化：用一个 ref 实时同步最新状态，免去所有同步用的 useEffect
+  const stateRef = useRef({ volume, isPlaying, sleepTimerEndTime });
+  stateRef.current = { volume, isPlaying, sleepTimerEndTime };
+
+  const clearFade = useCallback(() => {
+    if (fadeRef.current) clearInterval(fadeRef.current);
   }, []);
 
+  // 3. 淡出并停止
   const fadeOutAndStop = useCallback(() => {
-    if (isFadingRef.current) return;
-    isFadingRef.current = true;
-
     const audio = audioRef.current;
-    if (!audio) {
-      setIsPlaying(false);
-      setSleepTimerIsActive(false);
-      isFadingRef.current = false;
-      return;
-    }
+    if (isFadingRef.current || !audio) return;
 
-    originalVolumeRef.current = volume;
+    isFadingRef.current = true;
     const startVolume = audio.volume;
-    const stepDuration = (FADE_OUT_DURATION * 1000) / FADE_OUT_STEPS;
     let step = 0;
 
-    clearFadeInterval();
-    fadeIntervalRef.current = setInterval(() => {
-      step++;
-      if (step >= FADE_OUT_STEPS) {
-        clearFadeInterval();
-        audio.volume = 0;
-        setIsPlaying(false);
-        setSleepTimerIsActive(false);
-        isFadingRef.current = false;
-        audio.volume = originalVolumeRef.current;
-      } else {
-        audio.volume = startVolume * (1 - step / FADE_OUT_STEPS);
-      }
-    }, stepDuration);
-  }, [
-    audioRef,
-    volume,
-    setIsPlaying,
-    setSleepTimerIsActive,
-    clearFadeInterval,
-  ]);
+    clearFade();
+    fadeRef.current = setInterval(
+      () => {
+        step++;
+        const progress = step / FADE_OUT_STEPS;
 
+        if (progress >= 1) {
+          clearFade();
+          // 核心修复：明确降到 0 -> 同步暂停 -> 恢复系统音量
+          audio.volume = 0;
+          audio.pause();
+          audio.volume = stateRef.current.volume;
+
+          setIsPlaying(false);
+          setSleepTimerIsActive(false);
+          isFadingRef.current = false;
+        } else {
+          // 动态适配用户中途修改全局音量
+          const currentGlobalVol = stateRef.current.volume;
+          audio.volume = Math.max(
+            0,
+            Math.min(startVolume, currentGlobalVol) * (1 - progress)
+          );
+        }
+      },
+      (FADE_OUT_DURATION * 1000) / FADE_OUT_STEPS
+    );
+  }, [audioRef, clearFade, setIsPlaying, setSleepTimerIsActive]);
+
+  // 4. 取消定时
   const cancelTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    clearFadeInterval();
+    if (timerRef.current) clearInterval(timerRef.current);
+    clearFade();
     isFadingRef.current = false;
+
     setSleepTimerIsActive(false);
     setSleepTimerRemaining(0);
     setSleepTimerEndTime(0);
 
-    const audio = audioRef.current;
-    if (audio) {
-      audio.volume = originalVolumeRef.current;
-    }
+    if (audioRef.current) audioRef.current.volume = stateRef.current.volume;
   }, [
+    audioRef,
+    clearFade,
     setSleepTimerIsActive,
     setSleepTimerRemaining,
     setSleepTimerEndTime,
-    audioRef,
-    clearFadeInterval,
   ]);
 
+  // 5. 启动定时
   const startTimer = useCallback(
-    (durationMinutes: number) => {
+    (minutes: number) => {
       cancelTimer();
+      const durationSeconds = minutes * 60;
 
-      const durationSeconds = durationMinutes * 60;
-      const endTime = Date.now() + durationSeconds * 1000;
-
-      setSleepTimerDuration(durationMinutes);
+      setSleepTimerDuration(minutes);
       setSleepTimerRemaining(durationSeconds);
+      setSleepTimerEndTime(Date.now() + durationSeconds * 1000);
       setSleepTimerIsActive(true);
-      setSleepTimerEndTime(endTime);
-
-      originalVolumeRef.current = volume;
     },
     [
       cancelTimer,
-      setSleepTimerIsActive,
+      setSleepTimerDuration,
       setSleepTimerRemaining,
       setSleepTimerEndTime,
-      setSleepTimerDuration,
-      volume,
+      setSleepTimerIsActive,
     ]
   );
 
+  // 6. 倒计时心跳
   useEffect(() => {
     if (!sleepTimerIsActive) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
 
-    intervalRef.current = setInterval(() => {
-      const now = Date.now();
-      const remaining = Math.ceil((sleepTimerEndTimeRef.current - now) / 1000);
+    timerRef.current = setInterval(() => {
+      const { isPlaying, sleepTimerEndTime } = stateRef.current;
+      const remaining = Math.max(
+        0,
+        Math.ceil((sleepTimerEndTime - Date.now()) / 1000)
+      );
+
+      setSleepTimerRemaining(remaining);
 
       if (remaining <= 0) {
-        setSleepTimerRemaining(0);
-        // 如果已在淡出中，让 fade interval 自己完成收尾
         if (!isFadingRef.current) {
-          if (isPlayingRef.current) {
-            fadeOutAndStop();
-          } else {
-            setSleepTimerIsActive(false);
-            setSleepTimerEndTime(0);
-          }
+          isPlaying ? fadeOutAndStop() : setSleepTimerIsActive(false);
         }
-      } else {
-        setSleepTimerRemaining(remaining);
-        // 提前渐变：剩余10秒内且正在播放，立即开始淡出
-        if (
-          remaining <= FADE_OUT_DURATION &&
-          isPlayingRef.current &&
-          !isFadingRef.current
-        ) {
-          fadeOutAndStop();
-        }
+      } else if (
+        remaining <= FADE_OUT_DURATION &&
+        isPlaying &&
+        !isFadingRef.current
+      ) {
+        fadeOutAndStop();
       }
     }, TICK_INTERVAL);
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [
     sleepTimerIsActive,
-    setSleepTimerRemaining,
-    setSleepTimerEndTime,
-    setSleepTimerIsActive,
     fadeOutAndStop,
+    setSleepTimerRemaining,
+    setSleepTimerIsActive,
   ]);
 
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
-
+  // 7. 卸载清理
   useEffect(() => {
     return () => {
-      clearFadeInterval();
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      clearFade();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [clearFadeInterval]);
-
-  useEffect(() => {
-    sleepTimerEndTimeRef.current = sleepTimerEndTime;
-  }, [sleepTimerEndTime]);
-
-  useEffect(() => {
-    sleepTimerRemainingRef.current = sleepTimerRemaining;
-  }, [sleepTimerRemaining]);
+  }, [clearFade]);
 
   return {
     isActive: sleepTimerIsActive,

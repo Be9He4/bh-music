@@ -10,16 +10,43 @@ export const LX_SOURCE_CODE: Record<string, string> = {
   lx_qq: "tx",
 };
 
-/** 比特率 → LX API 音质参数 */
-const QUALITY_MAP: Record<number, string> = {
-  128: "128k",
-  192: "320k",
-  320: "320k",
-};
-
+/** LX API 仅支持 128k / 320k 两档音质，超过 320 视为 320k，低于 128 视为 128k */
 function mapBrToQuality(br?: number): string {
   if (!br) return "320k";
-  return QUALITY_MAP[br] || (br <= 128 ? "128k" : "320k");
+  return br <= 128 ? "128k" : "320k";
+}
+
+async function tryFetchLxUrl(
+  sourceCode: string,
+  songid: string,
+  quality: string
+): Promise<string | null> {
+  const url = `${LX_API_BASE}/url/${sourceCode}/${songid}/${quality}`;
+
+  if (IS_NATIVE) {
+    const { CapacitorHttp } = await import("@capacitor/core");
+    const res = await CapacitorHttp.request({
+      method: "GET",
+      url,
+      headers: { "X-Request-Key": LX_API_KEY },
+    });
+    if (res.status >= 400) return null;
+    const data = (
+      typeof res.data === "string" ? JSON.parse(res.data) : res.data
+    ) as { url?: string };
+    return data.url || null;
+  }
+
+  try {
+    const res = await fetchWithTimeout(url, {
+      headers: { "X-Request-Key": LX_API_KEY },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { url?: string };
+    return data.url || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -27,6 +54,8 @@ function mapBrToQuality(br?: number): string {
  * @param source 音源 ID（lx_kuwo / lx_qq）
  * @param songid 歌曲 ID
  * @param br 比特率
+ *
+ * 内部自动降级：请求音质失败时尝试 128k
  */
 export async function getLxUrl(
   source: string,
@@ -38,34 +67,14 @@ export async function getLxUrl(
 
   const quality = mapBrToQuality(br);
 
-  // 原生端：CapacitorHttp 直连，带 API Key header
-  if (IS_NATIVE) {
-    const { CapacitorHttp } = await import("@capacitor/core");
-    const res = await CapacitorHttp.request({
-      method: "GET",
-      url: `${LX_API_BASE}/url/${sourceCode}/${songid}/${quality}`,
-      headers: { "X-Request-Key": LX_API_KEY },
-    });
-    if (res.status >= 400) return null;
-    const data =
-      typeof res.data === "string"
-        ? (JSON.parse(res.data) as { url?: string })
-        : (res.data as { url?: string });
-    return data.url || null;
+  let result = await tryFetchLxUrl(sourceCode, songid, quality);
+  if (result) return result;
+
+  if (quality !== "128k") {
+    result = await tryFetchLxUrl(sourceCode, songid, "128k");
   }
 
-  // Web 端：fetch 直连
-  try {
-    const res = await fetchWithTimeout(
-      `${LX_API_BASE}/url/${sourceCode}/${songid}/${quality}`,
-      { headers: { "X-Request-Key": LX_API_KEY } }
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { url?: string };
-    return data.url || null;
-  } catch {
-    return null;
-  }
+  return result;
 }
 
 const NETWORK_TIMEOUT = 12000;
