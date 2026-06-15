@@ -1,15 +1,16 @@
 package com.otterhub.music;
 
+import static androidx.core.view.WindowCompat.enableEdgeToEdge;
+
 import android.content.res.Configuration;
 import android.os.Bundle;
-import androidx.activity.enableEdgeToEdge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        enableEdgeToEdge();
+        enableEdgeToEdge(getWindow());
         registerPlugin(LocalMusicPlugin.class);
         registerPlugin(BilibiliProxyPlugin.class);
         super.onCreate(savedInstanceState);
