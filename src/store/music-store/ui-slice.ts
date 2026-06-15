@@ -50,7 +50,7 @@ export const createUiSlice: StateCreator<MusicState, [], [], UiSlice> = (
   lastFeaturedTab: "",
   enableAutoMatch: true,
   bilibiliKeepOriginalMeta: false,
-  bilibiliAutoMatchSuffix: "",
+  bilibiliAutoMatchSuffix: "高音质 原曲",
   fullScreenBackgroundMode: "theme",
   showSourceBadge: true,
   playbackSpeed: 1.0,

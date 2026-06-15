@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClockFading, Moon } from "lucide-react";
+import { ClockFading } from "lucide-react";
 import { SettingItem } from "./SettingItem";
 import { Button } from "@/components/ui/button";
 import { SleepTimerDrawer } from "./SleepTimerDrawer";
