@@ -39,7 +39,8 @@ function SourceItem({
   onToggleVisible,
   dragHandleProps,
 }: SourceItemProps) {
-  const opt = aggregatedSourceOptions.find((o) => o.value === config.source)!;
+  const opt = aggregatedSourceOptions.find((o) => o.value === config.source);
+  if (!opt) return null;
 
   return (
     <div className="flex items-center gap-4 py-2">

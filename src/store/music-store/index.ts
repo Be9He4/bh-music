@@ -35,7 +35,13 @@ export const useMusicStore = create<MusicState>()(
       storage: createJSONStorage(() => idbStorage),
       merge: (persisted, current) => {
         const state = { ...current, ...(persisted as Partial<MusicState>) };
-        // 合并 sourceConfigs：保留用户配置，追加新增音源
+        // 合并 sourceConfigs：过滤已移除的音源，追加新增音源
+        const validSources = new Set(
+          DEFAULT_SOURCE_CONFIGS.map((c) => c.source)
+        );
+        state.sourceConfigs = state.sourceConfigs.filter((c) =>
+          validSources.has(c.source)
+        );
         const existingSources = new Set(
           state.sourceConfigs.map((c) => c.source)
         );
