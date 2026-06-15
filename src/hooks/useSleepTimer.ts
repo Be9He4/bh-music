@@ -145,14 +145,25 @@ export function useSleepTimer(
 
       if (remaining <= 0) {
         setSleepTimerRemaining(0);
-        if (isPlayingRef.current) {
-          fadeOutAndStop();
-        } else {
-          setSleepTimerIsActive(false);
-          setSleepTimerEndTime(0);
+        // 如果已在淡出中，让 fade interval 自己完成收尾
+        if (!isFadingRef.current) {
+          if (isPlayingRef.current) {
+            fadeOutAndStop();
+          } else {
+            setSleepTimerIsActive(false);
+            setSleepTimerEndTime(0);
+          }
         }
       } else {
         setSleepTimerRemaining(remaining);
+        // 提前渐变：剩余10秒内且正在播放，立即开始淡出
+        if (
+          remaining <= FADE_OUT_DURATION &&
+          isPlayingRef.current &&
+          !isFadingRef.current
+        ) {
+          fadeOutAndStop();
+        }
       }
     }, TICK_INTERVAL);
 

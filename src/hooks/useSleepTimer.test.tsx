@@ -187,22 +187,31 @@ describe("useSleepTimer", () => {
     cleanup();
   });
 
-  it("should stop playback when timer reaches zero", () => {
-    const { result, cleanup } = setup();
+  it("should fade out and stop before timer reaches zero", () => {
+    const { audio, result, cleanup } = setup();
 
     act(() => {
       result().startTimer(1);
     });
 
+    const volumeBefore = audio.volume;
+
+    // 快进51秒，此时剩余9秒，fade 已提前启动并运行
     act(() => {
-      vi.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(51000);
     });
 
+    // fade 开始后 audio.volume 应已下降
+    expect(audio.volume).toBeLessThan(volumeBefore);
+
+    // 快进9秒到0秒，fade 应刚好完成
     act(() => {
-      vi.advanceTimersByTime(15000);
+      vi.advanceTimersByTime(9000);
     });
 
-    expect(useMusicStore.getState().sleepTimerIsActive).toBe(false);
+    const state = useMusicStore.getState();
+    expect(state.sleepTimerIsActive).toBe(false);
+    expect(state.isPlaying).toBe(false);
     cleanup();
   });
 });
