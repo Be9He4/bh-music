@@ -14,7 +14,7 @@ function checkReachability(): Promise<boolean> {
 }
 
 export function useNetworkStatus() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
