@@ -42,6 +42,7 @@ import toast from "react-hot-toast";
 import { ColorExtractor } from "react-color-extractor";
 import { pickBestColor } from "@/lib/utils/color";
 import { getCanonicalShareUrl } from "@/lib/share-url";
+import { toastUtils } from "@/lib/utils/toast";
 
 interface ModeIconProps {
   isRepeat: boolean;
@@ -137,37 +138,11 @@ BackgroundLayer.displayName = "BackgroundLayer";
 interface FullScreenPlayerProps {
   isFullScreen: boolean;
   onClose: () => void;
-  currentTrack: MusicTrack | null;
-  coverUrl: string | null;
-  isFavorite?: boolean;
-  onToggleLike?: () => void;
-  isPlaying: boolean;
-  isLoading: boolean;
-  isRepeat: boolean;
-  isShuffle: boolean;
-  onTogglePlay: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-  onToggleRepeat: () => void;
-  onToggleShuffle: () => void;
 }
 
 export function FullScreenPlayer({
   isFullScreen,
   onClose,
-  currentTrack,
-  coverUrl,
-  isFavorite = false,
-  onToggleLike,
-  isPlaying,
-  isLoading,
-  isRepeat,
-  isShuffle,
-  onTogglePlay,
-  onPrev,
-  onNext,
-  onToggleRepeat,
-  onToggleShuffle,
 }: FullScreenPlayerProps) {
   const isMounted = useMounted();
   const [showLyrics, setShowLyrics] = useState(false);
@@ -177,20 +152,6 @@ export function FullScreenPlayer({
   const [speedDrawerOpen, setSpeedDrawerOpen] = useState(false);
   const [sleepDrawerOpen, setSleepDrawerOpen] = useState(false);
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const [colorInfo, setColorInfo] = useState<{
-    coverUrl: string | null;
-    hslColor: [number, number, number] | null;
-  }>({ coverUrl: null, hslColor: null });
-
-  const hslColor = colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
-
-  useEffect(() => {
-    if (!isFullScreen) {
-      const timer = setTimeout(() => setShowLyrics(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isFullScreen]);
 
   const {
     queue,
@@ -206,6 +167,17 @@ export function FullScreenPlayer({
     playbackSpeed,
     sleepTimerIsActive,
     sleepTimerRemaining,
+    isPlaying,
+    isLoading,
+    isRepeat,
+    isShuffle,
+    togglePlay,
+    toggleRepeat,
+    toggleShuffle,
+    isFavorite,
+    addToFavorites,
+    removeFromFavorites,
+    coverUrl,
   } = useMusicStore(
     useShallow((state) => ({
       queue: state.queue,
@@ -221,8 +193,38 @@ export function FullScreenPlayer({
       playbackSpeed: state.playbackSpeed,
       sleepTimerIsActive: state.sleepTimerIsActive,
       sleepTimerRemaining: state.sleepTimerRemaining,
+      isPlaying: state.isPlaying,
+      isLoading: state.isLoading,
+      isRepeat: state.isRepeat,
+      isShuffle: state.isShuffle,
+      togglePlay: state.togglePlay,
+      toggleRepeat: state.toggleRepeat,
+      toggleShuffle: state.toggleShuffle,
+      isFavorite: state.isFavorite,
+      addToFavorites: state.addToFavorites,
+      removeFromFavorites: state.removeFromFavorites,
+      coverUrl: state.coverUrl,
     }))
   );
+
+  const currentTrack = queue[currentIndex] || null;
+  const isCurrentTrackFavorite = currentTrack
+    ? isFavorite(currentTrack.id)
+    : false;
+
+  const [colorInfo, setColorInfo] = useState<{
+    coverUrl: string | null;
+    hslColor: [number, number, number] | null;
+  }>({ coverUrl: null, hslColor: null });
+
+  const hslColor = colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
+
+  useEffect(() => {
+    if (!isFullScreen) {
+      const timer = setTimeout(() => setShowLyrics(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFullScreen]);
 
   const playTrack = (index: number) => setCurrentIndexAndPlay(index);
 
@@ -288,11 +290,36 @@ export function FullScreenPlayer({
   if (!isMounted) return null;
 
   const handleModeToggle = () => {
-    if (!isShuffle && !isRepeat) onToggleRepeat();
+    if (!isShuffle && !isRepeat) toggleRepeat();
     else if (isRepeat) {
-      onToggleRepeat();
-      onToggleShuffle();
-    } else onToggleShuffle();
+      toggleRepeat();
+      toggleShuffle();
+    } else toggleShuffle();
+  };
+
+  const handlePrev = () => {
+    if (queue.length === 0) return;
+    setCurrentIndexAndPlay((currentIndex - 1 + queue.length) % queue.length);
+  };
+
+  const handleNext = () => {
+    if (queue.length === 0) return;
+    setCurrentIndexAndPlay((currentIndex + 1) % queue.length);
+  };
+
+  const handleToggleLike = () => {
+    if (!currentTrack) return;
+    if (isFavorite(currentTrack.id)) {
+      removeFromFavorites(currentTrack.id);
+      toast.success("已取消喜欢");
+    } else {
+      const error = addToFavorites(currentTrack);
+      if (error) {
+        toastUtils.info(error);
+      } else {
+        toast.success("已喜欢");
+      }
+    }
   };
 
   return createPortal(
@@ -411,13 +438,13 @@ export function FullScreenPlayer({
               className="h-10 w-10 text-white/70 hover:bg-white/10 hover:text-white"
               onClick={(e) => {
                 e.stopPropagation();
-                onToggleLike?.();
+                handleToggleLike();
               }}
             >
               <Heart
                 className={cn(
                   "h-6 w-6 transition-all",
-                  isFavorite && "fill-primary text-primary"
+                  isCurrentTrackFavorite && "fill-primary text-primary"
                 )}
               />
             </Button>
@@ -433,9 +460,9 @@ export function FullScreenPlayer({
                   onDownload={() => {
                     downloadMusicTrack(currentTrack, parseInt(quality));
                   }}
-                  isFavorite={isFavorite}
+                  isFavorite={isCurrentTrackFavorite}
                   onToggleLike={() => {
-                    onToggleLike?.();
+                    handleToggleLike();
                   }}
                   triggerClassName="h-10 w-10 text-white/70 hover:bg-white/10 hover:text-white"
                   onNavigate={() => {
@@ -490,18 +517,14 @@ export function FullScreenPlayer({
           variant="ghost"
           size="icon"
           className="h-12 w-12 text-white/70 hover:bg-white/10 hover:text-white"
-          onClick={() => {
-            onPrev();
-          }}
+          onClick={handlePrev}
         >
           <SkipBack className="h-6 w-6 fill-current" />
         </Button>
         <Button
           size="icon"
           className="h-16 w-16 rounded-full bg-white text-black shadow-lg hover:scale-105 transition-all active:scale-95"
-          onClick={() => {
-            onTogglePlay();
-          }}
+          onClick={togglePlay}
           disabled={isLoading}
         >
           {isLoading ? (
@@ -516,9 +539,7 @@ export function FullScreenPlayer({
           variant="ghost"
           size="icon"
           className="h-12 w-12 text-white/70 hover:bg-white/10 hover:text-white"
-          onClick={() => {
-            onNext();
-          }}
+          onClick={handleNext}
         >
           <SkipForward className="h-6 w-6 fill-current" />
         </Button>

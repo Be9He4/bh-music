@@ -5,8 +5,6 @@ import { MusicTabBar } from "@/components/MusicTabBar";
 import { GlobalMusicPlayer } from "@/components/GlobalMusicPlayer";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
-import toast from "react-hot-toast";
-import { toastUtils } from "@/lib/utils/toast";
 import { useExitLayer } from "@/hooks/useExitLayer";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
@@ -101,76 +99,16 @@ export function RootLayout() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleExitLayer]);
 
-  const {
-    queue,
-    currentIndex,
-    isPlaying,
-    isLoading,
-    isRepeat,
-    isShuffle,
-    togglePlay,
-    setCurrentIndexAndPlay,
-    toggleRepeat,
-    toggleShuffle,
-    isFavorite,
-    addToFavorites,
-    removeFromFavorites,
-    coverUrl,
-    favorites,
-  } = useMusicStore(
-    useShallow((state) => ({
-      queue: state.queue,
-      currentIndex: state.currentIndex,
-      isPlaying: state.isPlaying,
-      isLoading: state.isLoading,
-      isRepeat: state.isRepeat,
-      isShuffle: state.isShuffle,
-      togglePlay: state.togglePlay,
-      setCurrentIndexAndPlay: state.setCurrentIndexAndPlay,
-      toggleRepeat: state.toggleRepeat,
-      toggleShuffle: state.toggleShuffle,
-      isFavorite: state.isFavorite,
-      addToFavorites: state.addToFavorites,
-      removeFromFavorites: state.removeFromFavorites,
-      coverUrl: state.coverUrl,
-      favorites: state.favorites,
-    }))
+  const hasCurrentTrack = useMusicStore(
+    (s) => s.queue.length > 0 && s.currentIndex >= 0
   );
 
-  const currentTrack = queue[currentIndex] || null;
-
   const isTab = isRootTabPath(location.pathname);
-
-  // Handlers
-  const handlePrev = () => {
-    if (queue.length === 0) return;
-    setCurrentIndexAndPlay((currentIndex - 1 + queue.length) % queue.length);
-  };
-
-  const handleNext = () => {
-    if (queue.length === 0) return;
-    setCurrentIndexAndPlay((currentIndex + 1) % queue.length);
-  };
-
-  const handleToggleLike = () => {
-    if (!currentTrack) return;
-    if (isFavorite(currentTrack.id)) {
-      removeFromFavorites(currentTrack.id);
-      toast.success("已取消喜欢");
-    } else {
-      const error = addToFavorites(currentTrack);
-      if (error) {
-        toastUtils.info(error);
-      } else {
-        toast.success("已喜欢");
-      }
-    }
-  };
 
   return (
     <>
       <MusicLayout
-        hidePlayer={isFullScreenPlayer || !currentTrack}
+        hidePlayer={isFullScreenPlayer || !hasCurrentTrack}
         isTab={isTab}
         player={
           <MusicNowPlayingBar
@@ -189,19 +127,6 @@ export function RootLayout() {
         <FullScreenPlayer
           isFullScreen={isFullScreenPlayer}
           onClose={() => setStoreFullScreen(false)}
-          currentTrack={currentTrack}
-          coverUrl={coverUrl}
-          isFavorite={currentTrack ? isFavorite(currentTrack.id) : false}
-          onToggleLike={handleToggleLike}
-          isPlaying={isPlaying}
-          isLoading={isLoading}
-          isRepeat={isRepeat}
-          isShuffle={isShuffle}
-          onTogglePlay={togglePlay}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          onToggleRepeat={toggleRepeat}
-          onToggleShuffle={toggleShuffle}
         />
       </Suspense>
     </>
