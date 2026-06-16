@@ -2,7 +2,8 @@ import { Suspense, lazy } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { useHistoryStore } from "@/store/history-store";
-import { usePlayHelper, getPlayAllStartIndex } from "@/hooks/usePlayHelper";
+import { usePlayHelper } from "@/hooks/usePlayHelper";
+import { usePlayContextHandler } from "@/hooks/usePlayContextHandler";
 import { PageLoader } from "@/components/PageLoader";
 import { PageLayout } from "@/components/PageLayout";
 import { ListMusic } from "lucide-react";
@@ -108,24 +109,15 @@ export const SearchRoute = withSuspense(() => {
 export const FavoritesRoute = withSuspense(() => {
   const favorites = useMusicStore((s) => s.favorites);
   const activeFavorites = favorites.filter((t) => !t.is_deleted);
-  const { currentTrackId, isPlaying, isShuffle } = usePlaybackState();
+  const onPlay = usePlayContextHandler(activeFavorites, "favorites");
+  const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
     <FavoritesView
       tracks={activeFavorites}
       currentTrackId={currentTrackId}
       isPlaying={isPlaying}
-      onPlay={(track, index) => {
-        const store = useMusicStore.getState();
-        if (track && currentTrackId === track.id) return store.togglePlay();
-        // 播放全部时（track 为 null 且 index 未指定），根据 isShuffle 选择起始索引
-        const idx =
-          index ??
-          (track
-            ? activeFavorites.findIndex((t) => t.id === track.id)
-            : getPlayAllStartIndex(activeFavorites.length, isShuffle));
-        store.playContext(activeFavorites, Math.max(0, idx), "favorites");
-      }}
+      onPlay={onPlay}
       onReorder={(newOrder) =>
         useMusicStore.getState().reorderFavorites(newOrder)
       }
@@ -139,10 +131,15 @@ export const PlaylistDetailRoute = withSuspense(() => {
   const offlineTracks = useOfflinePlaylist();
   const isOffline = id === "__offline__";
 
-  // 精确查找特定歌单
   const activePlaylists = useActivePlaylists();
   const playlist = isOffline ? null : activePlaylists.find((p) => p.id === id);
-  const { currentTrackId, isPlaying, isShuffle } = usePlaybackState();
+  const activeTracks = playlist?.tracks.filter((t) => !t.is_deleted) ?? [];
+  const { currentTrackId, isPlaying } = usePlaybackState();
+
+  const onPlay = usePlayContextHandler(
+    isOffline ? offlineTracks : activeTracks,
+    isOffline ? "offline" : `playlist-${id}`
+  );
 
   if (isOffline) {
     return (
@@ -151,17 +148,7 @@ export const PlaylistDetailRoute = withSuspense(() => {
           title="离线歌单"
           tracks={offlineTracks}
           icon={<ListMusic className="h-8 w-8 text-primary/80" />}
-          onPlay={(track, index) => {
-            const store = useMusicStore.getState();
-            if (track && currentTrackId === track.id) return store.togglePlay();
-            // 播放全部时（track 为 null 且 index 未指定），根据 isShuffle 选择起始索引
-            const idx =
-              index ??
-              (track
-                ? offlineTracks.findIndex((t) => t.id === track.id)
-                : getPlayAllStartIndex(offlineTracks.length, isShuffle));
-            store.playContext(offlineTracks, Math.max(0, idx), "offline");
-          }}
+          onPlay={onPlay}
           currentTrackId={currentTrackId}
           isPlaying={isPlaying}
         />
@@ -175,8 +162,6 @@ export const PlaylistDetailRoute = withSuspense(() => {
     );
   }
 
-  const activeTracks = playlist.tracks.filter((t) => !t.is_deleted);
-
   return (
     <PageLayout title={playlist.name}>
       <MusicPlaylistView
@@ -187,17 +172,7 @@ export const PlaylistDetailRoute = withSuspense(() => {
         tracks={activeTracks}
         playlistId={id}
         icon={<ListMusic className="h-8 w-8 text-primary/80" />}
-        onPlay={(track, index) => {
-          const store = useMusicStore.getState();
-          if (track && currentTrackId === track.id) return store.togglePlay();
-          // 播放全部时（track 为 null 且 index 未指定），根据 isShuffle 选择起始索引
-          const idx =
-            index ??
-            (track
-              ? activeTracks.findIndex((t) => t.id === track.id)
-              : getPlayAllStartIndex(activeTracks.length, isShuffle));
-          store.playContext(activeTracks, Math.max(0, idx), `playlist-${id}`);
-        }}
+        onPlay={onPlay}
         onRemove={(t) => useMusicStore.getState().removeFromPlaylist(id!, t.id)}
         onBatchRemove={(tracks) =>
           useMusicStore.getState().removeBatchFromPlaylist(
@@ -270,24 +245,15 @@ export const AlbumDetailRoute = createNeteaseRoute("album", "album");
 
 export const QueueRoute = withSuspense(() => {
   const queue = useMusicStore((s) => s.queue);
-  const { currentTrackId, isPlaying, isShuffle } = usePlaybackState();
+  const onPlay = usePlayContextHandler(queue, "queue");
+  const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
     <QueuePage
       queue={queue}
       currentTrackId={currentTrackId}
       isPlaying={isPlaying}
-      onPlay={(track, index) => {
-        const store = useMusicStore.getState();
-        if (track && currentTrackId === track.id) return store.togglePlay();
-        // 播放全部时（track 为 null 且 index 未指定），根据 isShuffle 选择起始索引
-        const idx =
-          index ??
-          (track
-            ? queue.findIndex((t) => t.id === track.id)
-            : getPlayAllStartIndex(queue.length, isShuffle));
-        store.playContext(queue, Math.max(0, idx), "queue");
-      }}
+      onPlay={onPlay}
       onRemove={(track) => useMusicStore.getState().removeFromQueue(track.id)}
       onClear={() => useMusicStore.getState().clearQueue()}
     />
@@ -296,24 +262,15 @@ export const QueueRoute = withSuspense(() => {
 
 export const HistoryRoute = withSuspense(() => {
   const history = useHistoryStore((s) => s.history);
-  const { currentTrackId, isPlaying, isShuffle } = usePlaybackState();
+  const onPlay = usePlayContextHandler(history, "history");
+  const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
     <HistoryPage
       history={history}
       currentTrackId={currentTrackId}
       isPlaying={isPlaying}
-      onPlay={(track, index) => {
-        const store = useMusicStore.getState();
-        if (track && currentTrackId === track.id) return store.togglePlay();
-        // 播放全部时（track 为 null 且 index 未指定），根据 isShuffle 选择起始索引
-        const idx =
-          index ??
-          (track
-            ? history.findIndex((t) => t.id === track.id)
-            : getPlayAllStartIndex(history.length, isShuffle));
-        store.playContext(history, Math.max(0, idx), "history");
-      }}
+      onPlay={onPlay}
       onRemove={(track) =>
         useHistoryStore.getState().removeFromHistory(track.id)
       }
