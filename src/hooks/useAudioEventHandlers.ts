@@ -13,6 +13,9 @@ import { logger } from "@/lib/logger";
 // 需延迟 200ms 确认 pause 是稳定状态后再更新 isPlaying
 const PAUSE_CONFIRM_DELAY_MS = 200;
 
+let _rawAudioCurrentTime = 0;
+export const getRawAudioCurrentTime = () => _rawAudioCurrentTime;
+
 export function useAudioEventHandlers(
   audioRef: React.RefObject<HTMLAudioElement | null>,
   isSwitchingTrackRef: React.MutableRefObject<boolean>,
@@ -74,6 +77,10 @@ export function useAudioEventHandlers(
 
       syncPositionState(audio.paused ? 0 : audio.playbackRate);
     }, 1000);
+
+    const rawTimeUpdate = () => {
+      _rawAudioCurrentTime = audio.currentTime;
+    };
 
     const onDurationChange = () => {
       const state = useMusicStore.getState();
@@ -221,12 +228,14 @@ export function useAudioEventHandlers(
     Object.entries(events).forEach(([event, handler]) =>
       audio.addEventListener(event, handler)
     );
+    audio.addEventListener("timeupdate", rawTimeUpdate);
 
     return () => {
       cancelPendingPauseConfirm();
       Object.entries(events).forEach(([event, handler]) =>
         audio.removeEventListener(event, handler)
       );
+      audio.removeEventListener("timeupdate", rawTimeUpdate);
     };
   }, [audioRef, isSwitchingTrackRef, hasRecordedRef]);
 

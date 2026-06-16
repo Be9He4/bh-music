@@ -211,6 +211,7 @@ export interface BilibiliPlayUrlResponse {
   data?: {
     dash?: {
       audio?: Array<BilibiliDashAudioEntry>;
+      video?: Array<BilibiliDashVideoEntry>;
     };
     durl?: Array<{
       url?: string;
@@ -229,6 +230,22 @@ export interface BilibiliDashAudioEntry {
   bandwidth?: number;
   mimeType?: string;
   codecs?: string;
+}
+
+export interface BilibiliDashVideoEntry {
+  id?: number;
+  baseUrl?: string;
+  base_url?: string;
+  backupUrl?: string;
+  backup_url?: string;
+  url?: string;
+  bandwidth?: number;
+  mimeType?: string;
+  codecs?: string;
+  width?: number;
+  height?: number;
+  frameRate?: string;
+  frame_rate?: string;
 }
 
 export interface BilibiliDurlResponse {

@@ -37,6 +37,9 @@ export interface IMusicProvider {
   /** 获取评论 */
   getComments?(songId: string): Promise<any>;
 
+  /** 获取视频播放地址（仅 B站 音源支持） */
+  getVideoUrl?(track: MusicTrack): Promise<string | null>;
+
   /**
    * 搜索歌手 (用于 UI 判断是否显示入口)
    * 通常内部调用 search(..., { type: 'artist' })

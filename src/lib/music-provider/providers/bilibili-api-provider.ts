@@ -1,6 +1,7 @@
 import {
   AudioFormat,
   MusicTrack,
+  parseBilibiliTrackId,
   SearchIntent,
   SearchPageResult,
   SongLyric,
@@ -11,6 +12,7 @@ import {
   getBilibiliCoverUrl,
   getBilibiliSongUrl,
   getBilibiliVideoDetail,
+  getBilibiliVideoUrl,
   searchBilibiliCollections,
   searchBilibiliVideos,
 } from "@/lib/bilibili/bilibili-api";
@@ -103,6 +105,12 @@ export class BilibiliApiProvider implements IMusicProvider {
 
   async getSongDetail(id: string): Promise<unknown> {
     return getBilibiliVideoDetail(id);
+  }
+
+  async getVideoUrl(track: MusicTrack): Promise<string | null> {
+    const parsed = parseBilibiliTrackId(track.id);
+    if (!parsed) return null;
+    return getBilibiliVideoUrl(parsed.bvid, parsed.cid);
   }
 
   getAutoMatchQuery(_target: MusicTrack, baseQuery: string): string {
