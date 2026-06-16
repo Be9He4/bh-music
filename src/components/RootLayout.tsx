@@ -116,6 +116,7 @@ export function RootLayout() {
     addToFavorites,
     removeFromFavorites,
     coverUrl,
+    favorites,
   } = useMusicStore(
     useShallow((state) => ({
       queue: state.queue,
@@ -132,6 +133,7 @@ export function RootLayout() {
       addToFavorites: state.addToFavorites,
       removeFromFavorites: state.removeFromFavorites,
       coverUrl: state.coverUrl,
+      favorites: state.favorites,
     }))
   );
 
