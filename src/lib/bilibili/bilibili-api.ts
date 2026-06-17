@@ -23,7 +23,6 @@ import {
   selectBilibiliAudioUrl,
   selectBilibiliCid,
   selectBilibiliDurlUrl,
-  selectBilibiliVideoUrl,
   type BilibiliDurlResponse,
   type BilibiliPlayUrlResponse,
   type BilibiliSeasonsArchivesListResponse,
@@ -47,7 +46,6 @@ const BILIBILI_API_BASE = "https://api.bilibili.com";
 const BILIBILI_PROXY_PREFIX = "/music-api/bilibili";
 const BILIBILI_DEV_AUDIO_PROXY = "/api/bilibili-audio";
 const BILIBILI_DEV_COVER_PROXY = "/api/bilibili-cover";
-const BILIBILI_DEV_VIDEO_PROXY = "/api/bilibili-video";
 const NETWORK_TIMEOUT = 12000;
 const NATIVE_CONNECT_TIMEOUT = 10000;
 const NATIVE_READ_TIMEOUT = 15000;
@@ -75,14 +73,6 @@ function buildBilibiliAudioProxyUrl(bvid: string, audioUrl: string): string {
     return `${BILIBILI_DEV_AUDIO_PROXY}?${params.toString()}`;
   }
   return `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/audio?${params.toString()}`;
-}
-
-function buildBilibiliVideoProxyUrl(bvid: string, videoUrl: string): string {
-  const params = new URLSearchParams({ bvid, url: videoUrl });
-  if (!config.IS_NATIVE && !config.IS_WEB_PROD) {
-    return `${BILIBILI_DEV_VIDEO_PROXY}?${params.toString()}`;
-  }
-  return `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/video?${params.toString()}`;
 }
 
 /**
@@ -321,49 +311,6 @@ async function getBilibiliSongUrlNative(
     };
   } catch (e) {
     logger.error("[bilibili] Error getting native song URL:", e);
-    return null;
-  }
-}
-
-export async function getBilibiliVideoUrl(
-  bvid: string,
-  cidOverride?: number
-): Promise<string | null> {
-  try {
-    const referer = `https://www.bilibili.com/video/${bvid}`;
-    let cid = cidOverride;
-
-    if (!cid) {
-      const view = await fetchBilibiliJson<BilibiliViewResponse>(
-        buildBilibiliViewPath(bvid),
-        referer
-      );
-      if (!view) return null;
-      cid = selectBilibiliCid(view) ?? undefined;
-    }
-    if (!cid) return null;
-
-    const playUrl = await fetchBilibiliJson<BilibiliPlayUrlResponse>(
-      buildBilibiliPlayUrlPath(bvid, cid, 64),
-      referer
-    );
-    const videoResult = playUrl ? selectBilibiliVideoUrl(playUrl) : null;
-
-    if (!videoResult) {
-      const durlResponse = await fetchBilibiliJson<BilibiliDurlResponse>(
-        buildBilibiliDurlPlayUrlPath(bvid, cid),
-        referer
-      );
-      const durlResult = durlResponse
-        ? selectBilibiliDurlUrl(durlResponse)
-        : null;
-      if (!durlResult) return null;
-      return buildBilibiliVideoProxyUrl(bvid, durlResult.url);
-    }
-
-    return buildBilibiliVideoProxyUrl(bvid, videoResult.url);
-  } catch (e) {
-    logger.error("[bilibili] Error getting video URL:", e);
     return null;
   }
 }

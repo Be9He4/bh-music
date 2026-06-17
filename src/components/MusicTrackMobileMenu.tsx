@@ -17,7 +17,6 @@ import {
   Disc,
   MessageSquareQuote,
   Link2,
-  Film,
 } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { MusicCover } from "./MusicCover";
@@ -27,7 +26,6 @@ import { useNavigate } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { MusicProviderFactory } from "@/lib/music-provider";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
-import { BilibiliVideoPlayer } from "./BilibiliVideoPlayer";
 import {
   Dialog,
   DialogContent,
@@ -99,7 +97,6 @@ export function MusicTrackMobileMenu({
   const navigate = useNavigate();
   const [showArtistSelection, setShowArtistSelection] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
 
   // Zustand Store
   const setSearchQuery = useMusicStore((s) => s.setSearchQuery);
@@ -298,19 +295,6 @@ export function MusicTrackMobileMenu({
               </ActionButton>
             )}
 
-            {/* B站音源：视频播放入口 */}
-            {track.source === "bilibili" && provider.getVideoUrl && (
-              <ActionButton
-                icon={Film}
-                onClick={() => {
-                  onOpenChange(false);
-                  setShowVideo(true);
-                }}
-              >
-                视频
-              </ActionButton>
-            )}
-
             {/* 除播客外，有歌手即显示歌手入口 */}
             {track.source !== "podcast" && track.artist?.length > 0 && (
               <ActionButton
@@ -413,11 +397,6 @@ export function MusicTrackMobileMenu({
         track={track}
         open={showComments}
         onOpenChange={setShowComments}
-      />
-      <BilibiliVideoPlayer
-        track={track}
-        open={showVideo}
-        onOpenChange={setShowVideo}
       />
     </div>
   );

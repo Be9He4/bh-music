@@ -69,13 +69,8 @@ export function buildBilibiliViewPath(bvid: string): string {
 /**
  * 构建 B 站 DASH 播放地址接口路径。
  */
-export function buildBilibiliPlayUrlPath(
-  bvid: string,
-  cid: number,
-  qn?: number
-): string {
-  const base = `/x/player/playurl?fnval=16&bvid=${encodeURIComponent(bvid)}&cid=${cid}`;
-  return qn !== undefined ? `${base}&qn=${qn}` : base;
+export function buildBilibiliPlayUrlPath(bvid: string, cid: number): string {
+  return `/x/player/playurl?fnval=16&bvid=${encodeURIComponent(bvid)}&cid=${cid}`;
 }
 
 /**
@@ -291,7 +286,7 @@ export function selectBilibiliCid(
   return typeof cid === "number" ? cid : null;
 }
 
-const DASH_URL_FIELDS = [
+const AUDIO_URL_FIELDS = [
   "baseUrl",
   "base_url",
   "backupUrl",
@@ -299,8 +294,8 @@ const DASH_URL_FIELDS = [
   "url",
 ] as const;
 
-function pickDashUrl(entry: Record<string, unknown>): string | null {
-  for (const field of DASH_URL_FIELDS) {
+function pickAudioUrl(entry: Record<string, unknown>): string | null {
+  for (const field of AUDIO_URL_FIELDS) {
     const val = entry[field];
     if (typeof val === "string" && val.length > 0) return val;
   }
@@ -349,7 +344,7 @@ export function selectBilibiliAudioUrl(
     (a, b) => (b.bandwidth || 0) - (a.bandwidth || 0)
   )[0];
   if (!selected) return null;
-  const url = pickDashUrl(selected as unknown as Record<string, unknown>);
+  const url = pickAudioUrl(selected as unknown as Record<string, unknown>);
   if (!url) return null;
   const normalized = normalizeResourceUrl(url);
   const format = inferAudioFormatFromMime(
@@ -358,23 +353,6 @@ export function selectBilibiliAudioUrl(
       | undefined
   );
   return { url: normalized, format };
-}
-
-/**
- * 从 B 站播放地址响应中选择最高带宽视频地址。
- * 优先 DASH 视频流，无 DASH 时降级到 durl。
- */
-export function selectBilibiliVideoUrl(
-  response: BilibiliPlayUrlResponse
-): { url: string; quality: number } | null {
-  const video = response.data?.dash?.video || [];
-  const selected = [...video].sort((a, b) => (b.id || 0) - (a.id || 0))[0];
-  if (selected) {
-    const url = pickDashUrl(selected as unknown as Record<string, unknown>);
-    if (url)
-      return { url: normalizeResourceUrl(url), quality: selected.id ?? 0 };
-  }
-  return null;
 }
 
 /**
