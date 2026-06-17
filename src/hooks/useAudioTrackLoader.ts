@@ -5,6 +5,7 @@ import { getProxyUrl } from "@/lib/api";
 import { useMusicStore } from "@/store/music-store";
 import { useSourceQualityStore } from "@/store/source-quality-store";
 import { useDownloadStore } from "@/store/download-store";
+import { useOfflineStore } from "@/store/offline-store";
 import { Capacitor } from "@capacitor/core";
 import { buildDownloadKey } from "@/lib/utils/download";
 import type { MusicSource } from "@/types/music";
@@ -83,7 +84,9 @@ function isTrackPlayable(
       const downloadKey = buildDownloadKey(track.source, track.id);
       return useDownloadStore.getState().hasRecord(downloadKey);
     }
-    // Web 端：SW 缓存可能已缓存该音频，不硬判不可播
+    // Web 端：检查 offlineStore 是否有成功播放时记录的真实 URL
+    const offlineRecord = useOfflineStore.getState().records[track.id];
+    return Boolean(offlineRecord);
   }
 
   return true;
@@ -244,10 +247,20 @@ export function useAudioTrackLoader(
       const getRemoteUrl = async () => {
         if (remoteUrlRef.current) return remoteUrlRef.current;
         // 离线时优先用缓存 URL，避免 API 调用失败
-        const cached = urlMemoryCache.get(trackKey);
-        if (!navigator.onLine && cached) {
-          remoteUrlRef.current = cached;
-          return cached;
+        if (!navigator.onLine) {
+          const memCached = urlMemoryCache.get(trackKey);
+          if (memCached) {
+            remoteUrlRef.current = memCached;
+            return memCached;
+          }
+          const offlineRecord = currentTrackId
+            ? useOfflineStore.getState().records[currentTrackId]
+            : null;
+          if (offlineRecord?.url) {
+            urlMemoryCache.set(trackKey, offlineRecord.url);
+            remoteUrlRef.current = offlineRecord.url;
+            return offlineRecord.url;
+          }
         }
         const urlId =
           (currentTrackSource as string) === "local" ||
@@ -348,22 +361,15 @@ export function useAudioTrackLoader(
             // 缓存未命中，继续下面的跳过逻辑
           }
 
-          if (Capacitor.isNativePlatform()) {
-            const { queue, currentIndex } = useMusicStore.getState();
-            const nextPlayableIndex = findNextPlayableTrack(
-              queue,
-              currentIndex
-            );
+          const { queue, currentIndex } = useMusicStore.getState();
+          const nextPlayableIndex = findNextPlayableTrack(queue, currentIndex);
 
-            if (
-              nextPlayableIndex !== null &&
-              nextPlayableIndex !== currentIndex
-            ) {
-              useMusicStore
-                .getState()
-                .setCurrentIndexAndPlay(nextPlayableIndex);
-              return;
-            }
+          if (
+            nextPlayableIndex !== null &&
+            nextPlayableIndex !== currentIndex
+          ) {
+            useMusicStore.getState().setCurrentIndexAndPlay(nextPlayableIndex);
+            return;
           }
 
           logger.error(
