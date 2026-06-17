@@ -281,6 +281,22 @@ export function MusicSearchView({
     }
   };
 
+  /* ---------------- 切换音源自动搜索 ---------------- */
+  const isFirstSourceRef = useRef(true);
+
+  useEffect(() => {
+    if (isFirstSourceRef.current) {
+      isFirstSourceRef.current = false;
+      return;
+    }
+    if (searchQuery.trim().length >= 2) {
+      setSearchIntent(null);
+      fetchPage(1, true);
+      searchInputRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
   /* ---------------- UI ---------------- */
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -326,7 +342,10 @@ export function MusicSearchView({
               value={source}
               onValueChange={(v) => setSource(v as MusicSource)}
             >
-              <SelectTrigger className="h-7 w-auto min-w-[72px] shrink-0 border-0 bg-transparent! px-2 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0">
+              <SelectTrigger
+                onPointerDown={() => searchInputRef.current?.blur()}
+                className="h-7 w-auto min-w-[72px] shrink-0 border-0 bg-transparent! px-2 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">

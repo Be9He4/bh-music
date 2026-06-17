@@ -82,7 +82,7 @@ interface MusicTrackListProps {
   onSelectionModeChange?: (active: boolean) => void;
 }
 
-const ROW_HEIGHT = 48; // 缩小默认估算行高
+const ROW_HEIGHT = 60;
 
 function SortableTrackItem({
   track,

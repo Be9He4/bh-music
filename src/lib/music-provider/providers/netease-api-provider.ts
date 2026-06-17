@@ -1,29 +1,42 @@
 import { IMusicProvider } from "../interface";
-import { MusicTrack, SearchPageResult, SongLyric, SearchIntent } from "@/types/music";
-import { 
-  getSongUrl, 
-  getLyric, 
-  getSongDetail, 
-  search as neteaseSearch, 
+import {
+  MusicTrack,
+  SearchPageResult,
+  SongLyric,
+  SearchIntent,
+} from "@/types/music";
+import {
+  getSongUrl,
+  getLyric,
+  getSongDetail,
+  search as neteaseSearch,
   convertSongToMusicTrack,
   getArtist,
   getAlbum,
-  getMusicComments
+  getMusicComments,
 } from "@/lib/netease/netease-api";
 import { forceHttps } from "@otter-music/shared";
 
 export class NeteaseApiProvider implements IMusicProvider {
-  source = '_netease';
+  source = "_netease";
   canUnlock = true;
 
-  async search(query: string, page: number, count: number, _signal?: AbortSignal, _intent?: SearchIntent): Promise<SearchPageResult<MusicTrack>> {
+  async search(
+    query: string,
+    page: number,
+    count: number,
+    _signal?: AbortSignal,
+    _intent?: SearchIntent
+  ): Promise<SearchPageResult<MusicTrack>> {
     // Note: signal is not currently supported by netease-api search, but that's fine
     const res = await neteaseSearch(query, 1, page, count);
     const songs = res.data.result.songs || [];
-    const items = songs.map(convertSongToMusicTrack);
+    const items = songs.map((s) => convertSongToMusicTrack(s));
     return {
       items,
-      hasMore: res.data.result.hasMore ?? ((res.data.result.songCount || 0) > page * count)
+      hasMore:
+        res.data.result.hasMore ??
+        (res.data.result.songCount || 0) > page * count,
     };
   }
 
@@ -32,7 +45,7 @@ export class NeteaseApiProvider implements IMusicProvider {
       const res = await getSongUrl(track.id, br * 1000);
       return forceHttps(res.data?.data?.[0]?.url) || null;
     } catch (e) {
-      console.error('NeteaseProvider getUrl failed:', e);
+      console.error("NeteaseProvider getUrl failed:", e);
       return null;
     }
   }
@@ -43,7 +56,7 @@ export class NeteaseApiProvider implements IMusicProvider {
       const url = song?.al?.picUrl;
       return url ? `${url}?param=${size}y${size}` : null;
     } catch (e) {
-      console.error('NeteaseProvider getPic failed:', e);
+      console.error("NeteaseProvider getPic failed:", e);
       return null;
     }
   }
@@ -51,13 +64,13 @@ export class NeteaseApiProvider implements IMusicProvider {
   async getLyric(track: MusicTrack): Promise<SongLyric | null> {
     try {
       const res = await getLyric(track.id);
-      if (!res || !res.data) return { lyric: '', tlyric: '' };
+      if (!res || !res.data) return { lyric: "", tlyric: "" };
       return {
-        lyric: res.data.lrc?.lyric || '',
-        tlyric: res.data.tlyric?.lyric || ''
+        lyric: res.data.lrc?.lyric || "",
+        tlyric: res.data.tlyric?.lyric || "",
       };
     } catch (e) {
-      console.error('NeteaseProvider getLyric failed:', e);
+      console.error("NeteaseProvider getLyric failed:", e);
       return null;
     }
   }
@@ -80,11 +93,19 @@ export class NeteaseApiProvider implements IMusicProvider {
     return getMusicComments(id);
   }
 
-  async searchArtist(query: string, page: number, count: number): Promise<SearchPageResult<MusicTrack>> {
+  async searchArtist(
+    query: string,
+    page: number,
+    count: number
+  ): Promise<SearchPageResult<MusicTrack>> {
     return this.search(query, page, count);
   }
 
-  async searchAlbum(query: string, page: number, count: number): Promise<SearchPageResult<MusicTrack>> {
+  async searchAlbum(
+    query: string,
+    page: number,
+    count: number
+  ): Promise<SearchPageResult<MusicTrack>> {
     return this.search(query, page, count);
   }
 }

@@ -151,7 +151,7 @@ export function NeteaseDetail({
 
         return {
           detail: rawDetail,
-          tracks: rawTracks.map(convertSongToMusicTrack),
+          tracks: rawTracks.map((s) => convertSongToMusicTrack(s)),
         };
       },
       [id, type, cookie]
@@ -266,7 +266,7 @@ export function NeteaseDetail({
     try {
       const res = await getArtistSongs(id, 50, offset);
       if (res?.songs?.length) {
-        const newTracks = res.songs.map(convertSongToMusicTrack);
+        const newTracks = res.songs.map((s) => convertSongToMusicTrack(s));
         setTracks((prev) => [...prev, ...newTracks]);
 
         const nextOffset = offset + newTracks.length;

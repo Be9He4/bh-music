@@ -505,5 +505,5 @@ export function useAudioTrackLoader(
     quality,
     hasUserGesture,
     urlRecoveryKey,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+  ]);
 }
