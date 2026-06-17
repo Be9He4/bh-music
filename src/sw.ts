@@ -4,6 +4,7 @@ import { registerRoute } from "workbox-routing";
 import { NetworkFirst, CacheFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
+import { RangeRequestsPlugin } from "workbox-range-requests";
 import { clientsClaim } from "workbox-core";
 
 declare let self: ServiceWorkerGlobalScope;
@@ -25,13 +26,18 @@ registerRoute(
 
 registerRoute(
   ({ request }) => {
+    const isAudioDestination = request.destination === "audio";
+    const hasAudioExt = /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(
+      request.url
+    );
+
+    if (isAudioDestination || hasAudioExt) return true;
+
     const secFetchDest = request.headers.get("Sec-Fetch-Dest");
     if (secFetchDest === "empty") return false;
     if (!secFetchDest && request.destination === "") return false;
-    return (
-      request.destination === "audio" ||
-      /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(request.url)
-    );
+
+    return false;
   },
   new CacheFirst({
     cacheName: "audio-stream-cache",
@@ -43,6 +49,7 @@ registerRoute(
       new CacheableResponsePlugin({
         statuses: [0, 200, 206],
       }),
+      new RangeRequestsPlugin(),
       {
         cacheWillUpdate: async ({ response }) => {
           if (
