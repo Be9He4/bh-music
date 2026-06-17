@@ -4,7 +4,6 @@ import { registerRoute } from "workbox-routing";
 import { NetworkFirst, CacheFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
-import { RangeRequestsPlugin } from "workbox-range-requests";
 import { clientsClaim } from "workbox-core";
 
 declare let self: ServiceWorkerGlobalScope;
@@ -49,7 +48,6 @@ registerRoute(
       new CacheableResponsePlugin({
         statuses: [0, 200, 206],
       }),
-      new RangeRequestsPlugin(),
       {
         cacheWillUpdate: async ({ response }) => {
           if (
