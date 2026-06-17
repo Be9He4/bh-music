@@ -9,7 +9,7 @@ import {
 } from "@/lib/netease/netease-api";
 import type { MarketPlaylist } from "@/lib/netease/netease-types";
 import { cachedFetch } from "@/lib/utils/cache";
-import { Loader2, LayoutGrid, Plus, Search, X } from "lucide-react";
+import { Loader2, LayoutGrid, Plus, X } from "lucide-react";
 import { PlaylistCategorySelector } from "./PlaylistCategorySelector";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -329,42 +329,41 @@ export function PlaylistMarket() {
             {activeCategory === "全部" && (
               <div
                 className={cn(
-                  "flex items-center justify-between mb-4 px-1",
+                  "flex items-center justify-between mb-4 px-1 gap-4 transition-all duration-300",
                   SUB_TAB_HEIGHT
                 )}
               >
-                <div className="relative flex-1 max-w-40">
+                <div className="relative flex-1 group max-w-40">
                   <Input
                     value={searchInputValue}
                     onChange={(e) => setSearchInputValue(e.target.value)}
                     onKeyDown={(e) =>
                       e.key === "Enter" && handleSearchSubmit(searchInputValue)
                     }
-                    placeholder="搜索歌单..."
-                    className="pr-7 h-8 text-xs"
+                    placeholder="全部歌单"
+                    className={cn(
+                      "h-8 px-0 bg-transparent! shadow-none rounded-none transition-all duration-300",
+                      "border-0 border-b border-dashed border-muted-foreground/20 focus-visible:border-solid",
+                      "text-base font-semibold text-foreground",
+                      "placeholder:text-foreground placeholder:font-semibold placeholder:text-base",
+                      "focus-visible:ring-0 focus-visible:border-primary",
+                      "focus-visible:placeholder:text-muted-foreground/40 focus-visible:placeholder:font-normal focus-visible:placeholder:text-xs"
+                    )}
                   />
-                  {searchQuery ? (
+
+                  {searchInputValue && (
                     <button
                       type="button"
                       onClick={clearSearch}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      aria-label="清除搜索"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+                      aria-label="清除"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleSearchSubmit(searchInputValue)}
-                      disabled={!searchInputValue.trim()}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
-                      aria-label="搜索"
-                    >
-                      <Search className="h-3.5 w-3.5" />
-                    </button>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap ml-3">
+
+                <span className="text-xs text-muted-foreground/40 whitespace-nowrap shrink-0">
                   共 {active.items.length} 个歌单
                 </span>
               </div>
