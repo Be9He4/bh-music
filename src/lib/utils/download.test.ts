@@ -4,7 +4,7 @@ import type { LocalMusicFile } from "@/plugins/local-music";
 import type { MusicTrack } from "@/types/music";
 import { convertToMusicTrack } from "./download";
 import { AUDIO_MIME, buildFileName } from "@/lib/storage-manager";
-import { getCachedBilibiliAudioFormat } from "@/lib/music-provider/providers/bilibili-api-provider";
+import { getCachedBilibiliAudioFormat } from "@/lib/bilibili/bilibili-cache";
 
 describe("convertToMusicTrack", () => {
   it("uses local path as embedded cover and lyric ids for local tracks", () => {

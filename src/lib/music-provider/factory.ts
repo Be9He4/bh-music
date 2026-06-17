@@ -13,6 +13,7 @@ import { NeteaseApiProvider } from "./providers/netease-api-provider";
 import { BilibiliApiProvider } from "./providers/bilibili-api-provider";
 import { LxKuwoProvider } from "./providers/lx-kuwo-provider";
 import { LxQqProvider } from "./providers/lx-qq-provider";
+import { getAggregatedSourcesForSearch } from "@/hooks/use-aggregated-sources";
 
 export class MusicProviderFactory {
   private static instances = new Map<string, IMusicProvider>();
@@ -27,7 +28,10 @@ export class MusicProviderFactory {
     switch (source) {
       case "all":
         // Pass the factory method itself as the resolver to avoid circular dependency
-        provider = new AggregateProvider((s) => this.getProvider(s));
+        provider = new AggregateProvider(
+          (s) => this.getProvider(s),
+          () => getAggregatedSourcesForSearch()
+        );
         break;
       case "_netease":
         provider = new NeteaseApiProvider(); // 网易云官方 API

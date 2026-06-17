@@ -7,13 +7,15 @@ import {
   SearchIntent,
 } from "@/types/music";
 import { mergeAndSortTracks } from "@/lib/utils/search-helper";
-import { getAggregatedSourcesForSearch } from "@/hooks/use-aggregated-sources";
 
 type ProviderResolver = (source: MusicSource) => IMusicProvider;
 
 export class AggregateProvider implements IMusicProvider {
   source = "aggregate" as const;
-  constructor(private resolver: ProviderResolver) {}
+  constructor(
+    private resolver: ProviderResolver,
+    private getSources: () => MusicSource[]
+  ) {}
 
   async search(
     query: string,
@@ -22,7 +24,7 @@ export class AggregateProvider implements IMusicProvider {
     signal?: AbortSignal,
     intent?: SearchIntent
   ): Promise<SearchPageResult<MusicTrack>> {
-    const aggregatedSources = getAggregatedSourcesForSearch();
+    const aggregatedSources = this.getSources();
 
     const results = await Promise.all(
       aggregatedSources.map((s) => {

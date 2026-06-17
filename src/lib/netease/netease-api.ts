@@ -1151,25 +1151,31 @@ export function resolveUrl(urlStr: string): ResolveUrlResult | null {
   return null;
 }
 
-export const convertSongToMusicTrack = (song: NeteaseSong): MusicTrack => {
+export const convertSongToMusicTrack = (
+  song: NeteaseSong,
+  includePrivilege: boolean = true
+): MusicTrack => {
   // 兼容搜索接口返回的 artists 和 album
   const artists = song.ar || song.artists || [];
   const album = song.al || song.album || {};
   const songId = String(song.id);
 
   // 构造 privilege 对象（如果搜索结果缺失）
-  let privilege = song.privilege;
-  if (!privilege && song.fee !== undefined) {
-    privilege = {
-      id: Number(song.id),
-      fee: song.fee,
-      payed: 0,
-      st: song.st ?? song.status ?? 0,
-      pl: song.fee === 1 || song.fee === 4 ? 0 : 128000, // VIP/付费歌曲默认视为不可播放，触发 Badge 显示
-      maxbr: 999000,
-      plLevel: "standard",
-      freeTrialPrivilege: { remainTime: 0 },
-    };
+  let privilege: NeteasePrivilege | undefined;
+  if (includePrivilege) {
+    privilege = song.privilege;
+    if (!privilege && song.fee !== undefined) {
+      privilege = {
+        id: Number(song.id),
+        fee: song.fee,
+        payed: 0,
+        st: song.st ?? song.status ?? 0,
+        pl: song.fee === 1 || song.fee === 4 ? 0 : 128000, // VIP/付费歌曲默认视为不可播放，触发 Badge 显示
+        maxbr: 999000,
+        plLevel: "standard",
+        freeTrialPrivilege: { remainTime: 0 },
+      };
+    }
   }
   return {
     id: songId,

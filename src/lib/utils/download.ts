@@ -22,7 +22,7 @@ import { getProxyUrl, isProxyUrl } from "@/lib/api/config";
 import { logger } from "@/lib/logger";
 import { processBatchIO } from "@/lib/utils";
 import { embedMetadata } from "./id3-embed";
-import { getCachedBilibiliAudioFormat } from "@/lib/music-provider/providers/bilibili-api-provider";
+import { getCachedBilibiliAudioFormat } from "@/lib/bilibili/bilibili-cache";
 
 /**
  * 获取当前正在播放的曲目 URL（如果匹配）
