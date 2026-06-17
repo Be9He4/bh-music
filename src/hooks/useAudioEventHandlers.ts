@@ -8,6 +8,7 @@ import { MediaSession } from "@jofr/capacitor-media-session";
 import toast from "react-hot-toast";
 import { handleAutoMatch } from "@/lib/audio-match";
 import { logger } from "@/lib/logger";
+import { extractOriginalAudioUrl } from "@/lib/utils/audio-url";
 
 // 曲目切换触发的短暂 pause 事件不应将状态置为暂停，
 // 需延迟 200ms 确认 pause 是稳定状态后再更新 isPlaying
@@ -166,10 +167,13 @@ export function useAudioEventHandlers(
             !cachedUrl.startsWith("blob:") &&
             !cachedUrl.startsWith("capacitor:")
           ) {
+            // 存原始 URL，避免把带死域名的代理 URL 写进数据库
+            const originalUrl = extractOriginalAudioUrl(cachedUrl);
+
             useOfflineStore.getState().addRecord({
               trackId: track.id,
               source: "stream-cache",
-              url: cachedUrl,
+              url: originalUrl,
               cachedAt: Date.now(),
               name: track.name,
               artist: track.artist,

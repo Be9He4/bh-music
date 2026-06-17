@@ -3,6 +3,22 @@ import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { useAudioEventHandlers } from "./useAudioEventHandlers";
 import { useMusicStore } from "@/store/music-store";
+import { useOfflineStore } from "@/store/offline-store";
+
+vi.mock("@/lib/utils/audio-url", () => ({
+  extractOriginalAudioUrl: vi.fn((url: string) => {
+    try {
+      const u = new URL(url);
+      if (u.pathname === "/proxy") {
+        const original = u.searchParams.get("url");
+        if (original) return original;
+      }
+    } catch {
+      // ignore
+    }
+    return url;
+  }),
+}));
 
 vi.mock("@/lib/storage-adapter", () => ({
   idbStorage: {
@@ -136,5 +152,128 @@ describe("useAudioEventHandlers pause confirm", () => {
 
     expect(useMusicStore.getState().isPlaying).toBe(true);
     cleanup();
+  });
+});
+
+describe("useAudioEventHandlers offline stream cache recording", () => {
+  beforeEach(() => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+
+    useOfflineStore.setState({ records: {} });
+    useMusicStore.setState({
+      queue: [
+        {
+          id: "track-1",
+          name: "Test Track",
+          artist: ["Test Artist"],
+          album: "Test Album",
+          source: "kuwo",
+          url_id: "123",
+          pic_id: "",
+          lyric_id: "",
+        },
+      ],
+      currentIndex: 0,
+      isPlaying: false,
+      isLoading: false,
+      isRepeat: false,
+      enableAutoMatch: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const setupRecording = () => {
+    const audio = document.createElement("audio");
+    Object.defineProperty(audio, "paused", {
+      configurable: true,
+      get: () => false,
+    });
+
+    const audioRef = {
+      current: audio,
+    } as React.RefObject<HTMLAudioElement | null>;
+    const isSwitchingTrackRef = { current: false };
+    const hasRecordedRef = { current: false };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    function TestHarness() {
+      useAudioEventHandlers(audioRef, isSwitchingTrackRef, hasRecordedRef);
+      return null;
+    }
+
+    act(() => {
+      root.render(<TestHarness />);
+    });
+
+    const cleanup = () => {
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    };
+
+    return { audio, cleanup };
+  };
+
+  it("extracts original http url when audio.src is a proxy url", () => {
+    const { audio, cleanup } = setupRecording();
+    audio.src =
+      "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3";
+    audio.dispatchEvent(new Event("play"));
+    cleanup();
+
+    const record = useOfflineStore.getState().records["track-1"];
+    expect(record).toBeDefined();
+    expect(record.url).toBe("http://bd-er.kuwo.cn/a.mp3");
+  });
+
+  it("stores original http url as-is", () => {
+    const { audio, cleanup } = setupRecording();
+    audio.src = "http://bd-er.kuwo.cn/a.mp3";
+    audio.dispatchEvent(new Event("play"));
+    cleanup();
+
+    const record = useOfflineStore.getState().records["track-1"];
+    expect(record).toBeDefined();
+    expect(record.url).toBe("http://bd-er.kuwo.cn/a.mp3");
+  });
+
+  it("stores https direct url as-is", () => {
+    const { audio, cleanup } = setupRecording();
+    audio.src = "https://example.com/a.mp3";
+    audio.dispatchEvent(new Event("play"));
+    cleanup();
+
+    const record = useOfflineStore.getState().records["track-1"];
+    expect(record).toBeDefined();
+    expect(record.url).toBe("https://example.com/a.mp3");
+  });
+
+  it("does not store blob url", () => {
+    const { audio, cleanup } = setupRecording();
+    audio.src = "blob:abc123";
+    audio.dispatchEvent(new Event("play"));
+    cleanup();
+
+    expect(useOfflineStore.getState().records["track-1"]).toBeUndefined();
+  });
+
+  it("does not store capacitor url", () => {
+    const { audio, cleanup } = setupRecording();
+    audio.src = "capacitor://file";
+    audio.dispatchEvent(new Event("play"));
+    cleanup();
+
+    expect(useOfflineStore.getState().records["track-1"]).toBeUndefined();
   });
 });

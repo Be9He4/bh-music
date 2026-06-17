@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { retry } from "@/lib/utils";
 import { musicApi } from "@/lib/music-api";
-import { getProxyUrl } from "@/lib/api";
+import { getProxyUrl, isProxyUrl } from "@/lib/api";
+import { normalizeAudioUrlForPlayback } from "@/lib/utils/audio-url";
 import { useMusicStore } from "@/store/music-store";
 import { useSourceQualityStore } from "@/store/source-quality-store";
 import { useDownloadStore } from "@/store/download-store";
@@ -250,16 +251,20 @@ export function useAudioTrackLoader(
         if (!navigator.onLine) {
           const memCached = urlMemoryCache.get(trackKey);
           if (memCached) {
-            remoteUrlRef.current = memCached;
-            return memCached;
+            // 用当前后端域名重新包装，避免死域名和 Mixed Content
+            const finalUrl = normalizeAudioUrlForPlayback(memCached);
+            urlMemoryCache.set(trackKey, finalUrl);
+            remoteUrlRef.current = finalUrl;
+            return finalUrl;
           }
           const offlineRecord = currentTrackId
             ? useOfflineStore.getState().records[currentTrackId]
             : null;
           if (offlineRecord?.url) {
-            urlMemoryCache.set(trackKey, offlineRecord.url);
-            remoteUrlRef.current = offlineRecord.url;
-            return offlineRecord.url;
+            const finalUrl = normalizeAudioUrlForPlayback(offlineRecord.url);
+            urlMemoryCache.set(trackKey, finalUrl);
+            remoteUrlRef.current = finalUrl;
+            return finalUrl;
           }
         }
         const urlId =
@@ -425,7 +430,10 @@ export function useAudioTrackLoader(
             isOnline
           ) {
             const remoteUrl = remoteUrlRef.current;
-            const proxyUrl = getProxyUrl(remoteUrl);
+            // 源头已转代理时避免重复包装
+            const proxyUrl = isProxyUrl(remoteUrl)
+              ? remoteUrl
+              : getProxyUrl(remoteUrl);
             fallbackStageRef.current.stage = "proxy";
             toast("已切换备用线路", { icon: "🌐", id: "proxy-notice" });
             await setSourceAndPlay(proxyUrl, resumeTime);
