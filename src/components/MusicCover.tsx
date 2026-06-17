@@ -99,8 +99,10 @@ export function MusicCover({
           previewable && "cursor-pointer",
           className
         )}
+        draggable={false}
         onError={() => setError(true)}
         onClick={() => previewable && setIsPreviewOpen(true)}
+        onContextMenu={(e) => e.preventDefault()}
       />
 
       {previewable &&

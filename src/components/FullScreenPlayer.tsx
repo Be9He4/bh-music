@@ -204,6 +204,7 @@ export function FullScreenPlayer({
       addToFavorites: state.addToFavorites,
       removeFromFavorites: state.removeFromFavorites,
       coverUrl: state.coverUrl,
+      favorites: state.favorites,
     }))
   );
 
@@ -406,7 +407,7 @@ export function FullScreenPlayer({
             <MusicCover
               src={coverUrl}
               alt={currentTrack?.name}
-              className="h-full w-full object-cover dark"
+              className="h-full w-full object-cover dark select-none touch-none"
               iconClassName="h-16 w-16 text-white/30"
             />
           </div>
