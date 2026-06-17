@@ -526,6 +526,11 @@ export default defineConfig({
           });
         },
       },
+      "/api/lx": {
+        target: "https://lxmusicapi.onrender.com",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api\/lx/, ""),
+      },
     },
   },
 });

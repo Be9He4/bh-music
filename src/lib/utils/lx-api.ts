@@ -1,4 +1,4 @@
-import { IS_NATIVE } from "@/lib/api/config";
+import { IS_NATIVE, IS_WEB_PROD, getProxyUrl } from "@/lib/api/config";
 
 /** 洛雪 API 基地址 */
 const LX_API_BASE = "https://lxmusicapi.onrender.com";
@@ -38,9 +38,24 @@ async function tryFetchLxUrl(
   }
 
   try {
-    const res = await fetchWithTimeout(url, {
-      headers: { "X-Request-Key": LX_API_KEY },
-    });
+    const headers: Record<string, string> = { "X-Request-Key": LX_API_KEY };
+    const isDev = !IS_NATIVE && import.meta.env.DEV;
+
+    let fetchUrl: string;
+    let fetchInit: RequestInit;
+
+    if (IS_WEB_PROD) {
+      fetchUrl = `${getProxyUrl(url)}&headers=${encodeURIComponent(JSON.stringify(headers))}`;
+      fetchInit = {};
+    } else if (isDev) {
+      fetchUrl = `/api/lx/url/${sourceCode}/${songid}/${quality}`;
+      fetchInit = { headers };
+    } else {
+      fetchUrl = url;
+      fetchInit = { headers };
+    }
+
+    const res = await fetchWithTimeout(fetchUrl, fetchInit);
     if (!res.ok) return null;
     const data = (await res.json()) as { url?: string };
     return data.url || null;
