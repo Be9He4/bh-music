@@ -1,11 +1,9 @@
-import { Hono } from 'hono';
-import type { Env } from '../types/hono';
-import { rssRoutes } from './podcast/rss';
-import { searchRoutes } from './podcast/search';
+import { Hono } from "hono";
+import type { Env } from "../types/hono";
+import { rssRoutes } from "./podcast/rss";
 
 export const podcastRoutes = new Hono<{
   Bindings: Env;
 }>();
 
-podcastRoutes.route('/rss', rssRoutes);
-podcastRoutes.route('/search', searchRoutes);
+podcastRoutes.route("/rss", rssRoutes);
