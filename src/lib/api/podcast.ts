@@ -1,5 +1,6 @@
 import type { PodcastFeed, SearchPodcastItem } from "@/types/podcast";
 import { getApiUrl } from ".";
+import { retry } from "@/lib/utils";
 
 const parseJson = async (res: Response) => {
   if (!res.ok) {
@@ -85,16 +86,29 @@ export const searchPodcast = async (
 /**
  * 解析播客 RSS（仍需后端代理，因 RSS 源通常不支持 CORS）
  */
-export const parsePodcastRss = async (rssUrl: string): Promise<PodcastFeed> => {
+export const parsePodcastRss = async (
+  rssUrl: string,
+  signal?: AbortSignal
+): Promise<PodcastFeed> => {
   const normalizedUrl = rssUrl.trim();
   if (!normalizedUrl) {
     throw new Error("RSS 地址不能为空");
   }
 
-  const res = await parseJson(
-    await fetch(
-      `${getApiUrl()}/podcast-api/rss?url=${encodeURIComponent(normalizedUrl)}`
-    )
+  const res = await retry(
+    async () => {
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      return await fetch(
+        `${getApiUrl()}/podcast-api/rss?url=${encodeURIComponent(normalizedUrl)}`,
+        { signal }
+      );
+    },
+    2,
+    1000
   );
-  return res.data;
+
+  const json = await parseJson(res);
+  return json.data;
 };
