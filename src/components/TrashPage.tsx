@@ -26,7 +26,7 @@ function DeletedItem({
   return (
     <div className="group flex items-center p-3 rounded-xl hover:bg-muted/40 transition-all">
       <div className="h-10 w-10 rounded-lg bg-muted/50 flex items-center justify-center mr-3 shrink-0 text-muted-foreground">
-        <Icon className="h-5 w-5" />
+        <Icon size={20} className="h-5 w-5 shrink-0" />
       </div>
       <div className="flex-1 min-w-0 mr-4">
         <div className="font-medium truncate text-[14px]">{title}</div>

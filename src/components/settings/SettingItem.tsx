@@ -43,7 +43,7 @@ export function SettingItem({
       >
         <div className="flex items-center gap-3 flex-1 overflow-hidden">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Icon className="h-4 w-4 text-primary" />
+            <Icon size={16} className="h-4 w-4 text-primary shrink-0" />
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-foreground truncate">{title}</span>

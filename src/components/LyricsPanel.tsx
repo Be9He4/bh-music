@@ -403,7 +403,10 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
             }}
             className="pointer-events-auto w-8 h-8 flex bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full items-center justify-center transition-all active:scale-95 shadow-sm"
           >
-            <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
+            <Play
+              size={14}
+              className="w-3.5 h-3.5 text-white fill-white ml-0.5 shrink-0"
+            />
           </button>
         </div>
       )}

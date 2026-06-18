@@ -104,7 +104,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
           className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <History className="h-6 w-6 text-primary" />
+            <History size={24} className="h-6 w-6 text-primary shrink-0" />
           </div>
           <span className="text-sm font-medium text-foreground">历史</span>
         </button>
@@ -114,7 +114,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
           className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <ListVideo className="h-6 w-6 text-primary" />
+            <ListVideo size={24} className="h-6 w-6 text-primary shrink-0" />
           </div>
           <span className="text-sm font-medium text-foreground">列表</span>
         </button>
@@ -124,7 +124,10 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
           className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <HardDriveDownload className="h-6 w-6 text-primary" />
+            <HardDriveDownload
+              size={24}
+              className="h-6 w-6 text-primary shrink-0"
+            />
           </div>
           <span className="text-sm font-medium text-foreground">本地</span>
         </button>
@@ -196,7 +199,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
             onClick={() => onSelectPlaylist("__offline__")}
           >
             <div className="h-11 w-11 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-              <WifiOff className="h-6 w-6 text-primary" />
+              <WifiOff size={24} className="h-6 w-6 text-primary shrink-0" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground truncate">离线歌单</p>
