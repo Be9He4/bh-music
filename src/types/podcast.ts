@@ -26,7 +26,6 @@ const RAW_SOURCES = [
   { id: "ted-daily", name: "TED Talks Daily", rssUrl: "https://feeds.acast.com/public/shows/67587e77c705e441797aff96", author: "TED", coverUrl: "https://is1-ssl.mzstatic.com/image/thumb/Podcasts116/v4/2e/cf/99/2ecf996f-71f7-604f-b0a0-43116b9d6619/mza_10257768296573848480.png/600x600bb.jpg" },
 
   // 英文 | 学习与泛文化
-  { id: "6min", name: "6 Minute English", rssUrl: "https://podcasts.files.bbci.co.uk/p02pc9tn.rss", author: "BBC Radio", coverUrl: "https://is1-ssl.mzstatic.com/image/thumb/Podcasts211/v4/ba/98/35/ba9835eb-1ef3-60e4-bf05-3d141b8d1c7a/mza_3844641997714022659.jpg/600x600bb.jpg" },
   { id: "tal", name: "This American Life", rssUrl: "https://www.thisamericanlife.org/podcast/rss.xml", author: "This American Life", coverUrl: "https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/64/aa/3a/64aa3a66-a08a-947c-cf21-a5722a1b77ae/mza_11390421932467026234.png/600x600bb.jpg" },
   { id: "sysk", name: "Stuff You Should Know", rssUrl: "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/a91018a4-ea4f-4130-bf55-ae270180c327/44710ecc-10bb-48d1-93c7-ae270180c33e/podcast.rss", author: "iHeartPodcasts", coverUrl: "https://www.omnycontent.com/d/programs/e73c998e-6e60-432f-8610-ae210140c5b1/a91018a4-ea4f-4130-bf55-ae270180c327/image.jpg?t=1749759419" },
 ];
