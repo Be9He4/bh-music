@@ -60,8 +60,27 @@ describe("MusicCover preview exit stack integration", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     act(() => {
-      root!.render(<MusicCover src={props.src ?? SAMPLE_SRC} alt="cover" previewable={props.previewable ?? true} />);
+      root!.render(
+        <MusicCover
+          src={props.src ?? SAMPLE_SRC}
+          alt="cover"
+          previewable={props.previewable ?? true}
+        />
+      );
     });
+    return {
+      rerender: (nextProps: { previewable?: boolean; src?: string | null }) => {
+        act(() => {
+          root!.render(
+            <MusicCover
+              src={nextProps.src ?? SAMPLE_SRC}
+              alt="cover"
+              previewable={nextProps.previewable ?? true}
+            />
+          );
+        });
+      },
+    };
   };
 
   const clickCover = () => {
@@ -151,5 +170,27 @@ describe("MusicCover preview exit stack integration", () => {
     });
 
     expect(useExitLayerStore.getState().stack).toHaveLength(0);
+  });
+
+  it("resets error state when src changes so a new cover can load", () => {
+    const { rerender } = render({ src: "invalid-url" });
+
+    const firstImg = container?.querySelector("img");
+    expect(firstImg).toBeTruthy();
+
+    act(() => {
+      firstImg!.dispatchEvent(new Event("error", { bubbles: true }));
+    });
+
+    // 加载失败后显示默认 Icon
+    expect(container?.querySelector("img")).toBeFalsy();
+    expect(container?.querySelector("svg")).toBeTruthy();
+
+    rerender({ src: SAMPLE_SRC });
+
+    // src 变化后应重新尝试加载图片
+    const secondImg = container?.querySelector("img");
+    expect(secondImg).toBeTruthy();
+    expect(secondImg?.getAttribute("src")).toBe(SAMPLE_SRC);
   });
 });

@@ -35,6 +35,11 @@ export function MusicCover({
   const { push, pop } = useExitLayer();
   const coverUrl = forceHttps(src);
 
+  // src 变化时重置错误状态，让新的封面 URL 有机会重新加载
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
   useEffect(() => {
     if (!isPreviewOpen) return;
     const id = push({ close: () => setIsPreviewOpen(false) });
