@@ -417,7 +417,7 @@ export function PlaylistMarket() {
               ref={active.observerTargetRef}
               className="h-12 w-full mt-6 flex items-center justify-center opacity-80"
             >
-              {active.fetching && (
+              {active.fetching && !active.loading && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>加载中...</span>
