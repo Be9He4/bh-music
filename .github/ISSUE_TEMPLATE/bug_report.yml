@@ -18,8 +18,6 @@ body:
         1. 打开...
         2. 点击...
         3. 看到...
-    validations:
-      required: true
 
   - type: textarea
     id: screenshots
@@ -33,9 +31,7 @@ body:
     attributes:
       label: 环境
       description: 平台/设备/系统版本/App版本
-      placeholder: Android / Pixel 7 / Android 14 / v2.4.3
-    validations:
-      required: true
+      placeholder: Android / 红米K50 / Android 13 / v2.4.3
 
   - type: input
     id: source
