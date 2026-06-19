@@ -1,12 +1,19 @@
 import { MusicSource, MusicTrack } from "@/types/music";
-import { getOrderedMusicApiUrls, markMusicApiUrlFailure, markMusicApiUrlSuccess } from "../api/config";
+import {
+  getOrderedMusicApiUrls,
+  markMusicApiUrlFailure,
+  markMusicApiUrlSuccess,
+} from "../api/config";
 import { RawApiTrack } from "./types";
 import { logger } from "@/lib/logger";
 import { forceHttps } from "@otter-music/shared";
 
 const REQUEST_TIMEOUT_MS = 10000;
 
-export const normalizeTrack = (t: RawApiTrack, source: MusicSource): MusicTrack => ({
+export const normalizeTrack = (
+  t: RawApiTrack,
+  source: MusicSource
+): MusicTrack => ({
   id: String(t.id),
   name: t.name,
   artist: Array.isArray(t.artist) ? t.artist : [t.artist],
@@ -19,9 +26,17 @@ export const normalizeTrack = (t: RawApiTrack, source: MusicSource): MusicTrack 
   album_id: t.album_id,
 });
 
-const cookieOf = (source: string) => localStorage.getItem(`cookie:${source.replace('_album', '')}`);
+const cookieOf = (source: string) =>
+  localStorage.getItem(`cookie:${source.replace("_album", "")}`);
 
-export const isAbort = (e: unknown) => e instanceof Error && e.name === 'AbortError';
+/**
+ * 判断错误是否为取消/中断请求
+ * 使用 name 判断以避免跨 realm 的 instanceof 失效（如 Vitest 中的 DOMException）
+ */
+export const isAbort = (e: unknown) =>
+  (e instanceof Error ||
+    (typeof DOMException !== "undefined" && e instanceof DOMException)) &&
+  (e as Error).name === "AbortError";
 
 const buildUrl = (
   apiBase: string,
@@ -35,9 +50,9 @@ const buildUrl = (
   }
 
   if (source) {
-    search.set('source', source);
+    search.set("source", source);
     const cookie = cookieOf(source);
-    if (cookie) search.set('cookie', cookie);
+    if (cookie) search.set("cookie", cookie);
   }
 
   return `${apiBase}?${search.toString()}`;
@@ -47,7 +62,7 @@ async function requestJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const onAbort = () => controller.abort();
-  signal?.addEventListener('abort', onAbort, { once: true });
+  signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
     const res = await fetch(url, { signal: controller.signal });
@@ -59,7 +74,7 @@ async function requestJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
     throw e;
   } finally {
     window.clearTimeout(timer);
-    signal?.removeEventListener('abort', onAbort);
+    signal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -73,7 +88,7 @@ export async function requestMusicApiJSON<T>(
 
   for (const apiBase of apiBases) {
     if (signal?.aborted) {
-      throw new DOMException('The operation was aborted.', 'AbortError');
+      throw new DOMException("The operation was aborted.", "AbortError");
     }
     const url = buildUrl(apiBase, params, source);
     try {
@@ -87,5 +102,5 @@ export async function requestMusicApiJSON<T>(
     }
   }
 
-  throw lastError ?? new Error('No available music API endpoint');
+  throw lastError ?? new Error("No available music API endpoint");
 }
