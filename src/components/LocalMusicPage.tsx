@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { RefreshCw, Music, HardDrive, HardDriveDownload } from "lucide-react";
+import {
+  RefreshCw,
+  Music,
+  HardDrive,
+  HardDriveDownload,
+  WifiOff,
+} from "lucide-react";
 import { LocalMusicPlugin, LocalMusicFile } from "@/plugins/local-music";
 import { MusicTrack } from "@/types/music";
 import { MusicPlaylistView } from "./MusicPlaylistView";
@@ -25,6 +31,8 @@ import { getPlayAllStartIndex } from "@/hooks/usePlayHelper";
 import { useLocalMusicStore } from "@/store/local-music-store";
 import { LocalMusicPermissionDialog } from "./LocalMusicPermissionDialog";
 import { logger } from "@/lib/logger";
+import { useNavigate } from "react-router-dom";
+import { useOfflinePlaylist } from "@/hooks/use-offline-playlist";
 
 function mergeLocalMusicFiles(
   oldFiles: LocalMusicFile[],
@@ -85,6 +93,7 @@ export function LocalMusicPage({
     }))
   );
   const { files, setFiles, updateFiles, setScanning } = useLocalMusicStore();
+  const navigate = useNavigate();
 
   /* =========================
      扫描逻辑（单一职责）
@@ -342,6 +351,14 @@ export function LocalMusicPage({
         onBatchRemove={handleBatchDeleteTracks}
         removeLabel="删除"
         confirmRemove={false}
+        action={
+          <button
+            onClick={() => navigate("/playlist/__offline__")}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <WifiOff size={14} className="shrink-0" />
+          </button>
+        }
       />
 
       <LocalMusicPermissionDialog

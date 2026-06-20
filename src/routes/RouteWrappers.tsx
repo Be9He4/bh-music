@@ -6,6 +6,7 @@ import { usePlayHelper } from "@/hooks/usePlayHelper";
 import { usePlayContextHandler } from "@/hooks/usePlayContextHandler";
 import { PageLoader } from "@/components/PageLoader";
 import { PageLayout } from "@/components/PageLayout";
+import { MusicPlaylistView } from "@/components/MusicPlaylistView";
 import { ListMusic } from "lucide-react";
 import { useActivePlaylists } from "@/hooks/use-active-playlists";
 import { useOfflinePlaylist } from "@/hooks/use-offline-playlist";
@@ -16,11 +17,6 @@ import { useOfflinePlaylist } from "@/hooks/use-offline-playlist";
 const MusicSearchView = lazy(() =>
   import("@/components/MusicSearchView").then((m) => ({
     default: m.MusicSearchView,
-  }))
-);
-const MusicPlaylistView = lazy(() =>
-  import("@/components/MusicPlaylistView").then((m) => ({
-    default: m.MusicPlaylistView,
   }))
 );
 const FavoritesView = lazy(() =>

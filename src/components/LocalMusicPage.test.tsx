@@ -15,6 +15,14 @@ vi.mock("@/lib/storage-adapter", () => ({
   },
 }));
 
+vi.mock("react-router-dom", () => ({
+  useNavigate: vi.fn(() => vi.fn()),
+}));
+
+vi.mock("@/hooks/use-offline-playlist", () => ({
+  useOfflinePlaylist: vi.fn(() => []),
+}));
+
 vi.mock("@/plugins/local-music", () => ({
   LocalMusicPlugin: {
     scanLocalMusic: vi.fn(),
