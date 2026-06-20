@@ -39,7 +39,7 @@ Otter Music 是一款 Capacitor 混合架构音乐播放器——同一套 React
 - **原生插件**：修改 `LocalMusicPlugin.java` 或新增 Capacitor 插件方法后，必须同步更新 `src/plugins/local-music/index.ts` 的接口定义。运行 `npm run cap:sync:android` 同步 Web 资源到 Android 项目后才能真机验证。
 - **新增依赖**：优先用 JS/TS 方案解决。只有涉及文件系统、蓝牙、通知等必须原生 API 的场景才引入 Capacitor 插件。
 - **音乐API**：在 Android 端，APP 优先直连，Web端才需要做functions代理。严禁自己实现加密算法，优先使用已有的加密库`node-forge`。
-- **Lucide 图标 Android 兼容**：在低版本 Android WebView 下，被 `bg-*` + Flex 容器包裹的 `<Icon />` 可能被压缩至 0 像素。修复方案：显式传入 `size={N}`（h-x w-x 对应 x\*4 px），className 追加 `shrink-0`。
+- **Lucide 图标 Android 兼容**：在低版本 Android WebView 下，被 `bg-*` + Flex 容器包裹的 `<Icon />` 可能被压缩至 0 像素。直接在 SVG 上加 `shrink-0` 无效（低版本 WebView 对 SVG 的 `flex-shrink: 0` 支持有 bug），因此 `shrink-0` 必须加在外层 `div` 上。修复方案：用外层 `div` 包裹 SVG，`div` 固定尺寸 + `shrink-0`，并建议显式声明 `flex-[0_0_Npx]` 与 `min-w-* min-h-*` 作为兜底，内层 SVG 用 `h-full w-full` 继承尺寸。示例：`<div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6"><Icon size={24} className="h-full w-full" /></div>`
 
 ## 编码约定
 

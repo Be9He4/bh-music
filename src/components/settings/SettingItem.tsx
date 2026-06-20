@@ -42,8 +42,10 @@ export function SettingItem({
         onClick={onClick}
       >
         <div className="flex items-center gap-3 flex-1 overflow-hidden">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Icon size={16} className="h-4 w-4 text-primary shrink-0" />
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_36px] min-w-9 min-h-9">
+            <div className="h-4 w-4 shrink-0 flex-[0_0_16px] min-w-4 min-h-4">
+              <Icon size={16} className="h-full w-full text-primary" />
+            </div>
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-foreground truncate">{title}</span>

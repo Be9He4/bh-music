@@ -305,10 +305,12 @@ export function PlaylistMarket() {
                 onClick={() => setIsAddPodcastOpen(true)}
               >
                 <div className="relative aspect-square rounded-md overflow-hidden border-2 border-dashed border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/50 transition-colors flex items-center justify-center bg-muted/20">
-                  <Plus
-                    size={32}
-                    className="w-8 h-8 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0"
-                  />
+                  <div className="w-8 h-8 shrink-0 flex-[0_0_32px] min-w-8 min-h-8">
+                    <Plus
+                      size={32}
+                      className="h-full w-full text-muted-foreground/50 group-hover:text-primary transition-colors"
+                    />
+                  </div>
                 </div>
                 <div className="px-0.5 text-center">
                   <h3 className="text-[13px] font-medium leading-snug text-muted-foreground group-hover:text-primary transition-colors">

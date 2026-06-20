@@ -32,7 +32,6 @@ import { useLocalMusicStore } from "@/store/local-music-store";
 import { LocalMusicPermissionDialog } from "./LocalMusicPermissionDialog";
 import { logger } from "@/lib/logger";
 import { useNavigate } from "react-router-dom";
-import { useOfflinePlaylist } from "@/hooks/use-offline-playlist";
 
 function mergeLocalMusicFiles(
   oldFiles: LocalMusicFile[],

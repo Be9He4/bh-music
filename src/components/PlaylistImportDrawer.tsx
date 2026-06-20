@@ -506,11 +506,13 @@ export function PlaylistImportDrawer({
 
               {textPhase === "preview" && textPreview && (
                 <div className="bg-muted/30 rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-muted/40 flex items-center justify-center shrink-0">
-                    <ListMusic
-                      size={24}
-                      className="h-6 w-6 text-muted-foreground shrink-0"
-                    />
+                  <div className="w-14 h-14 rounded-xl bg-muted/40 flex items-center justify-center shrink-0 flex-[0_0_56px] min-w-14 min-h-14">
+                    <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
+                      <ListMusic
+                        size={24}
+                        className="h-full w-full text-muted-foreground"
+                      />
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-base truncate">
