@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { normalizeAudioUrlForPlayback } from "./audio-url";
 
 vi.mock("@/lib/api/config", () => ({
+  getApiUrl: () => "https://otter-music.pages.dev",
   getProxyUrl: (url: string) =>
     `https://otter-music.pages.dev/proxy?url=${encodeURIComponent(url)}`,
   isProxyUrl: (url: string) => {
@@ -22,13 +23,13 @@ describe("normalizeAudioUrlForPlayback", () => {
     );
   });
 
-  it("keeps old proxy url unchanged (preserves extra params)", () => {
+  it("refreshes old proxy url with current backend", () => {
     expect(
       normalizeAudioUrlForPlayback(
         "https://old-backend.example.com/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
       )
     ).toBe(
-      "https://old-backend.example.com/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
+      "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
     );
   });
 
