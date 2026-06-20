@@ -5,21 +5,6 @@ import { useAudioEventHandlers } from "./useAudioEventHandlers";
 import { useMusicStore } from "@/store/music-store";
 import { useOfflineStore } from "@/store/offline-store";
 
-vi.mock("@/lib/utils/audio-url", () => ({
-  extractOriginalAudioUrl: vi.fn((url: string) => {
-    try {
-      const u = new URL(url);
-      if (u.pathname === "/proxy") {
-        const original = u.searchParams.get("url");
-        if (original) return original;
-      }
-    } catch {
-      // ignore
-    }
-    return url;
-  }),
-}));
-
 vi.mock("@/lib/storage-adapter", () => ({
   idbStorage: {
     getItem: vi.fn(),
@@ -225,16 +210,18 @@ describe("useAudioEventHandlers offline stream cache recording", () => {
     return { audio, cleanup };
   };
 
-  it("extracts original http url when audio.src is a proxy url", () => {
+  it("stores proxy url as-is when audio.src is a proxy url", () => {
     const { audio, cleanup } = setupRecording();
     audio.src =
-      "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3";
+      "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3&bvid=BV123";
     audio.dispatchEvent(new Event("play"));
     cleanup();
 
     const record = useOfflineStore.getState().records["track-1"];
     expect(record).toBeDefined();
-    expect(record.url).toBe("http://bd-er.kuwo.cn/a.mp3");
+    expect(record.url).toBe(
+      "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3&bvid=BV123"
+    );
   });
 
   it("stores original http url as-is", () => {

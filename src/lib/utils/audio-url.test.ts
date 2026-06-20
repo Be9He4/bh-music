@@ -1,8 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  extractOriginalAudioUrl,
-  normalizeAudioUrlForPlayback,
-} from "./audio-url";
+import { normalizeAudioUrlForPlayback } from "./audio-url";
 
 vi.mock("@/lib/api/config", () => ({
   getProxyUrl: (url: string) =>
@@ -18,30 +15,6 @@ vi.mock("@/lib/api/config", () => ({
   },
 }));
 
-describe("extractOriginalAudioUrl", () => {
-  it("extracts url from proxy url", () => {
-    expect(
-      extractOriginalAudioUrl(
-        "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
-      )
-    ).toBe("http://bd-er.kuwo.cn/a.mp3");
-  });
-
-  it("extracts url from proxy url with different backend", () => {
-    expect(
-      extractOriginalAudioUrl(
-        "https://old-backend.example.com/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
-      )
-    ).toBe("http://bd-er.kuwo.cn/a.mp3");
-  });
-
-  it("returns non-proxy url as-is", () => {
-    expect(extractOriginalAudioUrl("http://bd-er.kuwo.cn/a.mp3")).toBe(
-      "http://bd-er.kuwo.cn/a.mp3"
-    );
-  });
-});
-
 describe("normalizeAudioUrlForPlayback", () => {
   it("converts http:// to current proxy", () => {
     expect(normalizeAudioUrlForPlayback("http://bd-er.kuwo.cn/a.mp3")).toBe(
@@ -49,13 +22,13 @@ describe("normalizeAudioUrlForPlayback", () => {
     );
   });
 
-  it("refreshes old proxy url with current backend", () => {
+  it("keeps old proxy url unchanged (preserves extra params)", () => {
     expect(
       normalizeAudioUrlForPlayback(
         "https://old-backend.example.com/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
       )
     ).toBe(
-      "https://otter-music.pages.dev/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
+      "https://old-backend.example.com/proxy?url=http%3A%2F%2Fbd-er.kuwo.cn%2Fa.mp3"
     );
   });
 
@@ -83,5 +56,19 @@ describe("normalizeAudioUrlForPlayback", () => {
     expect(normalizeAudioUrlForPlayback("capacitor://file")).toBe(
       "capacitor://file"
     );
+  });
+
+  it("keeps localhost http:// url unchanged (native proxy)", () => {
+    expect(
+      normalizeAudioUrlForPlayback(
+        "http://localhost:8765/proxy?url=https%3A%2F%2Fexample.com%2Fa.m4s"
+      )
+    ).toBe("http://localhost:8765/proxy?url=https%3A%2F%2Fexample.com%2Fa.m4s");
+  });
+
+  it("keeps 127.0.0.1 http:// url unchanged", () => {
+    expect(
+      normalizeAudioUrlForPlayback("http://127.0.0.1:8765/proxy?url=test")
+    ).toBe("http://127.0.0.1:8765/proxy?url=test");
   });
 });

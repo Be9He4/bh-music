@@ -8,7 +8,6 @@ import { MediaSession } from "@jofr/capacitor-media-session";
 import toast from "react-hot-toast";
 import { handleAutoMatch } from "@/lib/audio-match";
 import { logger } from "@/lib/logger";
-import { extractOriginalAudioUrl } from "@/lib/utils/audio-url";
 
 const PAUSE_CONFIRM_DELAY_MS = 200;
 const MAX_AUTO_MATCH_PER_TRACK = 3;
@@ -37,7 +36,11 @@ export function useAudioEventHandlers(
 
     const syncPositionState = (rate = audio.playbackRate || 1) => {
       const duration = Math.max(audio.duration || 0, 0);
-      MediaSession.setPositionState({ duration, playbackRate: rate, position: audio.currentTime }).catch(console.error);
+      MediaSession.setPositionState({
+        duration,
+        playbackRate: rate,
+        position: audio.currentTime,
+      }).catch(console.error);
     };
 
     const clearPauseTimer = () => {
@@ -63,11 +66,16 @@ export function useAudioEventHandlers(
         state.setDuration(duration);
 
         // 检测网易云试听片段
-        const isNeteaseSample = [30, 45, 60].includes(duration) || audio.src.includes("jdusicrep-ts");
-        if (state.enableAutoMatch && track?.source === "_netease" && isNeteaseSample) {
+        const isNeteaseSample =
+          [30, 45, 60].includes(duration) || audio.src.includes("jdusicrep-ts");
+        if (
+          state.enableAutoMatch &&
+          track?.source === "_netease" &&
+          isNeteaseSample
+        ) {
           const am = autoMatchRef.current;
           if (am.index !== state.currentIndex) am.count = 0; // 重置计数
-          
+
           if (am.count < MAX_AUTO_MATCH_PER_TRACK) {
             am.index = state.currentIndex;
             am.count++;
@@ -79,12 +87,14 @@ export function useAudioEventHandlers(
       ended: () => {
         syncPositionState(0);
         const state = getMusicState();
-        
+
         if (state.isRepeat) {
           audio.currentTime = 0;
           audio.play().catch(() => state.setIsPlaying(false));
         } else if (state.queue.length) {
-          state.setCurrentIndexAndPlay((state.currentIndex + 1) % state.queue.length);
+          state.setCurrentIndexAndPlay(
+            (state.currentIndex + 1) % state.queue.length
+          );
         }
       },
 
@@ -94,7 +104,13 @@ export function useAudioEventHandlers(
 
         clearPauseTimer();
         pauseTimerRef.current = setTimeout(() => {
-          if (isSwitchingTrackRef.current || audio.ended || audio.error || !audio.paused) return;
+          if (
+            isSwitchingTrackRef.current ||
+            audio.ended ||
+            audio.error ||
+            !audio.paused
+          )
+            return;
           getMusicState().setIsPlaying(false);
         }, PAUSE_CONFIRM_DELAY_MS);
       },
@@ -116,13 +132,17 @@ export function useAudioEventHandlers(
           useSourceQualityStore.getState().recordSuccess(track.source);
           useHistoryStore.getState().addToHistory(track);
 
-          // 记录远程流媒体缓存 (使用正则简化判断)
-          if (track.source !== "local" && audio.src && !/^(blob|capacitor):/.test(audio.src)) {
+          // 记录远程流媒体缓存
+          if (
+            track.source !== "local" &&
+            audio.src &&
+            !/^(blob|capacitor):/.test(audio.src)
+          ) {
             useOfflineStore.getState().addRecord({
-              ...track, // 使用展开语法复用属性，避免逐个手动赋值
+              ...track,
               trackId: track.id,
               source: "stream-cache",
-              url: extractOriginalAudioUrl(audio.src),
+              url: audio.src,
               cachedAt: Date.now(),
               trackSource: track.source,
             });
@@ -136,7 +156,10 @@ export function useAudioEventHandlers(
 
         if (!recoveryAttemptedRef.current && state.queue.length > 0) {
           recoveryAttemptedRef.current = true;
-          logger.warn("useAudioEventHandlers", "Audio error, attempting URL recovery");
+          logger.warn(
+            "useAudioEventHandlers",
+            "Audio error, attempting URL recovery"
+          );
           state.incrementUrlRecoveryKey();
         } else {
           logger.error("useAudioEventHandlers", "Audio error");
@@ -148,15 +171,22 @@ export function useAudioEventHandlers(
       loadstart: () => toggleLoading(true),
       waiting: () => toggleLoading(true),
       canplay: () => toggleLoading(false),
-      playing: () => { clearPauseTimer(); toggleLoading(false); },
+      playing: () => {
+        clearPauseTimer();
+        toggleLoading(false);
+      },
       loadedmetadata: () => toggleLoading(false),
     };
 
-    Object.entries(handlers).forEach(([event, handler]) => audio.addEventListener(event, handler));
+    Object.entries(handlers).forEach(([event, handler]) =>
+      audio.addEventListener(event, handler)
+    );
 
     return () => {
       clearPauseTimer();
-      Object.entries(handlers).forEach(([event, handler]) => audio.removeEventListener(event, handler));
+      Object.entries(handlers).forEach(([event, handler]) =>
+        audio.removeEventListener(event, handler)
+      );
     };
   }, [audioRef, isSwitchingTrackRef, hasRecordedRef]);
 
