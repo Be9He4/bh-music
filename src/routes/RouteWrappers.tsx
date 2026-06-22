@@ -7,7 +7,7 @@ import { usePlayContextHandler } from "@/hooks/usePlayContextHandler";
 import { PageLoader } from "@/components/PageLoader";
 import { PageLayout } from "@/components/PageLayout";
 import { MusicPlaylistView } from "@/components/MusicPlaylistView";
-import { ListMusic } from "lucide-react";
+import { ListMusic, WifiOff } from "lucide-react";
 import { useActivePlaylists } from "@/hooks/use-active-playlists";
 import { useOfflinePlaylist } from "@/hooks/use-offline-playlist";
 
@@ -143,7 +143,7 @@ export const PlaylistDetailRoute = withSuspense(() => {
         <MusicPlaylistView
           title="离线歌单"
           tracks={offlineTracks}
-          icon={<ListMusic className="h-8 w-8 text-primary/80" />}
+          icon={<WifiOff className="h-8 w-8 text-primary/80" />}
           onPlay={onPlay}
           currentTrackId={currentTrackId}
           isPlaying={isPlaying}

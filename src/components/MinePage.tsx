@@ -207,7 +207,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
             onClick={() => onSelectPlaylist("__offline__")}
           >
             <div className="h-11 w-11 rounded-lg bg-primary/15 flex items-center justify-center shrink-0 flex-[0_0_44px] min-w-11 min-h-11">
-              <WifiOff size={24} className="h-full w-full text-primary" />
+              <WifiOff size={24} className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground truncate">离线歌单</p>
