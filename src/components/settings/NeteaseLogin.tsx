@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { User, RefreshCw, Check, Loader2, ScanLine, Info } from "lucide-react";
 import {
   Drawer,
@@ -11,11 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { SettingItem } from "./SettingItem";
-import {
-  getQrKey,
-  checkQrStatus,
-  getMyInfo,
-} from "@/lib/netease/netease-api";
+import { getQrKey, checkQrStatus, getMyInfo } from "@/lib/netease/netease-api";
 import type { UserProfile } from "@/lib/netease/netease-types";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
@@ -66,7 +62,7 @@ export function NeteaseLogin() {
       setShowDialog(false);
       resetDialogState();
     },
-    [resetDialogState, setLogin],
+    [resetDialogState, setLogin]
   );
 
   const scheduleNextPoll = useCallback((key: string) => {
@@ -79,13 +75,11 @@ export function NeteaseLogin() {
   const pollStatus = useCallback(
     async (key: string) => {
       if (!pollingRef.current) return;
-
       try {
         const res = await checkQrStatus(key);
         if (!pollingRef.current) return;
 
         const { code, cookie, message } = res;
-
         switch (code) {
           case 800:
           case 8821:
@@ -93,36 +87,28 @@ export function NeteaseLogin() {
             clearTimer();
             if (code === 8821) toast.error(message || "登录环境异常");
             return;
-
           case 801:
             setQrStatus("waiting");
             scheduleNextPoll(key);
             return;
-
           case 802:
             setQrStatus("scanned");
             scheduleNextPoll(key);
             return;
-
           case 803:
             setQrStatus("success");
             clearTimer();
-
             if (!cookie) {
               toast.error("未获取到登录凭证");
               return;
             }
-
-            {
-              const profile = await getMyInfo(cookie);
-              if (!profile) {
-                toast.error("获取用户信息失败");
-                return;
-              }
-              onLoginSuccess(cookie, profile);
+            const profile = await getMyInfo(cookie);
+            if (!profile) {
+              toast.error("获取用户信息失败");
+              return;
             }
+            onLoginSuccess(cookie, profile);
             return;
-
           default:
             scheduleNextPoll(key);
         }
@@ -130,12 +116,10 @@ export function NeteaseLogin() {
         if (pollingRef.current) scheduleNextPoll(key);
       }
     },
-    [clearTimer, onLoginSuccess, scheduleNextPoll],
+    [clearTimer, onLoginSuccess, scheduleNextPoll]
   );
 
-  const startLogin = useCallback(async () => {
-    setShowDialog(true);
-    setLoginMode("qr");
+  const fetchQrCode = useCallback(async () => {
     setLoading(true);
     setQrStatus("loading");
     setQrUrl("");
@@ -148,13 +132,30 @@ export function NeteaseLogin() {
       pollingRef.current = true;
       void pollStatus(key);
     } catch {
+      setQrStatus("expired");
       toast.error("获取二维码失败");
-      setShowDialog(false);
     } finally {
       setLoading(false);
     }
   }, [clearTimer, pollStatus]);
 
+  // 1. 仅在弹窗打开且处于 QR 模式下，才触发初始化
+  useEffect(() => {
+    if (showDialog && loginMode === "qr") {
+      void fetchQrCode();
+    } else if (!showDialog || loginMode === "cookie") {
+      // 隐式断开：如果弹窗关闭或切换到 Cookie，立即停止扫码定时器
+      clearTimer();
+    }
+  }, [showDialog, loginMode, fetchQrCode, clearTimer]);
+
+  const startLogin = useCallback(() => {
+    resetDialogState();
+    setLoginMode("qr");
+    setShowDialog(true);
+  }, [resetDialogState]);
+
+  // 2. Cookie 登录逻辑：纯事件驱动，保持干净高效
   const handleCookieLogin = async () => {
     const raw = cookieInput.trim();
     if (!raw) return;
@@ -168,7 +169,6 @@ export function NeteaseLogin() {
         toast.error("Cookie 无效或已过期");
         return;
       }
-
       onLoginSuccess(finalCookie, profile);
     } catch {
       toast.error("验证失败，请检查 Cookie");
@@ -179,11 +179,20 @@ export function NeteaseLogin() {
 
   const handleLogout = () => {
     if (!window.confirm("确定要退出网易云登录吗？")) return;
-
     logout();
-    // localStorage.removeItem(NETEASE_COOKIE_KEY);
-    // localStorage.removeItem("cookie:netease");
     toast.success("已退出登录");
+  };
+
+  // 3. 切换模式函数：切换时精准清除/重置状态
+  const toggleLoginMode = () => {
+    setLoginMode((prev) => {
+      if (prev === "qr") {
+        clearTimer(); // 从 QR 换到 Cookie，立刻杀掉定时器
+        return "cookie";
+      } else {
+        return "qr"; // 换回 QR 会被上面的 useEffect 捕获并自动 fetchQrCode
+      }
+    });
   };
 
   return (
@@ -206,10 +215,12 @@ export function NeteaseLogin() {
               variant="outline"
               size="sm"
               onClick={startLogin}
-              disabled={loading}
+              disabled={loading && loginMode === "qr"} // 只在QR获取中禁用入口
               className="px-4"
             >
-              {loading && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              {loading && loginMode === "qr" && (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              )}
               登录
             </Button>
           )
@@ -273,7 +284,7 @@ export function NeteaseLogin() {
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={startLogin}
+                        onClick={fetchQrCode}
                         className="h-8 rounded-full px-4 text-xs"
                       >
                         <RefreshCw className="mr-1.5 h-3 w-3" />
@@ -284,7 +295,9 @@ export function NeteaseLogin() {
                 </div>
 
                 <div className="space-y-1 text-center">
-                  <p className="text-sm font-medium">{STATUS_MESSAGES[qrStatus]}</p>
+                  <p className="text-sm font-medium">
+                    {STATUS_MESSAGES[qrStatus]}
+                  </p>
                   <p className="text-[11px] text-muted-foreground/70">
                     登录凭证仅保存在本地
                   </p>
@@ -321,9 +334,9 @@ export function NeteaseLogin() {
                     <li>
                       在 Cookies 中找到并复制{" "}
                       <code className="bg-background px-1.5 py-0.5 rounded border text-primary font-mono text-[9px]">
-                    MUSIC_U
-                  </code>{" "}
-                  的值
+                        MUSIC_U
+                      </code>{" "}
+                      的值
                     </li>
                   </ol>
                 </div>
@@ -331,9 +344,13 @@ export function NeteaseLogin() {
                 <Button
                   className="w-full rounded-full"
                   onClick={handleCookieLogin}
-                  disabled={loading || !cookieInput.trim()}
+                  disabled={
+                    (loading && loginMode === "cookie") || !cookieInput.trim()
+                  }
                 >
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading && loginMode === "cookie" && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   验证并登录
                 </Button>
               </div>
@@ -342,11 +359,9 @@ export function NeteaseLogin() {
             <Button
               variant="link"
               className="h-auto px-0 text-xs text-muted-foreground/70 hover:text-muted-foreground"
-              onClick={() =>
-                setLoginMode((prev) => (prev === "qr" ? "cookie" : "qr"))
-              }
+              onClick={toggleLoginMode}
             >
-              {loginMode === "qr" ? "改用 Cookie 登录" : "返回扫码登录"}
+              {loginMode === "qr" ? "通过 Cookie 登录" : "返回扫码登录"}
             </Button>
           </div>
         </DrawerContent>
