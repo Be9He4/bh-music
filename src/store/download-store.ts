@@ -67,17 +67,17 @@ export const useDownloadStore = create<DownloadStoreState>((set, get) => ({
     }
   },
 
-  hasRecord: (key) => !!get().records[key],
+  hasRecord: (key) => !!get().records?.[key],
 
   getUri: (key) => {
-    const r = get().records[key];
+    const r = get().records?.[key];
     if (!r) return undefined;
     if (typeof r === "string") return r;
     return r.uri;
   },
 
   getRecord: (key) => {
-    const r = get().records[key];
+    const r = get().records?.[key];
     if (!r || typeof r === "string") return undefined;
     return r;
   },

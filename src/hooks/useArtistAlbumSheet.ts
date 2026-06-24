@@ -31,23 +31,25 @@ export function useArtistAlbumSheet({
   pushExitLayer,
   popExitLayer,
 }: UseArtistAlbumSheetProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // 恢复 Sheet 状态：从 location.state 或 sessionStorage 读取
-  useEffect(() => {
-    if (type !== "artist" || !id) return;
+  const [isOpen, setIsOpen] = useState(() => {
+    if (type !== "artist" || !id) return false;
 
     // 优先从 location.state 恢复（首次进入）
     if (shouldRestoreArtistAlbumSheet(type, id, navigationState)) {
-      setIsOpen(true);
-      navigate(pathname, { replace: true, state: null });
-      return;
+      return true;
     }
 
     // 从 sessionStorage 恢复（navigate(-1) 回退时）
     const sessionRestore = consumeAlbumSheetRestoreSession();
-    if (sessionRestore?.artistId === id) {
-      setIsOpen(true);
+    return sessionRestore?.artistId === id;
+  });
+
+  // 清理 location.state，避免刷新后再次触发恢复
+  useEffect(() => {
+    if (type !== "artist" || !id) return;
+
+    if (shouldRestoreArtistAlbumSheet(type, id, navigationState)) {
+      navigate(pathname, { replace: true, state: null });
     }
   }, [type, id, navigationState, navigate, pathname]);
 

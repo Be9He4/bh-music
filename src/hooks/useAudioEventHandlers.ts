@@ -138,7 +138,7 @@ export function useAudioEventHandlers(
             audio.src &&
             !/^(blob|capacitor):/.test(audio.src)
           ) {
-            useOfflineStore.getState().addRecord({
+            useOfflineStore.getState()?.addRecord?.({
               ...track,
               trackId: track.id,
               source: "stream-cache",

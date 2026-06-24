@@ -95,7 +95,7 @@ export function NeteaseLogin() {
             setQrStatus("scanned");
             scheduleNextPoll(key);
             return;
-          case 803:
+          case 803: {
             setQrStatus("success");
             clearTimer();
             if (!cookie) {
@@ -109,6 +109,7 @@ export function NeteaseLogin() {
             }
             onLoginSuccess(cookie, profile);
             return;
+          }
           default:
             scheduleNextPoll(key);
         }
