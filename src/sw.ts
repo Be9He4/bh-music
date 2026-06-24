@@ -5,7 +5,6 @@ import { NetworkFirst, CacheFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { clientsClaim } from "workbox-core";
-import { AUDIO_STREAM_CACHE_NAME } from "@/lib/sw-cache";
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -40,7 +39,7 @@ registerRoute(
     return false;
   },
   new CacheFirst({
-    cacheName: AUDIO_STREAM_CACHE_NAME,
+    cacheName: "audio-stream-cache",
     plugins: [
       new ExpirationPlugin({
         maxEntries: 300,
