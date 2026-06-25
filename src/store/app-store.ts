@@ -15,6 +15,7 @@ interface AppState {
   currentVersion: string;
   lastCheckTime: number;
   latestVersionInfo: UpdateInfo | null;
+  hasUpdate: boolean;
   isChecking: boolean;
 }
 
@@ -27,6 +28,7 @@ const initialState: AppState = {
   currentVersion: "0.0.0",
   lastCheckTime: 0,
   latestVersionInfo: null,
+  hasUpdate: false,
   isChecking: false,
 };
 
@@ -80,6 +82,12 @@ export const useAppStore = create<AppState & AppActions>()(
         const state = get();
 
         if (state.isChecking) return;
+        if (
+          silent &&
+          state.lastCheckTime &&
+          now - state.lastCheckTime < 24 * 60 * 60 * 1000
+        )
+          return;
         set({ isChecking: true });
 
         try {
@@ -92,7 +100,8 @@ export const useAppStore = create<AppState & AppActions>()(
             compareVersions(currentVersion, info.latestVersion) < 0;
 
           set({
-            latestVersionInfo: hasUpdate ? info : null,
+            latestVersionInfo: info,
+            hasUpdate,
             lastCheckTime: now,
           });
 
@@ -132,8 +141,10 @@ export const useAppStore = create<AppState & AppActions>()(
       name: storeKey.AppStore,
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
+        currentVersion: state.currentVersion,
         lastCheckTime: state.lastCheckTime,
         latestVersionInfo: state.latestVersionInfo,
+        hasUpdate: state.hasUpdate,
       }),
     }
   )
