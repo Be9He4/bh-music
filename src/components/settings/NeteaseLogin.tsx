@@ -1,5 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { User, RefreshCw, Check, Loader2, ScanLine, Info } from "lucide-react";
+import {
+  User,
+  RefreshCw,
+  Check,
+  Loader2,
+  ScanLine,
+  Info,
+  Copy,
+  LogOut,
+} from "lucide-react";
 import {
   Drawer,
   DrawerContent,
@@ -16,6 +25,7 @@ import type { UserProfile } from "@/lib/netease/netease-types";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { useNeteaseStore } from "@/store/netease-store";
+import { writeClipboardText } from "@/lib/clipboard";
 
 const STATUS_MESSAGES = {
   loading: "正在获取二维码...",
@@ -29,8 +39,9 @@ type QrStatus = keyof typeof STATUS_MESSAGES;
 type LoginMode = "qr" | "cookie";
 
 export function NeteaseLogin() {
-  const { user, setLogin, logout } = useNeteaseStore();
-  const [showDialog, setShowDialog] = useState(false);
+  const { user, cookie, setLogin, logout } = useNeteaseStore();
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showUserDrawer, setShowUserDrawer] = useState(false); // 新增：控制用户操作面板
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<LoginMode>("qr");
   const [cookieInput, setCookieInput] = useState("");
@@ -59,7 +70,7 @@ export function NeteaseLogin() {
   const onLoginSuccess = useCallback(
     (cookie: string, profile: UserProfile) => {
       setLogin(cookie, profile);
-      setShowDialog(false);
+      setShowLoginDialog(false);
       resetDialogState();
     },
     [resetDialogState, setLogin]
@@ -140,23 +151,20 @@ export function NeteaseLogin() {
     }
   }, [clearTimer, pollStatus]);
 
-  // 1. 仅在弹窗打开且处于 QR 模式下，才触发初始化
   useEffect(() => {
-    if (showDialog && loginMode === "qr") {
+    if (showLoginDialog && loginMode === "qr") {
       void fetchQrCode();
-    } else if (!showDialog || loginMode === "cookie") {
-      // 隐式断开：如果弹窗关闭或切换到 Cookie，立即停止扫码定时器
+    } else if (!showLoginDialog || loginMode === "cookie") {
       clearTimer();
     }
-  }, [showDialog, loginMode, fetchQrCode, clearTimer]);
+  }, [showLoginDialog, loginMode, fetchQrCode, clearTimer]);
 
   const startLogin = useCallback(() => {
     resetDialogState();
     setLoginMode("qr");
-    setShowDialog(true);
+    setShowLoginDialog(true);
   }, [resetDialogState]);
 
-  // 2. Cookie 登录逻辑：纯事件驱动，保持干净高效
   const handleCookieLogin = async () => {
     const raw = cookieInput.trim();
     if (!raw) return;
@@ -181,17 +189,27 @@ export function NeteaseLogin() {
   const handleLogout = () => {
     if (!window.confirm("确定要退出网易云登录吗？")) return;
     logout();
+    setShowUserDrawer(false);
     toast.success("已退出登录");
   };
 
-  // 3. 切换模式函数：切换时精准清除/重置状态
+  const handleCopyCookie = useCallback(async () => {
+    const ok = await writeClipboardText(cookie);
+    if (ok) {
+      toast.success("已复制 Cookie");
+      setShowUserDrawer(false);
+    } else {
+      toast.error("复制失败");
+    }
+  }, [cookie]);
+
   const toggleLoginMode = () => {
     setLoginMode((prev) => {
       if (prev === "qr") {
-        clearTimer(); // 从 QR 换到 Cookie，立刻杀掉定时器
+        clearTimer();
         return "cookie";
       } else {
-        return "qr"; // 换回 QR 会被上面的 useEffect 捕获并自动 fetchQrCode
+        return "qr";
       }
     });
   };
@@ -206,7 +224,7 @@ export function NeteaseLogin() {
           user ? (
             <Avatar
               className="h-10 w-10 cursor-pointer transition-opacity hover:opacity-80"
-              onClick={handleLogout}
+              onClick={() => setShowUserDrawer(true)}
             >
               <AvatarImage src={user.avatarUrl} />
               <AvatarFallback>{user.nickname?.[0]}</AvatarFallback>
@@ -216,7 +234,7 @@ export function NeteaseLogin() {
               variant="outline"
               size="sm"
               onClick={startLogin}
-              disabled={loading && loginMode === "qr"} // 只在QR获取中禁用入口
+              disabled={loading && loginMode === "qr"}
               className="px-4"
             >
               {loading && loginMode === "qr" && (
@@ -228,10 +246,11 @@ export function NeteaseLogin() {
         }
       />
 
+      {/* 登录弹窗 */}
       <Drawer
-        open={showDialog}
+        open={showLoginDialog}
         onOpenChange={(open) => {
-          setShowDialog(open);
+          setShowLoginDialog(open);
           if (!open) resetDialogState();
         }}
       >
@@ -363,6 +382,34 @@ export function NeteaseLogin() {
               onClick={toggleLoginMode}
             >
               {loginMode === "qr" ? "通过 Cookie 登录" : "返回扫码登录"}
+            </Button>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* 登录后点击头像的用户操作面板 */}
+      <Drawer open={showUserDrawer} onOpenChange={setShowUserDrawer}>
+        <DrawerContent>
+          <DrawerHeader className="text-center px-4 mb-2">
+            <DrawerTitle>{user?.nickname}</DrawerTitle>
+            <DrawerDescription>请选择操作</DrawerDescription>
+          </DrawerHeader>
+          <div className="flex flex-col gap-3 px-6 pb-8 pt-2">
+            <Button
+              variant="secondary"
+              className="w-full justify-center h-11"
+              onClick={handleCopyCookie}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              复制 Cookie
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full justify-center h-11"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              退出登录
             </Button>
           </div>
         </DrawerContent>
