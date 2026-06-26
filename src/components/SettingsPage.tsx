@@ -117,7 +117,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             }
           />
           <QualitySelect />
-          <StreamCacheSetting />
           <SleepTimerSetting />
           <PlaybackSpeedSetting />
           <DownloadSetting />
@@ -193,6 +192,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <SettingsSection title="高级设置">
           <ApiUrlConfig />
+          <StreamCacheSetting />
         </SettingsSection>
 
         <SettingsSection title="关于系统">

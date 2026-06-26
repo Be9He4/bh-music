@@ -99,7 +99,7 @@ export function ApiUrlConfig() {
           <DrawerHeader>
             <DrawerTitle>自定义 API 地址</DrawerTitle>
             <DrawerDescription>
-              自建后端用户可在此修改 API 地址，留空则恢复默认。
+              自部署用户可填入 API 地址，留空则恢复默认。
               {customUrl && (
                 <span className="block mt-1 text-muted-foreground">
                   当前: {customUrl}
@@ -109,7 +109,7 @@ export function ApiUrlConfig() {
           </DrawerHeader>
           <div className="px-4 pb-4">
             <Input
-              placeholder="输入自建后端地址，如 https://my-api.example.com"
+              placeholder="https://xxx.pages.dev"
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
