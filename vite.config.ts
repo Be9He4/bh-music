@@ -102,7 +102,7 @@ export default defineConfig({
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts",
-      includeAssets: ["favicon.svg"],
+      includeAssets: ["favicon.png"],
       manifest: {
         name: "BH Music",
         short_name: "BH Music",
@@ -114,9 +114,9 @@ export default defineConfig({
         scope: "/",
         icons: [
           {
-            src: "/favicon.svg",
+            src: "/favicon.png",
             sizes: "any",
-            type: "image/svg+xml",
+            type: "image/png",
             purpose: "any",
           },
         ],

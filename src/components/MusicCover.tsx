@@ -68,7 +68,7 @@ export function MusicCover({
           directory: Directory.ExternalStorage,
           recursive: true,
         });
-        toast.success(`已保存到 Pictures/OtterMusic`);
+        toast.success(`已保存到 Pictures/BHMusic`);
       } else {
         const response = await fetch(coverUrl);
         const blob = await response.blob();
