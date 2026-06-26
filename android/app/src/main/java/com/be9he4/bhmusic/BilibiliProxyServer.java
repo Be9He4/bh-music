@@ -1,4 +1,4 @@
-﻿package com.be9he4.bhmusic;
+package com.be9he4.bhmusic;
 
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.IHTTPSession;
