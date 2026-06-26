@@ -1,4 +1,4 @@
-﻿package com.be9he4.bhmusic;
+package com.be9he4.bhmusic;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
