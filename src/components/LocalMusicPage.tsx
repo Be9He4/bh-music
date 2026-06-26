@@ -356,6 +356,7 @@ export function LocalMusicPage({
           </DialogHeader>
           <div className="flex items-center gap-2 py-2">
             <Checkbox
+              data-testid="delete-local-file"
               checked={deleteLocalFile}
               onCheckedChange={(checked) =>
                 setDeleteLocalFile(checked === true)
@@ -367,7 +368,11 @@ export function LocalMusicPage({
             <Button variant="ghost" onClick={resetDeleteState}>
               取消
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteTracks}>
+            <Button
+              variant="destructive"
+              data-testid="confirm-local-delete"
+              onClick={confirmDeleteTracks}
+            >
               删除
             </Button>
           </DialogFooter>
@@ -393,6 +398,7 @@ export function LocalMusicPage({
             />
             <button
               type="button"
+              data-testid="confirm-full-scan"
               onClick={() => {
                 setScanDrawerOpen(false);
                 handleScan("full");
@@ -470,6 +476,7 @@ function ExcludedFoldersSection({
           <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/40">
             <button
               type="button"
+              data-testid="excluded-folder-pick"
               onClick={onPick}
               disabled={picking || loading}
               className="w-full h-8 text-xs bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
@@ -477,7 +484,10 @@ function ExcludedFoldersSection({
               <Plus className="h-3.5 w-3.5" />
               {picking ? "选择中..." : "选择目录"}
             </button>
-            <div className="space-y-1.5 max-h-56 overflow-y-auto">
+            <div
+              data-testid="excluded-folder-list"
+              className="space-y-1.5 max-h-56 overflow-y-auto"
+            >
               {count === 0 && !loading && (
                 <div className="text-xs text-muted-foreground text-center py-3">
                   暂无自定义排除目录
@@ -493,6 +503,7 @@ function ExcludedFoldersSection({
                   </span>
                   <button
                     type="button"
+                    data-testid="excluded-folder-remove"
                     onClick={() => onRemove(folder)}
                     className="p-1 text-muted-foreground hover:text-foreground shrink-0"
                     title="移除"
