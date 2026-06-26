@@ -1,4 +1,4 @@
-﻿package com.be9he4.bhmusic;
+package com.be9he4.bhmusic;
 
 import android.Manifest;
 import android.app.Activity;
