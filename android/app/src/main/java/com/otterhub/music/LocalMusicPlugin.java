@@ -535,7 +535,7 @@ public class LocalMusicPlugin extends Plugin {
         }
         if (excludedFolderSet != null) {
             for (String excluded : excludedFolderSet) {
-                if (path.contains(excluded)) return true;
+                if (path.contains(excluded.toLowerCase())) return true;
             }
         }
         return path.contains("/.trash") || path.contains("/.cache")
@@ -627,7 +627,7 @@ public class LocalMusicPlugin extends Plugin {
     }
 
     private String normalizeExcludedPath(String path) {
-        String normalized = path.trim().toLowerCase();
+        String normalized = path.trim();
         if (normalized.startsWith("/")) normalized = normalized.substring(1);
         if (normalized.endsWith("/")) normalized = normalized.substring(0, normalized.length() - 1);
         return normalized;
