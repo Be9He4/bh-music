@@ -13,6 +13,16 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Setup Java          # ← 移到前面
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'  # ← 改为 temurin（官方推荐）
+          java-version: '21'       # ← 17 → 21
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -27,16 +37,6 @@ jobs:
 
       - name: Sync Capacitor Android
         run: npx cap sync android
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Make Gradle executable
         working-directory: ./android
