@@ -10,6 +10,9 @@ import { isAbort } from "@/lib/music-provider/utils";
 /** RSS Feed 缓存 TTL：30 分钟 */
 const PODCAST_FEED_CACHE_TTL = 30 * 60 * 1000;
 
+/** 直连 RSS 源 HEAD 预检超时（毫秒） */
+const RSS_DIRECT_CHECK_TIMEOUT = 3000;
+
 const parseJson = async (res: Response) => {
   if (!res.ok) {
     throw new Error((await res.text()) || "请求失败");
@@ -117,13 +120,50 @@ const fetchPodcastRssViaProxy = async (
 };
 
 /**
+ * 快速检测 RSS 源是否网络可达
+ * 使用 CapacitorHttp HEAD 请求 + 短超时，不可达时让调用方立即回退代理
+ */
+const checkRssReachable = async (
+  rssUrl: string,
+  signal?: AbortSignal
+): Promise<boolean> => {
+  try {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const { CapacitorHttp } = await import("@capacitor/core");
+    await CapacitorHttp.request({
+      method: "HEAD",
+      url: rssUrl,
+      headers: {
+        accept: "application/rss+xml, application/xml, text/xml, */*",
+      },
+      connectTimeout: RSS_DIRECT_CHECK_TIMEOUT,
+      readTimeout: RSS_DIRECT_CHECK_TIMEOUT,
+    } as HttpOptions);
+    return true;
+  } catch (e) {
+    if (isAbort(e)) throw e;
+    return false;
+  }
+};
+
+/**
  * 通过 CapacitorHttp 直连 RSS 源并解析
+ * - 先 HEAD 预检快速探测可达性，不可达立即回退代理
+ * - 预检通过后发起 GET + retry，减少用户等待时间
  */
 const fetchPodcastRssDirect = async (
   rssUrl: string,
   signal?: AbortSignal
 ): Promise<PodcastFeed> => {
   const { CapacitorHttp } = await import("@capacitor/core");
+
+  // HEAD 预检：3 秒超时探测可达性，不可达立即回退代理，避免用户长时间等待
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  const reachable = await checkRssReachable(rssUrl, signal);
+  if (!reachable) {
+    throw new Error("RSS source unreachable");
+  }
+
   return retry(
     async () => {
       if (signal?.aborted) {
