@@ -5,11 +5,17 @@ import android.app.Activity;
 import android.app.RecoverableSecurityException;
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.media.MediaMetadataRetriever;
+import android.media.MediaExtractor;
+import android.media.MediaMuxer;
+import android.media.MediaFormat;
+import android.media.MediaCodec;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -39,9 +45,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -64,6 +74,28 @@ public class LocalMusicPlugin extends Plugin {
     private PluginCall pendingDeleteCall;
     private String pendingDeletePath;
     private static final int DELETE_PERMISSION_REQUEST = 0x7A33;
+    private static final String EXCLUDED_PREFS = "LocalMusicExcluded";
+    private static final String EXCLUDED_FOLDERS_KEY = "excluded_folders";
+    private static final String SEPARATOR = "\u001F";
+    private static final String[] DEFAULT_EXCLUDED_PATH_PATTERNS = {
+        // English
+        "/recordings/call",
+        "/callrecord",
+        "/call_record",
+        "/callrecording",
+        "/call_recording",
+        "/call_recorder",
+        "/sounds/callrecord",
+        "/record/call",
+
+        // Chinese
+        "/通话录音",
+        "/电话录音",
+        "/录音/通话",
+        "/录音/电话",
+    };
+    private Set<String> excludedFolderSet = null;
+
     private static final String SCHEME_CONTENT = "content://";
     private static final String[] PROJECTION_MUSIC = {
             MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.ARTIST,
@@ -243,6 +275,7 @@ public class LocalMusicPlugin extends Plugin {
         isScanning = true;
         scanExecutor.execute(() -> {
             try {
+                excludedFolderSet = loadExcludedFolders();
                 List<JSObject> filesList = new ArrayList<>();
                 File extStorage = Environment.getExternalStorageDirectory();
                 if (extStorage != null && extStorage.canRead()) scanDirectory(extStorage, filesList, 0);
@@ -254,6 +287,7 @@ public class LocalMusicPlugin extends Plugin {
             } catch (Exception e) {
                 mainHandler.post(() -> resolveError(call, "Scan failed: " + e.getMessage()));
             } finally {
+                excludedFolderSet = null;
                 isScanning = false;
             }
         });
@@ -496,10 +530,107 @@ public class LocalMusicPlugin extends Plugin {
                 && (path.startsWith(cachedStorageRoot + "/android/data") || path.startsWith(cachedStorageRoot + "/android/obb"))) {
             return true;
         }
+        for (String pattern : DEFAULT_EXCLUDED_PATH_PATTERNS) {
+            if (path.contains(pattern)) return true;
+        }
+        if (excludedFolderSet != null) {
+            for (String excluded : excludedFolderSet) {
+                if (path.contains(excluded)) return true;
+            }
+        }
         return path.contains("/.trash") || path.contains("/.cache")
                 || path.contains("/tencent/micromsg")
                 || path.contains("/tencent/mobileqq")
                 || path.contains("/qq_collection");
+    }
+
+    // --- 排除目录管理 ---
+
+    @PluginMethod
+    public void getExcludedFolders(PluginCall call) {
+        JSArray arr = new JSArray();
+        for (String folder : loadExcludedFolders()) arr.put(folder);
+        call.resolve(new JSObject().put("success", true).put("folders", arr));
+    }
+
+    @PluginMethod
+    public void addExcludedFolder(PluginCall call) {
+        String folder = call.getString("folder");
+        if (folder == null || folder.trim().isEmpty()) {
+            call.resolve(new JSObject().put("success", false).put("error", "folder is required"));
+            return;
+        }
+        Set<String> folders = loadExcludedFolders();
+        folders.add(normalizeExcludedPath(folder.trim()));
+        saveExcludedFolders(folders);
+        call.resolve(new JSObject().put("success", true).put("folder", folder));
+    }
+
+    @PluginMethod
+    public void removeExcludedFolder(PluginCall call) {
+        String folder = call.getString("folder");
+        if (folder == null || folder.trim().isEmpty()) {
+            call.resolve(new JSObject().put("success", false).put("error", "folder is required"));
+            return;
+        }
+        Set<String> folders = loadExcludedFolders();
+        folders.remove(folder.trim());
+        saveExcludedFolders(folders);
+        call.resolve(new JSObject().put("success", true).put("folder", folder));
+    }
+
+    @PluginMethod
+    public void pickExcludedDirectory(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        startActivityForResult(call, intent, "handlePickExcludedDirectoryResult");
+    }
+
+    @ActivityCallback
+    private void handlePickExcludedDirectoryResult(PluginCall call, ActivityResult result) {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+            call.resolve(new JSObject().put("success", false).put("error", "cancelled"));
+            return;
+        }
+        Uri treeUri = result.getData().getData();
+        if (treeUri == null) {
+            call.resolve(new JSObject().put("success", false).put("error", "No directory selected"));
+            return;
+        }
+        String relativePath = extractPathFromTreeUri(treeUri);
+        String path = relativePath != null ? relativePath : "";
+        if (!path.isEmpty()) {
+            Set<String> folders = loadExcludedFolders();
+            folders.add(normalizeExcludedPath(path));
+            saveExcludedFolders(folders);
+        }
+        call.resolve(new JSObject()
+                .put("success", !path.isEmpty())
+                .put("path", path)
+                .put("uri", treeUri.toString()));
+    }
+
+    private Set<String> loadExcludedFolders() {
+        SharedPreferences prefs = getContext().getSharedPreferences(EXCLUDED_PREFS, Context.MODE_PRIVATE);
+        String raw = prefs.getString(EXCLUDED_FOLDERS_KEY, "");
+        if (raw.isEmpty()) return new HashSet<>();
+        Set<String> set = new HashSet<>();
+        for (String part : raw.split(SEPARATOR)) {
+            if (!part.isEmpty()) set.add(part);
+        }
+        return set;
+    }
+
+    private void saveExcludedFolders(Set<String> folders) {
+        String raw = String.join(SEPARATOR, folders);
+        getContext().getSharedPreferences(EXCLUDED_PREFS, Context.MODE_PRIVATE)
+                .edit().putString(EXCLUDED_FOLDERS_KEY, raw).apply();
+    }
+
+    private String normalizeExcludedPath(String path) {
+        String normalized = path.trim().toLowerCase();
+        if (normalized.startsWith("/")) normalized = normalized.substring(1);
+        if (normalized.endsWith("/")) normalized = normalized.substring(0, normalized.length() - 1);
+        return normalized;
     }
 
     private boolean isAudioFile(String fileName) {
