@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import { forceHttps } from "@otter-music/shared";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
-import { FileTransfer } from "@capacitor/file-transfer";
 import { ensurePermission, triggerBlobDownload } from "@/lib/utils/download";
+import { blobToBase64 } from "@/lib/utils/base64";
 import { useExitLayer } from "@/hooks/useExitLayer";
 import toast from "react-hot-toast";
 
@@ -58,13 +58,15 @@ export function MusicCover({
 
       if (Capacitor.isNativePlatform()) {
         await ensurePermission();
-        const fileUri = await Filesystem.getUri({
-          directory: Directory.ExternalStorage,
+        const response = await fetch(coverUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        const base64 = await blobToBase64(blob);
+        await Filesystem.writeFile({
           path: `Pictures/OtterMusic/${filename}`,
-        });
-        await FileTransfer.downloadFile({
-          url: coverUrl,
-          path: fileUri.uri,
+          data: base64,
+          directory: Directory.ExternalStorage,
+          recursive: true,
         });
         toast.success(`已保存到 Pictures/OtterMusic`);
       } else {
