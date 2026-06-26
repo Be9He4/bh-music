@@ -11,7 +11,7 @@ export function Footer() {
         className="flex items-center gap-2"
       >
         <Github className="h-5 w-5" />
-        <span className="text-sm">Otter Music</span>
+        <span className="text-sm">BH Music</span>
       </a>
     </footer>
   )
