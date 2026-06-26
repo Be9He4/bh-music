@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SettingItem } from "./SettingItem";
-import { Milestone, RefreshCw } from "lucide-react"; // 引入 RefreshCw 图标
+import { Download, ExternalLink, Milestone, RefreshCw } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
@@ -11,7 +11,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Download, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { openUrl } from "@/lib/utils";
 
@@ -101,7 +100,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
                   onClick={() => openUrl(latestVersionInfo.downloadUrl)}
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  国内下载
+                  国内加速下载
                 </Button>
 
                 <Button
