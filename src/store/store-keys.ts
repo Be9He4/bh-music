@@ -1,0 +1,13 @@
+export enum storeKey {
+  MusicStore = "oh_music_store",
+  PodcastStore = "oh_podcast_store",
+  SyncStore = "oh_sync_store",
+  SourceQualityStore = "oh_source_quality_store_v2",
+  LocalMusicStore = "oh_local_music_store",
+  HistoryStore = "oh_history_store",
+  DownloadStore = "oh_download_store",
+  AppStore = "oh_app_store",
+  NeteaseStore = "oh_netease_store",
+  OfflineStore = "oh_offline_store",
+  UrlCacheStore = "oh_url_cache_store",
+}

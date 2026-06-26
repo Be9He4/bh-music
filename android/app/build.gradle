@@ -1,0 +1,52 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.be9he4.bhmusic'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.be9he4.bhmusic"
+        minSdk 24
+        targetSdk 36
+        versionCode 46
+        versionName "2.4.9"
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def appName = "bh-music"
+            def versionName = defaultConfig.versionName
+            def buildType = variant.buildType.name
+
+            // 最终文件名：app名-版本号-环境.apk
+            outputFileName = "${appName}-v${versionName}-${buildType}.apk"
+        }
+    }
+}
+
+// Apply Capacitor build configuration
+apply from: "capacitor.build.gradle"
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    implementation 'androidx.activity:activity:1.9.3'
+}

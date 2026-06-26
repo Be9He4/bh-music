@@ -1,0 +1,149 @@
+import { Capacitor } from "@capacitor/core";
+import type { ApiResponse } from "@otter-music/shared";
+
+export const IS_NATIVE = Capacitor.isNativePlatform();
+export const IS_WEB_PROD = import.meta.env.PROD && !IS_NATIVE;
+
+const getDefaultApiUrl = () =>
+  IS_WEB_PROD ? window.location.origin : "https://bh-music.pages.dev";
+
+const STORAGE_KEY_CUSTOM_API_URL = "otter_custom_api_url";
+
+export function getApiUrl(): string {
+  const custom = getStorage<string | null>(STORAGE_KEY_CUSTOM_API_URL, null);
+  return custom || getDefaultApiUrl();
+}
+
+export function getCustomApiUrl(): string | null {
+  return getStorage<string | null>(STORAGE_KEY_CUSTOM_API_URL, null);
+}
+
+export function setCustomApiUrl(url: string) {
+  setStorage(STORAGE_KEY_CUSTOM_API_URL, url);
+}
+
+export function clearCustomApiUrl() {
+  localStorage.removeItem(STORAGE_KEY_CUSTOM_API_URL);
+}
+
+const API_TIMEOUT_MS = 10000;
+const MUSIC_API_FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
+
+export const DEFAULT_MUSIC_API_URL = "https://music-api.gdstudio.xyz/api.php";
+
+const STORAGE_KEY_MUSIC_URLS = "otter_music_api_urls";
+const STORAGE_KEY_MUSIC_URL_FAILURES = "otter_music_api_url_failures";
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/**
+ * 统一处理后端响应
+ */
+export async function unwrap<T>(resOrPromise: Response | Promise<Response>): Promise<T> {
+  const res = await resOrPromise;
+  if (!res.ok) throw new ApiError(await res.text(), res.status);
+
+  const { success, message, data } = (await res.json()) as ApiResponse<T>;
+  if (!success) throw new Error(message || '请求失败');
+
+  return data as T;
+}
+
+/**
+ * 通用 Storage 读写封装
+ */
+const getStorage = <T>(key: string, fallback: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const setStorage = (key: string, val: unknown) => localStorage.setItem(key, JSON.stringify(val));
+
+/**
+ * 获取 GD 音乐台 API 默认访问顺序
+ */
+function getDefaultMusicApiUrls(isNative = IS_NATIVE): string[] {
+  const proxiedApiUrl = `${getApiUrl()}/music-api`;
+  return isNative
+    ? [DEFAULT_MUSIC_API_URL, proxiedApiUrl]
+    : [proxiedApiUrl, DEFAULT_MUSIC_API_URL];
+}
+
+export const getMusicApiUrls = () => {
+  const stored = getStorage<string[] | null>(STORAGE_KEY_MUSIC_URLS, null);
+  return stored ?? getDefaultMusicApiUrls();
+};
+
+export const setMusicApiUrls = (urls: string[]) => setStorage(STORAGE_KEY_MUSIC_URLS, urls);
+
+/**
+ * 失效节点管理
+ */
+const getActiveFailures = (now = Date.now()) => {
+  const map = getStorage<Record<string, number>>(STORAGE_KEY_MUSIC_URL_FAILURES, {});
+  // 清理已过期的记录
+  Object.keys(map).forEach(url => map[url] <= now && delete map[url]);
+  return map;
+};
+
+export function getOrderedMusicApiUrls(now = Date.now()): string[] {
+  const urls = getMusicApiUrls();
+  const fails = getActiveFailures(now);
+  setStorage(STORAGE_KEY_MUSIC_URL_FAILURES, fails); // 同步清理后的状态
+
+  return [
+    ...urls.filter(url => !fails[url]), // 正常的优先
+    ...urls.filter(url => fails[url])   // 冷却中的垫底
+  ];
+}
+
+export const markMusicApiUrlFailure = (url: string, now = Date.now()) => 
+  setStorage(STORAGE_KEY_MUSIC_URL_FAILURES, { 
+    ...getActiveFailures(now), 
+    [url]: now + MUSIC_API_FAILURE_COOLDOWN_MS 
+  });
+
+export const markMusicApiUrlSuccess = (url: string, now = Date.now()) => {
+  const fails = getActiveFailures(now);
+  if (fails[url]) {
+    delete fails[url];
+    setStorage(STORAGE_KEY_MUSIC_URL_FAILURES, fails);
+  }
+};
+
+/**
+ * 带超时的 Fetch
+ */
+export function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeout = API_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+  return fetch(input, { ...init, signal: controller.signal })
+    .finally(() => window.clearTimeout(timer));
+}
+
+export function getProxyUrl(url: string) {
+  return `${getApiUrl()}/proxy?url=${encodeURIComponent(url)}`;
+}
+
+/**
+ * 判断当前 URL 是否已经是代理 URL，防止死循环
+ */
+export function isProxyUrl(url: string): boolean {
+  try {
+    const u = new URL(url, window.location.origin);
+    return u.pathname === "/proxy";
+  } catch {
+    return false;
+  }
+}

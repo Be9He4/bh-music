@@ -1,0 +1,150 @@
+import { MusicTrack } from "@/types/music";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Encoding } from "@capacitor/filesystem";
+import { AppPaths, STORAGE_CONFIG } from "@/lib/storage-manager";
+import { toastUtils } from "@/lib/utils/toast";
+import { logger } from "@/lib/logger";
+interface PlaylistBackup {
+  name: string;
+  tracks: MusicTrack[];
+  createdAt: number;
+}
+
+/**
+ * 导出歌单
+ */
+export async function exportPlaylist(name: string, tracks: MusicTrack[]) {
+  if (!tracks || tracks.length === 0) {
+    toastUtils.error("歌单为空，无法导出");
+    return;
+  }
+
+  const backupData: PlaylistBackup = {
+    name,
+    tracks: tracks,
+    createdAt: Date.now(),
+  };
+
+  const jsonContent = JSON.stringify(backupData, null, 2);
+  const fileName = `${name.replace(/[\\/:*?"<>|]/g, '_')}.json`;
+  const exportPath = `${AppPaths.Playlists}/${fileName}`;
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      // 移动端：写入 ExternalStorage/Download 目录
+      await Filesystem.writeFile({
+        path: exportPath,
+        data: jsonContent,
+        directory: STORAGE_CONFIG.BASE_DIR,
+        encoding: Encoding.UTF8,
+        recursive: true, // 自动创建目录
+      });
+
+      toastUtils.success(`导出成功：\n${exportPath}`, {
+        duration: 4000,
+      });
+    } catch (error) {
+      logger.error("playlist-backup", "Export playlist failed", error, {
+        name,
+        trackCount: tracks.length,
+        platform: "native",
+      });
+      toastUtils.error("导出失败，请检查存储权限");
+    }
+  } else {
+    // Web 端：Blob 下载
+    try {
+      const blob = new Blob([jsonContent], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toastUtils.success("导出成功");
+    } catch (error) {
+      logger.error("playlist-backup", "Export playlist failed", error, {
+        name,
+        trackCount: tracks.length,
+        platform: "web",
+      });
+      toastUtils.error("导出失败");
+    }
+  }
+}
+
+/**
+ * 导入歌单
+ */
+export async function importPlaylist(file: File): Promise<{ name: string, tracks: MusicTrack[] }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        if (!content) {
+          throw new Error("文件内容为空");
+        }
+
+        const data = JSON.parse(content);
+        
+        // 校验数据格式
+        let tracks: unknown[] = [];
+        let name = file.name.replace(/\.json$/i, "");
+
+        if (Array.isArray(data)) {
+          // 兼容纯数组格式
+          tracks = data;
+        } else if (data && typeof data === 'object') {
+          // 标准备份格式
+          if (Array.isArray(data.tracks)) {
+            tracks = data.tracks;
+            if (data.name) name = data.name;
+          } else {
+             // 尝试判断是否是单个 track
+             if (data.id && data.name && data.source) {
+                tracks = [data];
+             }
+          }
+        }
+
+        if (!tracks || tracks.length === 0) {
+          throw new Error("未找到有效的歌曲数据");
+        }
+
+        // 简单的结构校验
+        const isValidTrack = (t: unknown): t is MusicTrack => {
+          if (typeof t !== 'object' || t === null) return false;
+          const track = t as Record<string, unknown>;
+          return typeof track.id === 'string' && typeof track.name === 'string';
+        };
+        if (!tracks.every(isValidTrack)) {
+           // 过滤掉无效数据
+           const originalCount = tracks.length;
+           const validTracks = tracks.filter(isValidTrack);
+           if (validTracks.length === 0) {
+             throw new Error("歌曲数据格式不正确");
+           }
+           tracks = validTracks;
+           toastUtils.error(`已过滤 ${originalCount - validTracks.length} 条无效数据`);
+        }
+
+        resolve({ name, tracks: tracks as MusicTrack[] });
+      } catch (error) {
+        logger.error("playlist-backup", "Import playlist failed", error, {
+          fileName: file.name,
+        });
+        reject(error);
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error("读取文件失败"));
+    };
+
+    reader.readAsText(file);
+  });
+}

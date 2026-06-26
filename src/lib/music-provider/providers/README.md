@@ -1,0 +1,1 @@
+- 类名带 `ApiProvider` 表示是 API 适配层，走的是官方 API。

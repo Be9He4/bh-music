@@ -1,0 +1,148 @@
+import { useRef, useState, useMemo } from "react";
+import { filterTracks } from "@/lib/utils/filter-tracks";
+import { MusicTrackList } from "@/components/MusicTrackList";
+import {
+  GenericDetailPage,
+  type GenericDetailData,
+} from "@/components/GenericDetailPage";
+import { Button } from "@/components/ui/button";
+import { Podcast, SquareArrowOutUpRight } from "lucide-react";
+import toast from "react-hot-toast";
+import { formatDateZN } from "@/lib/utils/format-date";
+import { parsePodcastRss } from "@/lib/api/podcast";
+import { usePodcastStore } from "@/store/podcast-store";
+import { forceHttps } from "@otter-music/shared";
+import { MusicTrack } from "@/types/music";
+import { useDetailPage } from "@/hooks/useDetailPage";
+
+interface PodcastDetailPageProps {
+  id: string | null;
+  onBack: () => void;
+  onPlay: (track: MusicTrack, list: MusicTrack[]) => void;
+  currentTrackId?: string;
+  isPlaying?: boolean;
+}
+
+interface PodcastDetailData {
+  name: string;
+  coverImgUrl: string;
+  description?: string;
+  creator?: string;
+  trackCount: number;
+  rssUrl: string;
+}
+
+export function PodcastDetailPage({
+  id,
+  onBack,
+  onPlay,
+  currentTrackId,
+  isPlaying,
+}: PodcastDetailPageProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { loading, error, detail, tracks, retry } =
+    useDetailPage<PodcastDetailData>(
+      async (signal) => {
+        if (!id) throw new Error("No id");
+
+        const sources = usePodcastStore.getState().rssSources;
+        const source = sources.find(
+          (item) => item.id === id && !item.is_deleted
+        );
+        if (!source) throw new Error("Podcast not found");
+
+        const feed = await parsePodcastRss(source.rssUrl, signal);
+        const coverUrl = forceHttps(feed.coverUrl || source.coverUrl || "");
+
+        const podcastTracks = feed.episodes.map((ep) => ({
+          id: ep.audioUrl || ep.id,
+          name: ep.title,
+          artist: [feed.name],
+          album: ep.pubDate ? formatDateZN(ep.pubDate) : "",
+          pic_id: coverUrl,
+          url_id: forceHttps(ep.audioUrl) || "",
+          lyric_id: "_podcast",
+          source: "podcast" as const,
+        }));
+
+        return {
+          detail: {
+            name: feed.name,
+            coverImgUrl: coverUrl,
+            description: feed.description || source.description,
+            trackCount: feed.episodes.length,
+            creator: source.author,
+            rssUrl: source.rssUrl,
+          },
+          tracks: podcastTracks,
+        };
+      },
+      [id]
+    );
+
+  const handleShare = async () => {
+    if (!detail) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        `Podcast: ${detail.name}\n${detail.rssUrl}`
+      );
+      toast.success("链接已复制");
+    } catch {
+      toast.error("复制失败");
+    }
+  };
+
+  const filteredTracks = useMemo(
+    () => filterTracks(tracks, searchQuery),
+    [tracks, searchQuery]
+  );
+
+  const genericDetail: GenericDetailData | undefined = detail
+    ? {
+        title: detail.name,
+        coverUrl: detail.coverImgUrl,
+        description: detail.description,
+        creator: detail.creator,
+        countDesc: `最近 ${detail.trackCount} 集`,
+        fallbackIcon: <Podcast className="h-8 w-8 text-muted-foreground/50" />,
+      }
+    : undefined;
+
+  return (
+    <GenericDetailPage
+      loading={loading}
+      error={error}
+      title="Podcast"
+      onBack={onBack}
+      onRetry={retry}
+      detail={genericDetail}
+      scrollRef={scrollRef}
+      tracks={tracks}
+      onPlayTrack={(track) => onPlay(track, tracks)}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      action={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={handleShare}
+        >
+          <SquareArrowOutUpRight className="w-4 h-4 mr-2" />
+        </Button>
+      }
+    >
+      <MusicTrackList
+        tracks={filteredTracks}
+        scrollContainerRef={scrollRef}
+        onPlay={(track) => onPlay(track, tracks)}
+        currentTrackId={currentTrackId}
+        isPlaying={isPlaying}
+        emptyMessage="No episodes"
+      />
+    </GenericDetailPage>
+  );
+}
