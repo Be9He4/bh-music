@@ -1,7 +1,7 @@
 # BH Music
 
 <div align="center">
-  <img src="public/favicon.svg" width="128" height="128" alt="Logo" />
+  <img src="public/favicon.png" width="128" height="128" alt="Logo" />
 </div>
 
 <p align="center">
