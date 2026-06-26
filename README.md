@@ -6,7 +6,6 @@
 
 <p align="center">
   <b>BH Music</b> 是一款基于 React 和 Capacitor 构建的现代跨平台音乐播放器。<br>
-  （基于 Otter Music 深度定制化构建）
 </p>
 
 ## ✨ 特性
