@@ -409,15 +409,18 @@ public class LocalMusicPlugin extends Plugin {
 
         ioExecutor.execute(() -> {
             try {
-                String lyric = extractUsltLyrics(localPath);
-                if (!isValid(lyric)) {
+                String[] parts = extractUsltLyrics(localPath);
+                if (parts == null || !isValid(parts[0])) {
                     mainHandler.post(() -> resolveError(call, "No embedded lyrics"));
                     return;
                 }
 
                 JSObject result = new JSObject()
                         .put("success", true)
-                        .put("lyric", lyric);
+                        .put("lyric", parts[0]);
+                if (parts.length > 1 && parts[1] != null) {
+                    result.put("tlyric", parts[1]);
+                }
                 mainHandler.post(() -> call.resolve(result));
             } catch (Exception e) {
                 mainHandler.post(() -> resolveError(call, "Failed: " + e.getMessage()));
@@ -694,8 +697,11 @@ public class LocalMusicPlugin extends Plugin {
         return "image/jpeg";
     }
 
-    /** 从 ID3v2 tag 中提取首个 USLT 歌词帧。 */
-    private String extractUsltLyrics(String localPath) throws IOException {
+    /** 原文与译文的分隔标记，与 id3-embed.ts 中的 TLYRIC_DELIMITER 对应。 */
+    private static final String TLYRIC_DELIMITER = "[TLYRIC]";
+
+    /** 从 ID3v2 tag 中提取首个 USLT 歌词帧，按分隔符拆分为 [lyric, tlyric]。 */
+    private String[] extractUsltLyrics(String localPath) throws IOException {
         try (InputStream input = openLocalInputStream(localPath)) {
             if (input == null) return null;
 
@@ -721,7 +727,15 @@ public class LocalMusicPlugin extends Plugin {
 
                 if ("USLT".equals(frameId)) {
                     String lyric = decodeUsltFrame(Arrays.copyOfRange(tag, offset + 10, offset + 10 + frameSize));
-                    return isValid(lyric) ? lyric : null;
+                    if (!isValid(lyric)) return null;
+
+                    int delimIdx = lyric.indexOf(TLYRIC_DELIMITER);
+                    if (delimIdx >= 0) {
+                        String original = lyric.substring(0, delimIdx).trim();
+                        String translation = lyric.substring(delimIdx + TLYRIC_DELIMITER.length()).trim();
+                        return new String[]{ original, isValid(translation) ? translation : null };
+                    }
+                    return new String[]{ lyric, null };
                 }
 
                 offset += 10 + frameSize;

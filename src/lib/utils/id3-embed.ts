@@ -35,7 +35,10 @@ export async function embedMetadata(
   }
 
   if (mp3Blob.size > MAX_EMBED_SIZE) {
-    logger.warn("id3-embed", `文件过大 (${(mp3Blob.size / 1024 / 1024).toFixed(1)}MB)，跳过元数据嵌入`);
+    logger.warn(
+      "id3-embed",
+      `文件过大 (${(mp3Blob.size / 1024 / 1024).toFixed(1)}MB)，跳过元数据嵌入`
+    );
     return {
       blob: mp3Blob,
       arrayBuffer: await mp3Blob.arrayBuffer(),
@@ -83,7 +86,9 @@ export async function embedMetadata(
 
   return {
     blob: writer.getBlob(),
-    arrayBuffer: writer.getBlob().size ? await writer.getBlob().arrayBuffer() : new ArrayBuffer(0),
+    arrayBuffer: writer.getBlob().size
+      ? await writer.getBlob().arrayBuffer()
+      : new ArrayBuffer(0),
     coverEmbedded,
     lyricEmbedded,
   };
@@ -91,7 +96,10 @@ export async function embedMetadata(
 
 async function fetchCoverData(track: MusicTrack): Promise<Uint8Array | null> {
   try {
-    const picUrl = await musicApi.getPic(track.pic_id || track.id, track.source);
+    const picUrl = await musicApi.getPic(
+      track.pic_id || track.id,
+      track.source
+    );
     if (!picUrl) return null;
     const res = await fetch(picUrl);
     if (!res.ok) return null;
@@ -102,12 +110,21 @@ async function fetchCoverData(track: MusicTrack): Promise<Uint8Array | null> {
   }
 }
 
+/** 原文与译文的分隔标记，提取时据此拆分还原。 */
+const TLYRIC_DELIMITER = "\n[TLYRIC]\n";
+
+/** 获取嵌入用的歌词文本，原文和译文用分隔符标记边界。 */
 async function fetchLyricText(track: MusicTrack): Promise<string | null> {
   try {
-    const result = await musicApi.getLyric(track.lyric_id || track.id, track.source);
+    const result = await musicApi.getLyric(
+      track.lyric_id || track.id,
+      track.source
+    );
     if (!result) return null;
-    const lines = [result.lyric, result.tlyric].filter(Boolean);
-    return lines.join("\n\n");
+    if (result.tlyric) {
+      return result.lyric + TLYRIC_DELIMITER + result.tlyric;
+    }
+    return result.lyric || null;
   } catch (e) {
     logger.warn("id3-embed", "获取歌词失败", e);
     return null;
