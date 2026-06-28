@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useState, useEffect, memo, useMemo, useCallback, useRef } from "react";
+import { useState, memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LyricsPanel } from "./LyricsPanel";
@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useMounted } from "@/hooks/use-mounted";
+import { usePlayerActions } from "@/hooks/usePlayerActions";
+import { usePlayerUIState } from "@/hooks/usePlayerUIState";
 import { PlayerQueueDrawer } from "./PlayerQueueDrawer";
 import { MusicTrackMobileMenu } from "./MusicTrackMobileMenu";
 import { AddToPlaylistDrawer } from "./AddToPlaylistDrawer";
@@ -41,8 +43,6 @@ import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
 import { ColorExtractor } from "react-color-extractor";
 import { pickBestColor } from "@/lib/utils/color";
-import { getCanonicalShareUrl } from "@/lib/share-url";
-import { toastUtils } from "@/lib/utils/toast";
 
 interface ModeIconProps {
   isRepeat: boolean;
@@ -145,13 +145,20 @@ export function FullScreenPlayer({
   onClose,
 }: FullScreenPlayerProps) {
   const isMounted = useMounted();
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
-  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
-  const [qualityDrawerOpen, setQualityDrawerOpen] = useState(false);
-  const [speedDrawerOpen, setSpeedDrawerOpen] = useState(false);
-  const [sleepDrawerOpen, setSleepDrawerOpen] = useState(false);
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    showLyrics,
+    setShowLyrics,
+    moreDrawerOpen,
+    setMoreDrawerOpen,
+    isAddToPlaylistOpen,
+    setIsAddToPlaylistOpen,
+    qualityDrawerOpen,
+    setQualityDrawerOpen,
+    speedDrawerOpen,
+    setSpeedDrawerOpen,
+    sleepDrawerOpen,
+    setSleepDrawerOpen,
+  } = usePlayerUIState(isFullScreen);
 
   const {
     queue,
@@ -174,9 +181,6 @@ export function FullScreenPlayer({
     togglePlay,
     toggleRepeat,
     toggleShuffle,
-    isFavorite,
-    addToFavorites,
-    removeFromFavorites,
     coverUrl,
   } = useMusicStore(
     useShallow((state) => ({
@@ -200,18 +204,18 @@ export function FullScreenPlayer({
       togglePlay: state.togglePlay,
       toggleRepeat: state.toggleRepeat,
       toggleShuffle: state.toggleShuffle,
-      isFavorite: state.isFavorite,
-      addToFavorites: state.addToFavorites,
-      removeFromFavorites: state.removeFromFavorites,
       coverUrl: state.coverUrl,
-      favorites: state.favorites,
     }))
   );
 
   const currentTrack = queue[currentIndex] || null;
-  const isCurrentTrackFavorite = currentTrack
-    ? isFavorite(currentTrack.id)
-    : false;
+
+  const {
+    handleShare,
+    handleToggleLike,
+    isCurrentTrackFavorite,
+    trackInfoPressHandlers,
+  } = usePlayerActions(currentTrack, currentAudioUrl);
 
   const [colorInfo, setColorInfo] = useState<{
     coverUrl: string | null;
@@ -220,18 +224,7 @@ export function FullScreenPlayer({
 
   const hslColor = colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
 
-  useEffect(() => {
-    if (!isFullScreen) {
-      const timer = setTimeout(() => setShowLyrics(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isFullScreen]);
-
   const playTrack = (index: number) => setCurrentIndexAndPlay(index);
-
-  const handleDrawerOpenChange = useCallback((open: boolean) => {
-    setMoreDrawerOpen(open);
-  }, []);
 
   const handleClearQueue = () => {
     if (confirm("确定要清空播放列表吗？")) {
@@ -242,50 +235,6 @@ export function FullScreenPlayer({
 
   const handleRemoveFromQueue = (track: MusicTrack) => {
     removeFromQueue(track.id);
-  };
-
-  const handleShare = async () => {
-    if (!currentTrack) return toast.error("暂无歌曲信息");
-
-    const shareUrl = getCanonicalShareUrl(currentTrack) || currentAudioUrl;
-    if (!shareUrl) return toast.error("该音源暂不支持分享");
-
-    try {
-      await navigator.clipboard.writeText(
-        `【OtterMusic】${currentTrack.name} - ${currentTrack.artist.join(
-          ", "
-        )}\n${shareUrl}`
-      );
-      toast.success("已复制到剪贴板");
-    } catch {
-      toast.error("复制失败，请重试");
-    }
-  };
-
-  /**
-   * 长按复制歌曲信息
-   */
-  const handleTrackInfoPressStart = () => {
-    if (!currentTrack) return;
-
-    pressTimerRef.current = setTimeout(() => {
-      const text = `${currentTrack.name} - ${currentTrack.artist.join(", ")}`;
-      navigator.clipboard
-        .writeText(text)
-        .then(() => {
-          toast.success("已复制歌曲信息");
-        })
-        .catch(() => {
-          toast.error("复制失败，请重试");
-        });
-    }, 500);
-  };
-
-  const handleTrackInfoPressEnd = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
   };
 
   if (!isMounted) return null;
@@ -306,21 +255,6 @@ export function FullScreenPlayer({
   const handleNext = () => {
     if (queue.length === 0) return;
     setCurrentIndexAndPlay((currentIndex + 1) % queue.length);
-  };
-
-  const handleToggleLike = () => {
-    if (!currentTrack) return;
-    if (isFavorite(currentTrack.id)) {
-      removeFromFavorites(currentTrack.id);
-      toast.success("已取消喜欢");
-    } else {
-      const error = addToFavorites(currentTrack);
-      if (error) {
-        toastUtils.info(error);
-      } else {
-        toast.success("已喜欢");
-      }
-    }
   };
 
   return createPortal(
@@ -418,11 +352,11 @@ export function FullScreenPlayer({
         <div className="flex items-center justify-between">
           <div
             className={cn("min-w-0 flex-1 cursor-pointer select-none")}
-            onMouseDown={handleTrackInfoPressStart}
-            onMouseUp={handleTrackInfoPressEnd}
-            onMouseLeave={handleTrackInfoPressEnd}
-            onTouchStart={handleTrackInfoPressStart}
-            onTouchEnd={handleTrackInfoPressEnd}
+            onMouseDown={trackInfoPressHandlers.onMouseDown}
+            onMouseUp={trackInfoPressHandlers.onMouseUp}
+            onMouseLeave={trackInfoPressHandlers.onMouseLeave}
+            onTouchStart={trackInfoPressHandlers.onTouchStart}
+            onTouchEnd={trackInfoPressHandlers.onTouchEnd}
             title="长按复制歌曲信息"
           >
             <h2 className="truncate text-xl font-semibold text-white">
@@ -454,7 +388,7 @@ export function FullScreenPlayer({
                 <MusicTrackMobileMenu
                   track={currentTrack}
                   open={moreDrawerOpen}
-                  onOpenChange={handleDrawerOpenChange}
+                  onOpenChange={setMoreDrawerOpen}
                   onAddToPlaylist={() => {
                     setIsAddToPlaylistOpen(true);
                   }}

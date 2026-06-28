@@ -1,0 +1,87 @@
+import { useRef, useCallback } from "react";
+import { useMusicStore } from "@/store/music-store";
+import { getCanonicalShareUrl } from "@/lib/share-url";
+import { writeClipboardText } from "@/lib/clipboard";
+import { toastUtils } from "@/lib/utils/toast";
+import type { MusicTrack } from "@/types/music";
+import toast from "react-hot-toast";
+
+export function usePlayerActions(
+  currentTrack: MusicTrack | null,
+  currentAudioUrl: string | null
+) {
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isFavorite = useMusicStore((s) => s.isFavorite);
+  const addToFavorites = useMusicStore((s) => s.addToFavorites);
+  const removeFromFavorites = useMusicStore((s) => s.removeFromFavorites);
+
+  const isCurrentTrackFavorite = currentTrack
+    ? isFavorite(currentTrack.id)
+    : false;
+
+  const handleShare = useCallback(async () => {
+    if (!currentTrack) return toast.error("暂无歌曲信息");
+
+    const shareUrl = getCanonicalShareUrl(currentTrack) || currentAudioUrl;
+    if (!shareUrl) return toast.error("该音源暂不支持分享");
+
+    const ok = await writeClipboardText(
+      `【OtterMusic】${currentTrack.name} - ${currentTrack.artist.join(", ")}\n${shareUrl}`
+    );
+    if (ok) {
+      toast.success("已复制到剪贴板");
+    } else {
+      toast.error("复制失败，请重试");
+    }
+  }, [currentTrack, currentAudioUrl]);
+
+  const handleToggleLike = useCallback(() => {
+    if (!currentTrack) return;
+    if (isFavorite(currentTrack.id)) {
+      removeFromFavorites(currentTrack.id);
+      toast.success("已取消喜欢");
+    } else {
+      const error = addToFavorites(currentTrack);
+      if (error) {
+        toastUtils.info(error);
+      } else {
+        toast.success("已喜欢");
+      }
+    }
+  }, [currentTrack, isFavorite, addToFavorites, removeFromFavorites]);
+
+  const handleTrackInfoPressStart = useCallback(() => {
+    if (!currentTrack) return;
+
+    pressTimerRef.current = setTimeout(async () => {
+      const text = `${currentTrack.name} - ${currentTrack.artist.join(", ")}`;
+      const ok = await writeClipboardText(text);
+      if (ok) {
+        toast.success("已复制歌曲信息");
+      } else {
+        toast.error("复制失败，请重试");
+      }
+    }, 500);
+  }, [currentTrack]);
+
+  const handleTrackInfoPressEnd = useCallback(() => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  }, []);
+
+  return {
+    handleShare,
+    handleToggleLike,
+    isCurrentTrackFavorite,
+    trackInfoPressHandlers: {
+      onMouseDown: handleTrackInfoPressStart,
+      onMouseUp: handleTrackInfoPressEnd,
+      onMouseLeave: handleTrackInfoPressEnd,
+      onTouchStart: handleTrackInfoPressStart,
+      onTouchEnd: handleTrackInfoPressEnd,
+    },
+  };
+}

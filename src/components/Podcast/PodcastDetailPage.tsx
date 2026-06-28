@@ -10,6 +10,7 @@ import { Podcast, SquareArrowOutUpRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDateZN } from "@/lib/utils/format-date";
 import { parsePodcastRss } from "@/lib/api/podcast";
+import { writeClipboardText } from "@/lib/clipboard";
 import { usePodcastStore } from "@/store/podcast-store";
 import { forceHttps } from "@otter-music/shared";
 import { MusicTrack } from "@/types/music";
@@ -84,13 +85,12 @@ export function PodcastDetailPage({
 
   const handleShare = async () => {
     if (!detail) return;
+    const { name, rssUrl } = detail;
 
-    try {
-      await navigator.clipboard.writeText(
-        `Podcast: ${detail.name}\n${detail.rssUrl}`
-      );
+    const ok = await writeClipboardText(`Podcast: ${name}\n${rssUrl}`);
+    if (ok) {
       toast.success("链接已复制");
-    } catch {
+    } else {
       toast.error("复制失败");
     }
   };
