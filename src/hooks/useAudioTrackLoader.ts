@@ -79,7 +79,6 @@ function waitForAudioReady(
       audio.removeEventListener("canplay", onReady);
       audio.removeEventListener("loadedmetadata", onReady);
       audio.removeEventListener("error", onError);
-      audio.removeEventListener("stalled", onStalled);
       clearTimeout(timer);
     };
 
@@ -92,7 +91,6 @@ function waitForAudioReady(
 
     const onReady = () => finish(resolve);
     const onError = () => finish(() => reject(new Error("AUDIO_NOT_READY")));
-    const onStalled = () => finish(() => reject(new Error("AUDIO_STALLED")));
     const timer = setTimeout(
       () => finish(() => reject(new Error("AUDIO_READY_TIMEOUT"))),
       timeout
@@ -101,7 +99,6 @@ function waitForAudioReady(
     audio.addEventListener("canplay", onReady, { once: true });
     audio.addEventListener("loadedmetadata", onReady, { once: true });
     audio.addEventListener("error", onError, { once: true });
-    audio.addEventListener("stalled", onStalled, { once: true });
   });
 }
 
