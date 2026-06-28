@@ -120,7 +120,9 @@ const gcData = (data: ReturnType<typeof formatData>, now: number) => {
   };
 };
 
-// Last-Write-Wins 合并：相同 id 保留 update_time 更大的版本；新增条目追加到头部
+// Last-Write-Wins 合并：
+// - 相同 id 的条目，保留 update_time 更大的版本（相同时用 client 覆盖 server）
+// - server 独有的条目追加在后，client 独有的条目排在前
 function mergeLWW<T extends SyncRecord>(server: T[], client: T[]): T[] {
   const map = new Map<string, T>(server.map((item) => [item.id, item]));
   for (const c of client) {

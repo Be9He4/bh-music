@@ -212,6 +212,147 @@ describe("checkAndSync", () => {
     expect(useSyncStore.getState().version).toBe(2);
   });
 
+  it("409 recovery preserves local-only playlists", async () => {
+    // 本地有云上没有的歌单
+    useMusicStore.setState({
+      favorites: [],
+      playlists: [
+        {
+          id: "local-playlist-1",
+          name: "本地歌单",
+          createdAt: 1000,
+          update_time: 2000,
+          is_deleted: false,
+          tracks: [],
+        },
+      ],
+    });
+
+    // 云端有另一个歌单
+    const serverData = {
+      favorites: [],
+      playlists: [
+        {
+          id: "server-playlist-1",
+          name: "云端歌单",
+          createdAt: 500,
+          update_time: 1500,
+          is_deleted: false,
+          tracks: [],
+        },
+      ],
+    };
+
+    // 第一次 POST 返回 409
+    vi.mocked(syncPushAndPull)
+      .mockRejectedValueOnce(new ApiError("version conflict", 409))
+      // 重试成功
+      .mockResolvedValueOnce(
+        successResponse(
+          {
+            favorites: [],
+            playlists: [
+              {
+                id: "local-playlist-1",
+                name: "本地歌单",
+                update_time: 2000,
+                is_deleted: false,
+                tracks: [],
+              },
+              {
+                id: "server-playlist-1",
+                name: "云端歌单",
+                update_time: 1500,
+                is_deleted: false,
+                tracks: [],
+              },
+            ],
+          },
+          { version: 2 }
+        )
+      );
+
+    // Pull 返回远程数据
+    vi.mocked(syncPull).mockResolvedValue(
+      successResponse(serverData, { version: 1 })
+    );
+
+    await expect(checkAndSync()).resolves.toEqual({
+      success: true,
+    });
+
+    // 本地独有歌单应该保留
+    const playlists = useMusicStore.getState().playlists;
+    expect(playlists.some((p) => p.id === "local-playlist-1")).toBe(true);
+    expect(playlists.some((p) => p.id === "server-playlist-1")).toBe(true);
+  });
+
+  it("409 recovery preserves local playlist field updates", async () => {
+    // 本地更新了歌单名称
+    useMusicStore.setState({
+      favorites: [],
+      playlists: [
+        {
+          id: "playlist-1",
+          name: "本地更新的名称",
+          createdAt: 1000,
+          update_time: 3000,
+          is_deleted: false,
+          tracks: [],
+        },
+      ],
+    });
+
+    // 云端有同名歌单但名称不同
+    const serverData = {
+      favorites: [],
+      playlists: [
+        {
+          id: "playlist-1",
+          name: "云端旧名称",
+          createdAt: 1000,
+          update_time: 2000,
+          is_deleted: false,
+          tracks: [],
+        },
+      ],
+    };
+
+    vi.mocked(syncPushAndPull)
+      .mockRejectedValueOnce(new ApiError("version conflict", 409))
+      .mockResolvedValueOnce(
+        successResponse(
+          {
+            favorites: [],
+            playlists: [
+              {
+                id: "playlist-1",
+                name: "本地更新的名称",
+                update_time: 3000,
+                is_deleted: false,
+                tracks: [],
+              },
+            ],
+          },
+          { version: 2 }
+        )
+      );
+
+    vi.mocked(syncPull).mockResolvedValue(
+      successResponse(serverData, { version: 1 })
+    );
+
+    await expect(checkAndSync()).resolves.toEqual({
+      success: true,
+    });
+
+    // 本地更新的歌单名称应该保留（update_time 更大的胜出）
+    const playlist = useMusicStore
+      .getState()
+      .playlists.find((p) => p.id === "playlist-1");
+    expect(playlist?.name).toBe("本地更新的名称");
+  });
+
   it("keeps deleted markers in pushed snapshot", async () => {
     useMusicStore.setState({
       favorites: [createTrack("fav-1", true)],

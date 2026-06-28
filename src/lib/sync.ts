@@ -60,10 +60,15 @@ function mergeSnapshots(
 ): SyncSnapshot {
   return {
     favorites: mergeTracks(server.favorites, local.favorites),
-    playlists: server.playlists.map((sp) => {
-      const lp = local.playlists.find((p) => p.id === sp.id);
-      if (!lp || (sp.update_time ?? 0) >= (lp.update_time ?? 0)) return sp;
-      return { ...lp, tracks: mergeTracks(sp.tracks, lp.tracks) };
+    // 先做 playlist 级 LWW 合并（保留本地独有歌单），
+    // 再对两边都存在的歌单做 track 级 LWW 合并
+    playlists: mergeTracks(server.playlists, local.playlists).map((p) => {
+      const sp = server.playlists.find((s) => s.id === p.id);
+      const lp = local.playlists.find((l) => l.id === p.id);
+      if (sp && lp) {
+        return { ...p, tracks: mergeTracks(sp.tracks, lp.tracks) };
+      }
+      return p;
     }),
   };
 }
