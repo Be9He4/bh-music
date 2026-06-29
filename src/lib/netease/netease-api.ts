@@ -1,11 +1,9 @@
 import {
   weapi,
-  eapi,
   getRandomDomesticIp,
   buildVisitorCookie,
   cleanCookie,
   PC_USER_AGENT,
-  MOBILE_USER_AGENT,
 } from "@otter-music/shared";
 import type {
   AlbumDetail,
@@ -57,10 +55,6 @@ const TTL_LONG = 7 * 24 * 60 * 60 * 1000; // 7 days
 // 确保移动端（即便是开发环境连着手机测）也能指向绝对路径，避免报错
 const BASE_URL =
   import.meta.env.DEV && !IS_NATIVE ? "/api/netease" : "https://music.163.com"; // Web端，且开发环境，指向本地 Vite 代理
-const EAPI_BASE_URL =
-  import.meta.env.DEV && !IS_NATIVE
-    ? "/api/netease"
-    : "https://interface3.music.163.com"; // Web端，且开发环境，指向本地 Vite 代理
 const NETEASE_PROXY_PREFIX = "/music-api/netease";
 
 const NETWORK_TIMEOUT_MS = 12000;
@@ -214,26 +208,6 @@ async function requestWeapi<T = unknown>(
   return { data: resData as T, cookie: setCookie };
 }
 
-async function requestEapi<T = unknown>(
-  url: string,
-  path: string,
-  data: Record<string, unknown>,
-  cookie: string = ""
-) {
-  const finalCookie = resolveRequestCookie(cookie);
-  const headers = buildHeaders(finalCookie, MOBILE_USER_AGENT);
-  const params = new URLSearchParams(
-    eapi(path, data) as Record<string, string>
-  ).toString();
-
-  const { data: resData } = await crossFetch(url, {
-    method: "POST",
-    headers,
-    body: params,
-  });
-  return { data: resData as T };
-}
-
 async function fetchLocalApi<T>(
   endpoint: string,
   body?: Record<string, unknown>
@@ -301,33 +275,6 @@ export async function getSongUrl(
   }
 
   const level = LEVEL_MAP[br] || "standard";
-
-  // try {
-  //   const eapiRes = await requestEapi<{
-  //     data: {
-  //       url: string;
-  //       br: number;
-  //       size: number;
-  //       freeTrialInfo?: unknown;
-  //     }[];
-  //   }>(
-  //     `${EAPI_BASE_URL}/eapi/song/enhance/player/url/v1`,
-  //     "/api/song/enhance/player/url/v1",
-  //     {
-  //       ids: `[${realId}]`,
-  //       level,
-  //       encodeType: "flac",
-  //       header: { os: "ios", appver: "8.9.70" },
-  //     },
-  //     finalCookie
-  //   );
-  //   const trackData = eapiRes.data?.data?.[0];
-  //   if (trackData?.url && !trackData.freeTrialInfo) return eapiRes;
-  // } catch {
-  //   logger.warn(
-  //     `[NetEase] EAPI failed for ${realId}, falling back to WEAPI...`
-  //   );
-  // }
 
   return requestWeapi<{ data: { url: string; br: number; size: number }[] }>(
     `${BASE_URL}/weapi/song/enhance/player/url/v1`,

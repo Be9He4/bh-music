@@ -12,12 +12,13 @@ export function usePlayerActions(
 ) {
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const favorites = useMusicStore((s) => s.favorites);
   const isFavorite = useMusicStore((s) => s.isFavorite);
   const addToFavorites = useMusicStore((s) => s.addToFavorites);
   const removeFromFavorites = useMusicStore((s) => s.removeFromFavorites);
 
   const isCurrentTrackFavorite = currentTrack
-    ? isFavorite(currentTrack.id)
+    ? favorites.some((t) => t.id === currentTrack.id && !t.is_deleted)
     : false;
 
   const handleShare = useCallback(async () => {
