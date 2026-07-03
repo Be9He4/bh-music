@@ -284,7 +284,7 @@ export function FullScreenPlayer({
         mode={fullScreenBackgroundMode}
       />
 
-      <header className="shrink-0 flex items-center justify-between px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-6 relative z-10">
+      <header className="shrink-0 flex items-center justify-between px-6 pt-[calc(1rem+var(--safe-area-top))] pb-6 relative z-10">
         <Button
           variant="ghost"
           size="icon"
@@ -439,7 +439,7 @@ export function FullScreenPlayer({
         />
       </div>
 
-      <div className="shrink-0 flex items-center justify-between px-8 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] relative z-10">
+      <div className="shrink-0 flex items-center justify-between px-8 py-6 pb-[calc(2rem+var(--safe-area-bottom))] relative z-10">
         <Button
           variant="ghost"
           size="icon"
