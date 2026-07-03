@@ -90,7 +90,7 @@ export function MusicNowPlayingBar({
           "flex items-center backdrop-blur-sm transition-all duration-300",
           isTab
             ? "gap-2 px-2 py-1.5 rounded-2xl bg-card/95 shadow-md border border-border/50"
-            : "gap-3 px-4 py-2.5 bg-background/95 border-t border-border/50 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+            : "gap-3 px-4 py-2.5 bg-background/95 border-t border-border/50 pb-[calc(0.75rem+var(--safe-area-bottom))]"
         )}
       >
         {/* 不含列表按钮，避免遮罩层关闭时 ghost click 误触发全屏 */}

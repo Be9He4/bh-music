@@ -267,7 +267,7 @@ export function PlayerQueueDrawer({
 
         <div className="min-h-0 flex-1">
           <ScrollArea className="h-full" viewportRef={viewportRef}>
-            <div className="px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] flex flex-col gap-1">
+            <div className="px-4 pb-[calc(2rem+var(--safe-area-bottom))] flex flex-col gap-1">
               {activeTab === "queue"
                 ? queue.map((track, i) => (
                     <QueueTrackItem
