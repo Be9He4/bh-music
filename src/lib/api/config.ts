@@ -7,7 +7,7 @@ export const IS_WEB_PROD = import.meta.env.PROD && !IS_NATIVE;
 const getDefaultApiUrl = () =>
   IS_WEB_PROD ? window.location.origin : "https://bh-music.pages.dev";
 
-const STORAGE_KEY_CUSTOM_API_URL = "otter_custom_api_url";
+const STORAGE_KEY_CUSTOM_API_URL = "bh_custom_api_url";
 
 export function getApiUrl(): string {
   const custom = getStorage<string | null>(STORAGE_KEY_CUSTOM_API_URL, null);

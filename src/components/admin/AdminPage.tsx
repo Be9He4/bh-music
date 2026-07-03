@@ -106,7 +106,7 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
             管理后台
           </CardTitle>
           <CardDescription className="text-white/50 text-sm">
-            Otter Music Admin
+            BH Music Admin
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 pb-8">

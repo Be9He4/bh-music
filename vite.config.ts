@@ -106,8 +106,8 @@ export default defineConfig({
       manifest: {
         name: "BH Music",
         short_name: "BH Music",
-        description: "水獭音乐 - 开源免费音乐播放器",
-        theme_color: "#58c9aa",
+        description: "BH Music - 音乐播放器",
+        theme_color: "#4F46E5",
         background_color: "#f9fbfc",
         display: "standalone",
         start_url: "/",
