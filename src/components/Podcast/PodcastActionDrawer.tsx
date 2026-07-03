@@ -1,13 +1,10 @@
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { writeClipboardText } from "@/lib/clipboard";
 import { usePodcastStore } from "@/store/podcast-store";
 import type { PodcastRssSource } from "@/types/podcast";
 import toast from "react-hot-toast";
-import { Copy, Edit, Trash2, Podcast } from "lucide-react";
+import { Copy, Edit, Trash2, Podcast, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MusicCover } from "@/components/MusicCover";
 import { ReactNode } from "react";
@@ -26,7 +23,7 @@ const ActionButton = ({
   className,
 }: {
   onClick?: () => void;
-  icon: React.ElementType;
+  icon: LucideIcon;
   children: ReactNode;
   className?: string;
 }) => (
@@ -48,11 +45,11 @@ export function PodcastActionDrawer({
   const { removeRssSource } = usePodcastStore();
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(rss.rssUrl);
+    const ok = await writeClipboardText(rss.rssUrl);
+    if (ok) {
       toast.success("RSS 链接已复制");
       onOpenChange(false);
-    } catch {
+    } else {
       toast.error("复制失败");
     }
   };
@@ -69,7 +66,7 @@ export function PodcastActionDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerTitle className="sr-only">{rss.name}</DrawerTitle>
-        
+
         {/* Header Section */}
         <div className="flex items-center gap-4 px-6 py-4">
           <MusicCover
@@ -77,7 +74,9 @@ export function PodcastActionDrawer({
             alt={rss.name}
             className="h-16 w-16 rounded-lg shadow-md"
             iconClassName="h-8 w-8"
-            fallbackIcon={<Podcast className="h-8 w-8 text-muted-foreground/50" />}
+            fallbackIcon={
+              <Podcast className="h-8 w-8 text-muted-foreground/50" />
+            }
           />
           <div className="min-w-0 flex-1">
             <div className="font-bold line-clamp-2 text-lg">{rss.name}</div>
@@ -99,10 +98,7 @@ export function PodcastActionDrawer({
             编辑
           </ActionButton>
 
-          <ActionButton
-            icon={Copy}
-            onClick={handleCopy}
-          >
+          <ActionButton icon={Copy} onClick={handleCopy}>
             复制 RSS 链接
           </ActionButton>
 

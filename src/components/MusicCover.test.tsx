@@ -269,7 +269,7 @@ describe("MusicCover native save", () => {
     expect(blobToBase64).toHaveBeenCalled();
     expect(Filesystem.writeFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: expect.stringContaining("Pictures/OtterMusic"),
+        path: expect.stringContaining("Pictures/BHMusic"),
         data: "base64mock",
         directory: "EXTERNAL_STORAGE",
         recursive: true,

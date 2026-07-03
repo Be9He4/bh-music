@@ -1,5 +1,5 @@
 {
-	"appId": "com.otterhub.music",
-	"appName": "Otter Music",
-	"webDir": "dist"
+  "appId": "com.bh.music",
+  "appName": "BH Music",
+  "webDir": "dist"
 }

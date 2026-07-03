@@ -25,6 +25,7 @@ import {
   ListMusic,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { writeClipboardText } from "@/lib/clipboard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -181,15 +182,13 @@ export function NeteaseDetail({
 
   const handleShare = async () => {
     if (!detail || !id) return;
-    try {
-      const typeLabel = { playlist: "歌单", artist: "歌手", album: "专辑" }[
-        type
-      ];
-      await navigator.clipboard.writeText(
-        `【网易云${typeLabel}】${detail.name}\nhttps://music.163.com/#/${type}?id=${id}`
-      );
+    const typeLabel = { playlist: "歌单", artist: "歌手", album: "专辑" }[type];
+    const ok = await writeClipboardText(
+      `【网易云${typeLabel}】${detail.name}\nhttps://music.163.com/#/${type}?id=${id}`
+    );
+    if (ok) {
       toast.success("链接已复制");
-    } catch {
+    } else {
       toast.error("复制失败");
     }
   };

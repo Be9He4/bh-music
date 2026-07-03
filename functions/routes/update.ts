@@ -5,7 +5,7 @@ import { Env } from "../types/hono";
 const app = new Hono<{ Bindings: Env }>();
 
 const GITHUB_API_URL =
-  "https://api.github.com/repos/Be9He4/bh-music/releases/latest";
+  "https://api.github.com/repos/DJChanahCJD/otter-music/releases/latest";
 
 interface GitHubRelease {
   tag_name: string;

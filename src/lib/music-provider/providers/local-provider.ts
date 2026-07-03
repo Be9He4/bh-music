@@ -73,7 +73,7 @@ export class LocalProvider implements IMusicProvider {
           localPath: track.lyric_id,
         });
         if (result.success && result.lyric) {
-          return { lyric: result.lyric, tlyric: "" };
+          return { lyric: result.lyric, tlyric: result.tlyric ?? "" };
         }
         return null;
       } catch (e) {

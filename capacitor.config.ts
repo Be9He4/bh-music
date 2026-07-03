@@ -1,9 +1,9 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.be9he4.bhmusic',
-  appName: 'BH Music',
-  webDir: 'dist',
+  appId: "com.bh.music",
+  appName: "BH Music",
+  webDir: "dist",
 };
 
 export default config;

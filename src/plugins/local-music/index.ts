@@ -33,6 +33,7 @@ export interface EmbeddedCoverResult {
 export interface EmbeddedLyricsResult {
   success: boolean;
   lyric?: string;
+  tlyric?: string;
   error?: string;
 }
 

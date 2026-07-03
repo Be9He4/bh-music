@@ -35,7 +35,7 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
 
   const activeSources = useMemo(
     () => rssSources.filter((item) => !item.is_deleted),
-    [rssSources],
+    [rssSources]
   );
 
   const normalizedKeyword = keyword.trim();
@@ -81,10 +81,10 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
     }
     // Pass cover and description to store
     addRssSource(
-      item.title, 
-      item.rssUrl, 
+      item.title,
+      item.rssUrl,
       item.author || undefined,
-      item.cover || undefined, 
+      item.cover || undefined,
       item.description || undefined
     );
     toast.success("订阅成功");
@@ -106,7 +106,9 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
       toast.error("RSS 地址格式不正确");
       return;
     }
-    const existed = activeSources.some((source) => source.rssUrl === normalizedRssUrl);
+    const existed = activeSources.some(
+      (source) => source.rssUrl === normalizedRssUrl
+    );
     if (existed) {
       toast("该 RSS 已订阅");
       return;
@@ -114,7 +116,7 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
     setIsSubmittingRss(true);
     try {
       const displayName = normalizedRssName || url.hostname;
-      // For manual RSS, we don't have cover/desc yet. 
+      // For manual RSS, we don't have cover/desc yet.
       // Ideally we should fetch it, but for now passing undefined.
       addRssSource(displayName, normalizedRssUrl);
       toast.success("订阅成功");
@@ -133,15 +135,17 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
         if (!val) resetDialogState();
       }}
     >
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent className="max-h-[90vh] overflow-hidden">
         <DrawerHeader className="mb-1 px-4">
-          <DrawerTitle className="text-center text-lg">添加播客订阅</DrawerTitle>
+          <DrawerTitle className="text-center text-lg">
+            添加播客订阅
+          </DrawerTitle>
           <DrawerDescription className="text-center text-xs">
             {mode === "search" ? "先搜索，再一键订阅" : "手动填写 RSS 地址订阅"}
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="space-y-4 overflow-y-auto px-4 pb-5">
+        <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-4 pb-5">
           {mode === "search" ? (
             <div className="space-y-3">
               <div className="flex gap-2">
@@ -161,12 +165,18 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
                   disabled={isSearching}
                   className="min-w-[72px]"
                 >
-                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "搜索"}
+                  {isSearching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "搜索"
+                  )}
                 </Button>
               </div>
-              <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+              <div className="space-y-2 pr-1 custom-scrollbar">
                 {searchItems.map((item) => {
-                  const existed = !item.rssUrl || activeSources.some((s) => s.rssUrl === item.rssUrl);
+                  const existed =
+                    !item.rssUrl ||
+                    activeSources.some((s) => s.rssUrl === item.rssUrl);
                   return (
                     <div
                       key={`${item.source}-${item.id}-${item.rssUrl}`}
@@ -177,11 +187,15 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
                           src={item.cover}
                           alt={item.title}
                           className="bg-transparent"
-                          fallbackIcon={<Radio className="w-4 h-4 text-muted-foreground/60" />}
+                          fallbackIcon={
+                            <Radio className="w-4 h-4 text-muted-foreground/60" />
+                          }
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium line-clamp-1">{item.title}</p>
+                        <p className="text-sm font-medium line-clamp-1">
+                          {item.title}
+                        </p>
                         <p className="text-[11px] text-muted-foreground line-clamp-1">
                           {item.author || "未知作者"}
                         </p>
@@ -227,7 +241,9 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
                 onClick={() => void handleAddRss()}
                 disabled={isSubmittingRss}
               >
-                {isSubmittingRss && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmittingRss && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 验证并订阅
               </Button>
             </div>
@@ -236,7 +252,9 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
           <Button
             variant="link"
             className="h-auto px-0 text-xs text-muted-foreground/70 hover:text-muted-foreground w-full"
-            onClick={() => setMode((prev) => (prev === "search" ? "rss" : "search"))}
+            onClick={() =>
+              setMode((prev) => (prev === "search" ? "rss" : "search"))
+            }
           >
             {mode === "search" ? "改用手动 RSS 订阅" : "返回搜索订阅"}
           </Button>

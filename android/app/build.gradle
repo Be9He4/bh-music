@@ -1,15 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace 'com.be9he4.bhmusic'
+    namespace 'com.otterhub.music'
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.be9he4.bhmusic"
+        applicationId "com.otterhub.music"
         minSdk 24
         targetSdk 36
-        versionCode 46
-        versionName "2.4.9"
+        versionCode 47
+        versionName "2.4.10"
     }
 
     buildTypes {
@@ -31,7 +31,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            def appName = "bh-music"
+            def appName = "otter-music"
             def versionName = defaultConfig.versionName
             def buildType = variant.buildType.name
 

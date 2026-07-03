@@ -34,7 +34,7 @@ Write-Host "BuildTools: $($buildTools.Name)" -ForegroundColor Cyan
 
 # ---------- 3. 定义路径 ----------
 $apkDir   = "android/app/build/outputs/apk/release"
-$keystore = "android/bh-music-release.jks"
+$keystore = "android/otter-music-release.jks"
 
 $rawFile = Get-ChildItem $apkDir -Filter "*-release.apk" |
            Where-Object { $_.Name -notmatch "-signed" } |
@@ -62,7 +62,7 @@ if ($LASTEXITCODE -ne 0) { Fail "ZipAlign 失败" }
 # ---------- 6. 签名 ----------
 & $apksigner sign `
     --ks $keystore `
-    --ks-key-alias "bh-music" `
+    --ks-key-alias "otter-music" `
     --ks-pass "pass:$env:KS_PASS" `
     --out $final `
     $aligned

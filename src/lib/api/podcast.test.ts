@@ -105,7 +105,7 @@ describe("parsePodcastRss", () => {
     const parsePodcastRss = await importParsePodcastRss(true);
     const result = await parsePodcastRss("https://example.com/feed.xml");
 
-    expect(requestMock).toHaveBeenCalledTimes(3); // retry 2 次共 3 次尝试
+    expect(requestMock).toHaveBeenCalledTimes(1); // HEAD 预检一次，失败后直连短路不再 GET + retry
     expect(fetchMock).toHaveBeenCalledWith(
       "https://otter-music.pages.dev/podcast-api/rss?url=https%3A%2F%2Fexample.com%2Ffeed.xml",
       expect.anything()
