@@ -5,7 +5,7 @@ export const IS_NATIVE = Capacitor.isNativePlatform();
 export const IS_WEB_PROD = import.meta.env.PROD && !IS_NATIVE;
 
 const getDefaultApiUrl = () =>
-  IS_WEB_PROD ? window.location.origin : "https://otter-music.pages.dev";
+  IS_WEB_PROD ? window.location.origin : "https://bh-music.pages.dev";
 
 const STORAGE_KEY_CUSTOM_API_URL = "otter_custom_api_url";
 
