@@ -47,3 +47,4 @@ tsconfig.tsbuildinfo
 .trae/
 .claude/
 openspec/
+CLAUDE_PROJECT_MEMORY.md
