@@ -123,8 +123,10 @@ proxyRoutes.get("/", validator, async (c) => {
       new Headers(response.headers)
     );
     const finalHeaders = applyCommonHeaders(c, filteredHeaders, filename);
-    // 音频文件稳定不变，设置 24 小时缓存，减少重复请求
-    finalHeaders.set("Cache-Control", "public, max-age=86400");
+    // 全量响应才缓存，Range 请求不缓存（避免 206 被 CDN 缓存用于 200 请求）
+    if (response.status !== 206) {
+      finalHeaders.set("Cache-Control", "public, max-age=86400");
+    }
 
     return new Response(response.body, {
       status: response.status,

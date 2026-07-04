@@ -22,6 +22,7 @@ import {
   Trash2,
   Tag,
   Database,
+  Shield,
 } from "lucide-react";
 import { Switch } from "./ui/switch";
 import {
@@ -71,6 +72,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     volume,
     setVolume,
     enableAutoMatch,
+    enableProxyFallback,
+    setEnableProxyFallback,
     bilibiliKeepOriginalMeta,
     setBilibiliKeepOriginalMeta,
     showSourceBadge,
@@ -82,6 +85,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       volume: state.volume,
       setVolume: state.setVolume,
       enableAutoMatch: state.enableAutoMatch,
+      enableProxyFallback: state.enableProxyFallback,
+      setEnableProxyFallback: state.setEnableProxyFallback,
       bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
       setBilibiliKeepOriginalMeta: state.setBilibiliKeepOriginalMeta,
       showSourceBadge: state.showSourceBadge,
@@ -198,6 +203,17 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <SettingsSection title="高级设置">
           <ApiUrlConfig />
+          <SettingItem
+            icon={Shield}
+            title="代理回退"
+            subtitle="自动切换代理线路（但容易卡顿）"
+            action={
+              <Switch
+                checked={enableProxyFallback}
+                onCheckedChange={setEnableProxyFallback}
+              />
+            }
+          />
           <AutoMatchSetting />
           <StreamCacheSetting />
         </SettingsSection>

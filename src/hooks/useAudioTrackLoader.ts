@@ -16,6 +16,30 @@ import { handleAutoMatch } from "@/lib/audio-match";
 import { logger } from "@/lib/logger";
 
 const AUDIO_READY_TIMEOUT = 5000;
+const AUDIO_READY_TIMEOUT_SLOW = 15000;
+
+/** 根据 Network Information API 返回弱网下的超时时间 */
+function getAudioReadyTimeout(): number {
+  const conn = (navigator as any).connection;
+  if (!conn) return AUDIO_READY_TIMEOUT;
+
+  const { effectiveType, downlink, rtt } = conn;
+
+  // 1. 匹配弱网类型
+  if (["slow-2g", "2g", "3g"].includes(effectiveType)) {
+    return AUDIO_READY_TIMEOUT_SLOW;
+  }
+
+  // 2. 匹配弱网量化指标 (下载速度 < 1Mbps 或 延迟 > 1000ms)
+  if (
+    (typeof downlink === "number" && downlink > 0 && downlink < 1.0) ||
+    (typeof rtt === "number" && rtt > 1000)
+  ) {
+    return AUDIO_READY_TIMEOUT_SLOW;
+  }
+
+  return AUDIO_READY_TIMEOUT;
+}
 
 /**
  * 持久化 URL 缓存：跨会话保持已解析的音频 URL，离线时复用
@@ -70,7 +94,7 @@ function findNextPlayableTrack(
 
 function waitForAudioReady(
   audio: HTMLAudioElement,
-  timeout = AUDIO_READY_TIMEOUT
+  timeout = getAudioReadyTimeout()
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -90,7 +114,16 @@ function waitForAudioReady(
     };
 
     const onReady = () => finish(resolve);
-    const onError = () => finish(() => reject(new Error("AUDIO_NOT_READY")));
+    const onError = () => {
+      const mediaError = audio.error;
+      finish(() =>
+        reject(
+          Object.assign(new Error("AUDIO_NOT_READY"), {
+            mediaErrorCode: mediaError?.code ?? null,
+          })
+        )
+      );
+    };
     const timer = setTimeout(
       () => finish(() => reject(new Error("AUDIO_READY_TIMEOUT"))),
       timeout
@@ -158,6 +191,7 @@ export function useAudioTrackLoader(
   const quality = useMusicStore((s) => s.quality);
   const currentAudioTime = useMusicStore((s) => s.currentAudioTime);
   const hasUserGesture = useMusicStore((s) => s.hasUserGesture);
+  const enableProxyFallback = useMusicStore((s) => s.enableProxyFallback);
   const setIsPlaying = useMusicStore((s) => s.setIsPlaying);
   const setIsLoading = useMusicStore((s) => s.setIsLoading);
   const skipToNext = useMusicStore((s) => s.skipToNext);
@@ -360,6 +394,14 @@ export function useAudioTrackLoader(
         } catch (primaryError) {
           console.error("Primary audio load failed:", primaryError);
 
+          // NotAllowedError（autoplay 被拦截）不触发代理
+          if (
+            primaryError instanceof DOMException &&
+            primaryError.name === "NotAllowedError"
+          ) {
+            throw primaryError;
+          }
+
           if (
             downloadKey &&
             localDownloadUrl &&
@@ -379,6 +421,7 @@ export function useAudioTrackLoader(
           }
 
           if (
+            enableProxyFallback &&
             currentTrackSource !== "local" &&
             fallbackStageRef.current.stage === "none" &&
             remoteUrlRef.current &&
