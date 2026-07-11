@@ -178,7 +178,7 @@ export function MusicTrackMobileMenu({
     }
     let searchKeyword = keyword;
     if (type === "album" && artist) {
-      searchKeyword = `${keyword} ${artist}`;
+      searchKeyword = `${artist} ${keyword}`;
     }
 
     setSearchQuery(searchKeyword);
