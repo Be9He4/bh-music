@@ -57,9 +57,13 @@ function scoreAutoMatchCandidate(
 /**
  * 自动匹配免费源逻辑
  * @param track 需要匹配的歌曲
+ * @param targetSource 可选，指定目标音源（仅搜索该音源）
  * @returns 是否匹配并切换成功
  */
-export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
+export async function handleAutoMatch(
+  track: MusicTrack,
+  targetSource?: MusicSource
+): Promise<boolean> {
   if (track.source && EXCLUDED_FOR_SEARCH.includes(track.source)) {
     return false;
   }
@@ -82,14 +86,20 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
       setFavorites,
     } = useMusicStore.getState();
 
-    // 切歌检测 & 已尝试音源排除
-    const ctx =
-      currentIndex !== autoMatchContext?.index
-        ? { index: currentIndex, tried: new Set<MusicSource>() }
-        : autoMatchContext;
-    const aggregatedSources = getAggregatedSourcesForMatch().filter(
-      (source) => source !== track.source && !ctx.tried.has(source)
-    );
+    // 手动指定目标音源时：只搜索该音源，不记录 tried
+    const isManual = !!targetSource;
+    const aggregatedSources = isManual
+      ? [targetSource]
+      : (() => {
+          const ctx =
+            currentIndex !== autoMatchContext?.index
+              ? { index: currentIndex, tried: new Set<MusicSource>() }
+              : autoMatchContext;
+          return getAggregatedSourcesForMatch().filter(
+            (source) => source !== track.source && !ctx.tried.has(source)
+          );
+        })();
+
     if (aggregatedSources.length === 0) {
       return false;
     }
@@ -117,26 +127,35 @@ export async function handleAutoMatch(track: MusicTrack): Promise<boolean> {
         ? { ...match, name: track.name, artist: track.artist }
         : match;
 
-    // 记录已尝试的音源
-    const nextTried = new Set(ctx.tried);
-    nextTried.add(track.source);
-    setAutoMatchContext({ index: currentIndex, tried: nextTried });
+    // 自动模式下记录已尝试的音源（手动指定时不记录，避免干扰后续自动换源）
+    if (!isManual) {
+      const ctx =
+        currentIndex !== autoMatchContext?.index
+          ? { index: currentIndex, tried: new Set<MusicSource>() }
+          : autoMatchContext;
+      const nextTried = new Set(ctx.tried);
+      nextTried.add(track.source);
+      setAutoMatchContext({ index: currentIndex, tried: nextTried });
+    }
 
     updateTrackInQueue(track.id, finalTrack);
 
-    if (autoMatchPlaylists && contextId?.startsWith("playlist-")) {
+    if (
+      autoMatchPlaylists &&
+      (isManual || contextId?.startsWith("playlist-"))
+    ) {
       updateTrackInPlaylists(track.id, finalTrack);
     }
     if (
       autoMatchFavorites &&
-      contextId === "favorites" &&
+      (isManual || contextId === "favorites") &&
       isFavorite(track.id)
     ) {
       setFavorites(favorites.map((t) => (t.id === track.id ? finalTrack : t)));
     }
 
     const sourceLabel = sourceLabels[match.source] || match.source;
-    toast.success(`已自动切换至: ${sourceLabel}`, { id: toastId });
+    toast.success(`已切换至: ${sourceLabel}`, { id: toastId });
     return true;
   } catch (error) {
     logger.error("audio-match", "Auto match failed", error);

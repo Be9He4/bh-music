@@ -41,3 +41,21 @@ export function getAggregatedSourcesForMatch() {
     (s) => !EXCLUDED_FOR_AUTO_MATCH.includes(s)
   );
 }
+
+/** 获取所有可见音源（用于手动切换音源对话框），排除 local/podcast */
+export function getAllVisibleSourcesForSwitch(): MusicSource[] {
+  const { sourceConfigs } = useMusicStore.getState();
+  return sourceConfigs
+    .filter((c) => c.visible && !EXCLUDED_FOR_AUTO_MATCH.includes(c.source))
+    .map((c) => c.source);
+}
+
+export function useAllVisibleSourcesForSwitch() {
+  return useMusicStore(
+    useShallow((state) =>
+      state.sourceConfigs
+        .filter((c) => c.visible && !EXCLUDED_FOR_AUTO_MATCH.includes(c.source))
+        .map((c) => c.source)
+    )
+  );
+}

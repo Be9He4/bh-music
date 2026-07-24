@@ -17,15 +17,23 @@ import {
   Disc,
   MessageSquareQuote,
   Link2,
+  Check,
 } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import { MusicCover } from "./MusicCover";
 import { useMusicCover } from "@/hooks/useMusicCover";
-import { MusicTrack, SearchIntent, sourceLabels } from "@/types/music";
+import {
+  MusicTrack,
+  SearchIntent,
+  sourceLabels,
+  searchOptions,
+} from "@/types/music";
 import { useNavigate } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { MusicProviderFactory } from "@/lib/music-provider";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
+import { handleAutoMatch } from "@/lib/audio-match";
+import { getAllVisibleSourcesForSwitch } from "@/hooks/use-aggregated-sources";
 import {
   Dialog,
   DialogContent,
@@ -97,14 +105,26 @@ export function MusicTrackMobileMenu({
   const navigate = useNavigate();
   const [showArtistSelection, setShowArtistSelection] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showSourceSwitch, setShowSourceSwitch] = useState(false);
 
   // Zustand Store
+  const { playlists, favorites } = useMusicStore((s) => ({
+    playlists: s.playlists,
+    favorites: s.favorites,
+  }));
   const setSearchQuery = useMusicStore((s) => s.setSearchQuery);
   const setSearchResults = useMusicStore((s) => s.setSearchResults);
   const setSearchIntent = useMusicStore((s) => s.setSearchIntent);
   const setSearchSource = useMusicStore((s) => s.setSearchSource);
 
   const provider = MusicProviderFactory.getProvider(track.source);
+
+  // 缓存音源切换可用性判断，避免每次渲染都遍历 favorites 和 playlists
+  const canSwitchSource = useMemo(() => {
+    if (track.source === "local" || track.source === "podcast") return false;
+    if (favorites.some((t) => t.id === track.id)) return true;
+    return playlists.some((p) => p.tracks.some((t) => t.id === track.id));
+  }, [track.id, track.source, favorites, playlists]);
 
   const handleSearch = async (
     keyword: string,
@@ -333,12 +353,17 @@ export function MusicTrackMobileMenu({
               </ActionButton>
             )}
 
+            {/* 音源显示：local/podcast 或歌曲不在任何歌单/收藏中时不可切换 */}
             <Button
               variant="ghost"
-              className="justify-start w-full cursor-default text-muted-foreground"
+              className="justify-start w-full"
+              disabled={!canSwitchSource}
+              onClick={() => setShowSourceSwitch(true)}
             >
-              <Link2 className="mr-2 h-4 w-4" /> 音源：
-              {sourceLabels[track.source] || track.source}
+              <Link2 className="mr-2 h-4 w-4 shrink-0" />
+              <span className="truncate">
+                音源：{sourceLabels[track.source] || track.source}
+              </span>
             </Button>
 
             {onRemove && (
@@ -393,6 +418,43 @@ export function MusicTrackMobileMenu({
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showSourceSwitch} onOpenChange={setShowSourceSwitch}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>切换音源</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {getAllVisibleSourcesForSwitch().map((source) => {
+              const isCurrent = source === track.source;
+              return (
+                <Button
+                  key={source}
+                  variant="ghost"
+                  className={cn(
+                    "justify-start w-full",
+                    isCurrent && "text-primary"
+                  )}
+                  disabled={isCurrent}
+                  onClick={async () => {
+                    setShowSourceSwitch(false);
+                    onOpenChange(false);
+                    await handleAutoMatch(track, source);
+                  }}
+                >
+                  {isCurrent ? (
+                    <Check className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Link2 className="mr-2 h-4 w-4" />
+                  )}
+                  {searchOptions[source] || sourceLabels[source] || source}
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <MusicCommentsDrawer
         track={track}
         open={showComments}
