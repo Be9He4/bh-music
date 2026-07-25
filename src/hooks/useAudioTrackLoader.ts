@@ -23,23 +23,16 @@ function getAudioReadyTimeout(): number {
   const conn = (navigator as any).connection;
   if (!conn) return AUDIO_READY_TIMEOUT;
 
-  const { effectiveType, downlink, rtt } = conn;
-
-  // 1. 匹配弱网类型
-  if (["slow-2g", "2g", "3g"].includes(effectiveType)) {
+  const { effectiveType } = conn;
+  // 仅在确属 2g 级别弱网时放宽超时；3g/4g/未知均按正常超时
+  // Android WebView 的 Network Information API 不可靠，downlink/rtt 量化指标易误判
+  if (effectiveType === "slow-2g" || effectiveType === "2g") {
     return AUDIO_READY_TIMEOUT_SLOW;
   }
-
-  // 2. 匹配弱网量化指标 (下载速度 < 1Mbps 或 延迟 > 1000ms)
-  if (
-    (typeof downlink === "number" && downlink > 0 && downlink < 1.0) ||
-    (typeof rtt === "number" && rtt > 1000)
-  ) {
-    return AUDIO_READY_TIMEOUT_SLOW;
-  }
-
   return AUDIO_READY_TIMEOUT;
 }
+/** 代理 fallback 阶段专用超时，比主链路更短以加速失败放弃 */
+const AUDIO_READY_TIMEOUT_PROXY = 4000;
 
 /**
  * 持久化 URL 缓存：跨会话保持已解析的音频 URL，离线时复用
@@ -282,14 +275,18 @@ export function useAudioTrackLoader(
         return remoteUrl;
       };
 
-      const setSourceAndPlay = async (audioUrl: string, startTime?: number) => {
+      const setSourceAndPlay = async (
+        audioUrl: string,
+        startTime?: number,
+        timeout?: number
+      ) => {
         if (audio.src !== audioUrl) {
           setCurrentAudioUrl(audioUrl);
           audio.src = "";
           audio.src = audioUrl;
           audio.load();
         }
-        await waitForAudioReady(audio);
+        await waitForAudioReady(audio, timeout);
         audio.currentTime = startTime ?? currentAudioTime;
         audio.playbackRate = useMusicStore.getState().playbackSpeed;
         await audio.play();
@@ -436,7 +433,11 @@ export function useAudioTrackLoader(
               : getProxyUrl(remoteUrl);
             fallbackStageRef.current.stage = "proxy";
             toast("已切换备用线路", { icon: "🌐", id: "proxy-notice" });
-            await setSourceAndPlay(proxyUrl, resumeTime);
+            await setSourceAndPlay(
+              proxyUrl,
+              resumeTime,
+              AUDIO_READY_TIMEOUT_PROXY
+            );
             return;
           }
 
