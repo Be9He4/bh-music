@@ -58,11 +58,13 @@ function scoreAutoMatchCandidate(
  * 自动匹配免费源逻辑
  * @param track 需要匹配的歌曲
  * @param targetSource 可选，指定目标音源（仅搜索该音源）
+ * @param pagePath 可选，当前页面路径（手动换源时传入，用于判断同步范围）
  * @returns 是否匹配并切换成功
  */
 export async function handleAutoMatch(
   track: MusicTrack,
-  targetSource?: MusicSource
+  targetSource?: MusicSource,
+  pagePath?: string
 ): Promise<boolean> {
   if (track.source && EXCLUDED_FOR_SEARCH.includes(track.source)) {
     return false;
@@ -88,17 +90,16 @@ export async function handleAutoMatch(
 
     // 手动指定目标音源时：只搜索该音源，不记录 tried
     const isManual = !!targetSource;
+    const ctx =
+      currentIndex !== autoMatchContext?.index
+        ? { index: currentIndex, tried: new Set<MusicSource>() }
+        : autoMatchContext;
+
     const aggregatedSources = isManual
       ? [targetSource]
-      : (() => {
-          const ctx =
-            currentIndex !== autoMatchContext?.index
-              ? { index: currentIndex, tried: new Set<MusicSource>() }
-              : autoMatchContext;
-          return getAggregatedSourcesForMatch().filter(
-            (source) => source !== track.source && !ctx.tried.has(source)
-          );
-        })();
+      : getAggregatedSourcesForMatch().filter(
+          (source) => source !== track.source && !ctx.tried.has(source)
+        );
 
     if (aggregatedSources.length === 0) {
       return false;
@@ -129,10 +130,6 @@ export async function handleAutoMatch(
 
     // 自动模式下记录已尝试的音源（手动指定时不记录，避免干扰后续自动换源）
     if (!isManual) {
-      const ctx =
-        currentIndex !== autoMatchContext?.index
-          ? { index: currentIndex, tried: new Set<MusicSource>() }
-          : autoMatchContext;
       const nextTried = new Set(ctx.tried);
       nextTried.add(track.source);
       setAutoMatchContext({ index: currentIndex, tried: nextTried });
@@ -140,18 +137,36 @@ export async function handleAutoMatch(
 
     updateTrackInQueue(track.id, finalTrack);
 
-    if (
-      autoMatchPlaylists &&
-      (isManual || contextId?.startsWith("playlist-"))
-    ) {
-      updateTrackInPlaylists(track.id, finalTrack);
-    }
-    if (
-      autoMatchFavorites &&
-      (isManual || contextId === "favorites") &&
-      isFavorite(track.id)
-    ) {
-      setFavorites(favorites.map((t) => (t.id === track.id ? finalTrack : t)));
+    // 判断当前页面上下文（手动换源时基于页面路径，自动换源时基于 contextId）
+    const isOnFavoritesPage = pagePath === "/favorites";
+    const isOnPlaylistPage = pagePath?.startsWith("/playlist/") ?? false;
+    const playlistId = isOnPlaylistPage ? pagePath!.split("/")[2] : null;
+
+    // 手动换源：根据当前页面同步；自动换源：根据 contextId 和设置项同步
+    if (isManual) {
+      // 手动换源：仅同步当前页面
+      if (isOnPlaylistPage && playlistId) {
+        updateTrackInPlaylists(track.id, finalTrack, playlistId);
+      }
+      if (isOnFavoritesPage && isFavorite(track.id)) {
+        setFavorites(
+          favorites.map((t) => (t.id === track.id ? finalTrack : t))
+        );
+      }
+    } else {
+      // 自动换源：保持原有逻辑
+      if (autoMatchPlaylists && contextId?.startsWith("playlist-")) {
+        updateTrackInPlaylists(track.id, finalTrack);
+      }
+      if (
+        autoMatchFavorites &&
+        contextId === "favorites" &&
+        isFavorite(track.id)
+      ) {
+        setFavorites(
+          favorites.map((t) => (t.id === track.id ? finalTrack : t))
+        );
+      }
     }
 
     const sourceLabel = sourceLabels[match.source] || match.source;

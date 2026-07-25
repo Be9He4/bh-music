@@ -28,7 +28,7 @@ import {
   sourceLabels,
   searchOptions,
 } from "@/types/music";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import { MusicProviderFactory } from "@/lib/music-provider";
@@ -104,6 +104,7 @@ export function MusicTrackMobileMenu({
 }: MusicTrackMobileMenuProps) {
   const coverUrl = useMusicCover(track, open);
   const navigate = useNavigate();
+  const location = useLocation();
   const [showArtistSelection, setShowArtistSelection] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showSourceSwitch, setShowSourceSwitch] = useState(false);
@@ -125,8 +126,10 @@ export function MusicTrackMobileMenu({
   // 缓存音源切换可用性判断，避免每次渲染都遍历 favorites 和 playlists
   const canSwitchSource = useMemo(() => {
     if (track.source === "local" || track.source === "podcast") return false;
-    if (favorites.some((t) => t.id === track.id)) return true;
-    return playlists.some((p) => p.tracks.some((t) => t.id === track.id));
+    return (
+      favorites.some((t) => t.id === track.id) ||
+      playlists.some((p) => p.tracks.some((t) => t.id === track.id))
+    );
   }, [track.id, track.source, favorites, playlists]);
 
   const handleSearch = async (
@@ -442,7 +445,7 @@ export function MusicTrackMobileMenu({
                   onClick={async () => {
                     setShowSourceSwitch(false);
                     onOpenChange(false);
-                    await handleAutoMatch(track, source);
+                    await handleAutoMatch(track, source, location.pathname);
                   }}
                 >
                   {isCurrent ? (

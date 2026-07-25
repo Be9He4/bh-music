@@ -22,7 +22,11 @@ export interface PlaylistSlice {
     tracks: MusicTrack[]
   ) => void;
   reorderPlaylistTracks: (playlistId: string, tracks: MusicTrack[]) => void;
-  updateTrackInPlaylists: (trackId: string, newTrack: MusicTrack) => number;
+  updateTrackInPlaylists: (
+    trackId: string,
+    newTrack: MusicTrack,
+    playlistId?: string
+  ) => number;
 }
 
 export const createPlaylistSlice: StateCreator<
@@ -149,10 +153,12 @@ export const createPlaylistSlice: StateCreator<
         is_deleted: false,
       })),
     })),
-  updateTrackInPlaylists: (tid, newTrack) => {
+  updateTrackInPlaylists: (tid, newTrack, pid) => {
     let count = 0;
     set((s) => ({
       playlists: s.playlists.map((p) => {
+        // 如果指定了 playlistId，只更新该歌单
+        if (pid && p.id !== pid) return p;
         if (!p.tracks.some((t) => t.id === tid)) return p;
         count++;
         return {
