@@ -30,7 +30,6 @@ import {
 } from "@/types/music";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
-import { useShallow } from "zustand/react/shallow";
 import { MusicProviderFactory } from "@/lib/music-provider";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
 import { handleAutoMatch } from "@/lib/audio-match";
@@ -110,12 +109,6 @@ export function MusicTrackMobileMenu({
   const [showSourceSwitch, setShowSourceSwitch] = useState(false);
 
   // Zustand Store
-  const { playlists, favorites } = useMusicStore(
-    useShallow((s) => ({
-      playlists: s.playlists,
-      favorites: s.favorites,
-    }))
-  );
   const setSearchQuery = useMusicStore((s) => s.setSearchQuery);
   const setSearchResults = useMusicStore((s) => s.setSearchResults);
   const setSearchIntent = useMusicStore((s) => s.setSearchIntent);
@@ -123,14 +116,16 @@ export function MusicTrackMobileMenu({
 
   const provider = MusicProviderFactory.getProvider(track.source);
 
-  // 缓存音源切换可用性判断，避免每次渲染都遍历 favorites 和 playlists
+  // 音源切换可用性：仅收藏页、歌单页、或当前正在播放的歌曲允许切换
   const canSwitchSource = useMemo(() => {
     if (track.source === "local" || track.source === "podcast") return false;
-    return (
-      favorites.some((t) => t.id === track.id) ||
-      playlists.some((p) => p.tracks.some((t) => t.id === track.id))
-    );
-  }, [track.id, track.source, favorites, playlists]);
+    const { queue, currentIndex } = useMusicStore.getState();
+    if (queue[currentIndex]?.id === track.id) return true;
+    const path = location.pathname;
+    if (path === "/favorites") return true;
+    if (path.startsWith("/playlist/")) return true;
+    return false;
+  }, [track.id, track.source, location.pathname]);
 
   const handleSearch = async (
     keyword: string,
