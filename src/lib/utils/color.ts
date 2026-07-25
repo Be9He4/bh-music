@@ -53,7 +53,7 @@ export function pickBestColor(candidates: (string | SwatchData)[]): HSL | null {
 
     // 权重大于零时加入占比分，否则仅依靠色彩指标
     const score = hasPopulation
-      ? populationScore * 0.4 + vibrance * 0.4 + colorfulness * 0.2
+      ? populationScore * 0.3 + vibrance * 0.5 + colorfulness * 0.2
       : vibrance * 0.6 + colorfulness * 0.4;
 
     if (score > bestScore) {
@@ -62,7 +62,8 @@ export function pickBestColor(candidates: (string | SwatchData)[]): HSL | null {
     }
   }
 
-  if (!bestColor) return null;
+  // 最低评分阈值：避免在所有候选都较差时仍强行选择
+  if (!bestColor || bestScore < 40) return null;
 
   const { h, s, l } = bestColor.toHsl();
   return [Math.round(h), Math.round(s), Math.round(l)];
@@ -83,7 +84,7 @@ export function createBackgroundColor(dominant: HSL): HSL {
   // 结合默认固定亮度（20）求均值，防止极端色彩下背景过暗
   const finalL = Math.round((mixedL + 20) / 2);
 
-  return [Math.round(h), Math.round(newS), clamp(finalL, 16, 24)];
+  return [Math.round(h), Math.round(newS), clamp(finalL, 18, 27)];
 }
 
 function clamp(value: number, min: number, max: number): number {

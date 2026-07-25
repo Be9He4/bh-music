@@ -30,6 +30,7 @@ import {
 } from "@/types/music";
 import { useNavigate } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
+import { useShallow } from "zustand/react/shallow";
 import { MusicProviderFactory } from "@/lib/music-provider";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
 import { handleAutoMatch } from "@/lib/audio-match";
@@ -108,10 +109,12 @@ export function MusicTrackMobileMenu({
   const [showSourceSwitch, setShowSourceSwitch] = useState(false);
 
   // Zustand Store
-  const { playlists, favorites } = useMusicStore((s) => ({
-    playlists: s.playlists,
-    favorites: s.favorites,
-  }));
+  const { playlists, favorites } = useMusicStore(
+    useShallow((s) => ({
+      playlists: s.playlists,
+      favorites: s.favorites,
+    }))
+  );
   const setSearchQuery = useMusicStore((s) => s.setSearchQuery);
   const setSearchResults = useMusicStore((s) => s.setSearchResults);
   const setSearchIntent = useMusicStore((s) => s.setSearchIntent);
