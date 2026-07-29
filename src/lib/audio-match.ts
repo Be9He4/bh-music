@@ -14,6 +14,7 @@ import {
   convertT2SOnly,
 } from "./utils/music-key";
 import { logger } from "@/lib/logger";
+import { useUrlCacheStore, buildUrlCacheKey } from "@/store/url-cache-store";
 
 /**
  * 计算自动换源的单源内排序分数，优先保证歌名与歌手完全一致。
@@ -136,6 +137,17 @@ export async function handleAutoMatch(
     }
 
     updateTrackInQueue(track.id, finalTrack);
+
+    // 清除目标音源的 URL 缓存，强制重新获取音频 URL
+    // 避免复用之前缓存中的试听片段（如 _netease 的 30 秒预览）
+    const currentQuality = useMusicStore.getState().quality;
+    const newCacheKey = buildUrlCacheKey(
+      finalTrack.source,
+      finalTrack.id,
+      finalTrack.url_id,
+      currentQuality
+    );
+    useUrlCacheStore.getState().delete(newCacheKey);
 
     // 判断当前页面上下文（手动换源时基于页面路径，自动换源时基于 contextId）
     const isOnFavoritesPage = pagePath === "/favorites";
