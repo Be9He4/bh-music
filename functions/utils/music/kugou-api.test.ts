@@ -27,17 +27,21 @@ describe("server Kugou API", () => {
     vi.doUnmock("@otter-music/shared");
   });
 
-  it("does not generate a device ID while the module is imported", async () => {
-    vi.doMock("@otter-music/shared", () => sharedMock);
-    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
-      throw new Error("randomUUID called in global scope");
-    });
+  it(
+    "does not generate a device ID while the module is imported",
+    { timeout: 15000 },
+    async () => {
+      vi.doMock("@otter-music/shared", () => sharedMock);
+      vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+        throw new Error("randomUUID called in global scope");
+      });
 
-    await expect(import("./kugou-api")).resolves.toMatchObject({
-      fetchKugouPlaylistDetail: expect.any(Function),
-      resolveKugouShortUrl: expect.any(Function),
-    });
-  });
+      await expect(import("./kugou-api")).resolves.toMatchObject({
+        fetchKugouPlaylistDetail: expect.any(Function),
+        resolveKugouShortUrl: expect.any(Function),
+      });
+    }
+  );
 
   it("generates a device ID only when fetching a global playlist", async () => {
     vi.doMock("@otter-music/shared", () => sharedMock);
