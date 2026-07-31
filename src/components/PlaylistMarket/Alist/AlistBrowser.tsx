@@ -15,23 +15,12 @@ import {
   Play,
   ChevronRight,
   Home,
-  MoreHorizontal,
-  Server,
   Search,
   X,
   ArrowDownAZ,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-
-// --- 工具函数 ---
-const getDomain = (url: string) => {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-};
 
 const splitPath = (path: string) => {
   if (!path || path === "/") return [{ name: "根目录", path: "/" }];
@@ -226,48 +215,6 @@ const TrackItem = ({
     )}
   </div>
 );
-
-// --- 主组件 ---
-export function AlistServerCard({
-  server,
-  onEdit,
-}: {
-  server: AlistServer;
-  onEdit: () => void;
-}) {
-  const navigate = useNavigate();
-  return (
-    <div
-      onClick={() => navigate(`/alist/${server.id}`)}
-      className="group relative flex items-center justify-between p-3 rounded-lg border border-border/40 bg-card/60 hover:bg-accent/50 hover:border-border transition-all cursor-pointer"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="p-2 rounded-md bg-primary/10 text-primary shrink-0">
-          <Server className="w-4 h-4" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-medium line-clamp-1 group-hover:text-primary transition-colors">
-            {server.name}
-          </h3>
-          <p className="text-[11px] text-muted-foreground/70 line-clamp-1">
-            {getDomain(server.serverUrl)}
-          </p>
-        </div>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-        onClick={(e) => {
-          e.stopPropagation();
-          onEdit();
-        }}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
 
 export function AlistBrowser({
   serverId,

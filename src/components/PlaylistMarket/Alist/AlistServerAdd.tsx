@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +34,14 @@ export function AlistServerAdd({
   const [token, setToken] = useState(editingServer?.token ?? "");
   const [rootPath, setRootPath] = useState(editingServer?.rootPath ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  // 编辑时回填原数据：组件常驻挂载，editingServer 变化时需同步表单状态
+  useEffect(() => {
+    setName(editingServer?.name ?? "");
+    setServerUrl(editingServer?.serverUrl ?? "");
+    setToken(editingServer?.token ?? "");
+    setRootPath(editingServer?.rootPath ?? "");
+  }, [editingServer]);
 
   const normalizedUrl = serverUrl.trim();
   const normalizedRoot = rootPath.trim() || "/";

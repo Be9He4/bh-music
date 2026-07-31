@@ -1,7 +1,11 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SPECIAL_CATS, RECOMMEND_CATS } from "@/lib/netease/netease-cats";
+import {
+  SPECIAL_CATS,
+  RECOMMEND_CATS,
+  ALIST_CAT,
+} from "@/lib/netease/netease-cats";
 import {
   getPlaylists,
   getToplist,
@@ -35,7 +39,10 @@ const getSnapshotKey = (category: string, tab: string) =>
 
 export function PlaylistMarket() {
   const navigate = useNavigate();
-  const activeCategory = useMusicStore((s) => s.lastPlaylistCategory);
+  const rawLastCategory = useMusicStore((s) => s.lastPlaylistCategory);
+  // 历史版本 Alist 分类 id 为小写，归一化为大写
+  const activeCategory =
+    rawLastCategory === "alist" ? "Alist" : rawLastCategory;
   const setActiveCategory = useMusicStore((s) => s.setLastPlaylistCategory);
   const rssSources = usePodcastStore((s) => s.rssSources);
   const featuredTab = useMusicStore(
@@ -65,7 +72,7 @@ export function PlaylistMarket() {
   const isBrowseEnabled =
     activeCategory !== "mine" &&
     activeCategory !== "播客" &&
-    activeCategory !== "alist" &&
+    activeCategory !== "Alist" &&
     !(activeCategory === "全部" && !!searchQuery);
 
   const isSearchEnabled = activeCategory === "全部" && !!searchQuery;
@@ -75,7 +82,7 @@ export function PlaylistMarket() {
       fetch: async (offset: number) => {
         const category =
           activeCategory === "featured" ? featuredTab : activeCategory;
-        if (category === "mine" || category === "播客" || category === "alist")
+        if (category === "mine" || category === "播客" || category === "Alist")
           return null;
         const isToplist = category === "toplist";
         const cacheKey = `market-playlist:v2:${category || "all"}:${isToplist ? 0 : offset}`;
@@ -188,7 +195,7 @@ export function PlaylistMarket() {
     if (
       activeCategory === "mine" ||
       activeCategory === "播客" ||
-      activeCategory === "alist"
+      activeCategory === "Alist"
     )
       return;
 
@@ -238,15 +245,18 @@ export function PlaylistMarket() {
       (browse.items.length > 0 ||
         activeCategory === "mine" ||
         activeCategory === "播客" ||
-        activeCategory === "alist")
+        activeCategory === "Alist")
   );
 
   const displayFilters = useMemo(() => {
-    const base = [...RECOMMEND_CATS, { id: "alist", name: "Alist" }];
+    const hasAlistServer = alistServers.some((s) => !s.is_deleted);
+    const base = hasAlistServer
+      ? [...RECOMMEND_CATS, ALIST_CAT]
+      : [...RECOMMEND_CATS];
     if (!activeCategory || base.some((f) => f.id === activeCategory))
       return base;
     return [...base, { id: activeCategory, name: activeCategory }];
-  }, [activeCategory]);
+  }, [activeCategory, alistServers]);
 
   // Scroll active category into view
   useEffect(() => {
@@ -345,7 +355,7 @@ export function PlaylistMarket() {
               onOpenChange={setIsAddPodcastOpen}
             />
           </div>
-        ) : activeCategory === "alist" ? (
+        ) : activeCategory === "Alist" ? (
           <div className="p-4 pb-24">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-3 gap-y-4">
               <div
