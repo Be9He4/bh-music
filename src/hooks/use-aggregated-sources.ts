@@ -2,8 +2,8 @@ import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import type { MusicSource } from "@/types/music";
 
-export const EXCLUDED_FOR_SEARCH = ["local", "podcast"];
-export const EXCLUDED_FOR_AUTO_MATCH = ["local", "podcast"];
+export const EXCLUDED_FOR_SEARCH = ["local", "podcast", "alist"];
+export const EXCLUDED_FOR_AUTO_MATCH = ["local", "podcast", "alist"];
 
 const getEnabledSourcesInOrder = (): MusicSource[] => {
   const { sourceConfigs } = useMusicStore.getState();

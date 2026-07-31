@@ -1,6 +1,7 @@
 export enum storeKey {
   MusicStore = "oh_music_store",
   PodcastStore = "oh_podcast_store",
+  AlistStore = "oh_alist_store",
   SyncStore = "oh_sync_store",
   SourceQualityStore = "oh_source_quality_store_v2",
   LocalMusicStore = "oh_local_music_store",

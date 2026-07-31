@@ -55,6 +55,7 @@ export const sourceLabels: Record<string, string> = {
   qq: "QQ",
   lx_kuwo: "小蜗",
   lx_qq: "小秋",
+  alist: "Alist",
 };
 
 export const aggregatedSourceOptions: {
@@ -170,7 +171,8 @@ export type MusicSource =
   | "all"
   | "local"
   | "lx_kuwo"
-  | "lx_qq";
+  | "lx_qq"
+  | "alist";
 
 export interface SearchIntent {
   type: "artist" | "album" | "playlist" | "";

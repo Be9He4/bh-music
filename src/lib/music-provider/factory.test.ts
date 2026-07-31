@@ -46,6 +46,17 @@ const bilibiliTrack: MusicTrack = {
   source: "bilibili",
 };
 
+const alistTrack: MusicTrack = {
+  id: "alist:missing-server:/music/test.mp3",
+  name: "test",
+  artist: ["Alist"],
+  album: "/music",
+  pic_id: "",
+  url_id: "/music/test.mp3",
+  lyric_id: "_alist",
+  source: "alist",
+};
+
 describe("MusicProviderFactory", () => {
   it("creates a safe placeholder provider for Kugou tracks", async () => {
     const provider = MusicProviderFactory.getProvider("kugou");
@@ -90,5 +101,19 @@ describe("MusicProviderFactory", () => {
       "https://y.gtimg.cn/music/photo_new/T002R800x800M000abc.jpg"
     );
     await expect(provider.getLyric(qqTrack)).resolves.toBeNull();
+  });
+
+  it("creates a provider for Alist tracks", async () => {
+    const provider = MusicProviderFactory.getProvider("alist");
+    expect(provider.source).toBe("alist");
+    // search 返回空（Alist 已排除聚合搜索）
+    await expect(provider.search("测试", 1, 20)).resolves.toEqual({
+      items: [],
+      hasMore: false,
+    });
+    // 服务器不存在时 getUrl 返回 null
+    await expect(provider.getUrl(alistTrack)).resolves.toBeNull();
+    await expect(provider.getPic(alistTrack)).resolves.toBeNull();
+    await expect(provider.getLyric(alistTrack)).resolves.toBeNull();
   });
 });

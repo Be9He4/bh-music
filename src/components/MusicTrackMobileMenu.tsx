@@ -118,7 +118,12 @@ export function MusicTrackMobileMenu({
 
   // 音源切换可用性：仅收藏页、歌单页、或当前正在播放的歌曲允许切换
   const canSwitchSource = useMemo(() => {
-    if (track.source === "local" || track.source === "podcast") return false;
+    if (
+      track.source === "local" ||
+      track.source === "podcast" ||
+      track.source === "alist"
+    )
+      return false;
     const { queue, currentIndex } = useMusicStore.getState();
     if (queue[currentIndex]?.id === track.id) return true;
     const path = location.pathname;
@@ -316,43 +321,47 @@ export function MusicTrackMobileMenu({
               </ActionButton>
             )}
 
-            {/* 除播客外，有歌手即显示歌手入口 */}
-            {track.source !== "podcast" && track.artist?.length > 0 && (
-              <ActionButton
-                icon={User}
-                onClick={() => {
-                  if (track.artist.length > 1) {
-                    setShowArtistSelection(true);
-                  } else {
-                    handleSearch(
-                      track.artist[0],
-                      "artist",
-                      undefined,
-                      track.artist_ids?.[0]
-                    );
-                  }
-                }}
-              >
-                歌手：{track.artist.join(" / ")}
-              </ActionButton>
-            )}
+            {/* 除播客/Alist 外，有歌手即显示歌手入口 */}
+            {track.source !== "podcast" &&
+              track.source !== "alist" &&
+              track.artist?.length > 0 && (
+                <ActionButton
+                  icon={User}
+                  onClick={() => {
+                    if (track.artist.length > 1) {
+                      setShowArtistSelection(true);
+                    } else {
+                      handleSearch(
+                        track.artist[0],
+                        "artist",
+                        undefined,
+                        track.artist_ids?.[0]
+                      );
+                    }
+                  }}
+                >
+                  歌手：{track.artist.join(" / ")}
+                </ActionButton>
+              )}
 
-            {/* 除播客外，有专辑即显示专辑入口 */}
-            {track.source !== "podcast" && track.album && (
-              <ActionButton
-                icon={Disc}
-                onClick={() => {
-                  handleSearch(
-                    track.album!,
-                    "album",
-                    track.artist[0],
-                    track.album_id
-                  );
-                }}
-              >
-                专辑：{track.album}
-              </ActionButton>
-            )}
+            {/* 除播客/Alist 外，有专辑即显示专辑入口 */}
+            {track.source !== "podcast" &&
+              track.source !== "alist" &&
+              track.album && (
+                <ActionButton
+                  icon={Disc}
+                  onClick={() => {
+                    handleSearch(
+                      track.album!,
+                      "album",
+                      track.artist[0],
+                      track.album_id
+                    );
+                  }}
+                >
+                  专辑：{track.album}
+                </ActionButton>
+              )}
 
             {/* 音源显示：local/podcast 或歌曲不在任何歌单/收藏中时不可切换 */}
             <Button
