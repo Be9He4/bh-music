@@ -367,7 +367,7 @@ export function AlistBrowser({
     if (!kw || !server) return;
     setSearchState((s) => ({ ...s, query: kw, loading: true, error: false }));
     try {
-      const results = await searchFiles(server, kw, 0, 1, 50);
+      const results = await searchFiles(server, kw, 0, 1, 50, currentPath);
       setSearchState((s) => ({ ...s, results, loading: false }));
     } catch (e) {
       logger.error("alist", "searchFiles failed", String(e), {
@@ -437,7 +437,7 @@ export function AlistBrowser({
         <div>
           <div className="flex items-center justify-between px-4 py-2 text-[11px] text-muted-foreground/60 border-b border-border/30">
             <span>
-              全局搜索「{searchState.query}」 · {globalAudioTracks.length} 首
+              搜索「{searchState.query}」 · {globalAudioTracks.length} 首
             </span>
           </div>
           <div className="divide-y divide-border/30 text-sm">
@@ -579,7 +579,7 @@ export function AlistBrowser({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
           <Input
             className="pl-9 pr-8 h-9 bg-background/60"
-            placeholder="回车全局搜索"
+            placeholder="回车搜索当前目录"
             value={searchInput}
             onChange={(e) => {
               setSearchInput(e.target.value);

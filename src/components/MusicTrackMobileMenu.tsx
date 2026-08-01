@@ -18,6 +18,7 @@ import {
   MessageSquareQuote,
   Link2,
   Check,
+  Folder,
 } from "lucide-react";
 import { ReactNode, useState, useMemo } from "react";
 import { MusicCover } from "./MusicCover";
@@ -34,6 +35,7 @@ import { MusicProviderFactory } from "@/lib/music-provider";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
 import { handleAutoMatch } from "@/lib/audio-match";
 import { getAllVisibleSourcesForSwitch } from "@/hooks/use-aggregated-sources";
+import { parseAlistTrackId } from "@/lib/alist/alist-api";
 import {
   Dialog,
   DialogContent,
@@ -362,6 +364,27 @@ export function MusicTrackMobileMenu({
                   专辑：{track.album}
                 </ActionButton>
               )}
+
+            {/* Alist 音源：专辑入口跳转到所在目录 */}
+            {track.source === "alist" && track.album && (
+              <ActionButton
+                icon={Folder}
+                onClick={() => {
+                  const parsed = parseAlistTrackId(track.id);
+                  if (!parsed) return;
+                  onOpenChange(false);
+                  onNavigate?.();
+                  navigate(
+                    `/alist/${parsed.serverId}?path=${encodeURIComponent(
+                      track.album
+                    )}`
+                  );
+                }}
+              >
+                目录：
+                {track.album.split("/").filter(Boolean).pop() || track.album}
+              </ActionButton>
+            )}
 
             {/* 音源显示：local/podcast 或歌曲不在任何歌单/收藏中时不可切换 */}
             <Button

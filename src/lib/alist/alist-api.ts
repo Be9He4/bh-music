@@ -128,17 +128,19 @@ export async function listDir(
  * @param scope 0=全部 1=文件夹 2=文件
  * @param page 页码
  * @param per_page 每页数量
+ * @param parent 搜索根目录，默认 "/" 即整站递归
  */
 export async function searchFiles(
   server: AlistServer,
   keywords: string,
   scope: 0 | 1 | 2 = 2,
   page: number = 1,
-  per_page: number = 20
+  per_page: number = 20,
+  parent: string = "/"
 ): Promise<AlistFsItem[]> {
   try {
     const data = await alistPost<AlistListData>(server, "/api/fs/search", {
-      parent: "/",
+      parent,
       keywords,
       scope,
       page,
@@ -154,6 +156,27 @@ export async function searchFiles(
     );
     return [];
   }
+}
+
+/** Alist track.id 前缀 */
+const ALIST_ID_PREFIX = "alist:";
+
+/**
+ * 解析 Alist track.id 为 { serverId, filePath }
+ * id 格式：alist:<serverId>:<fullPath>
+ * 解析失败返回 null。
+ */
+export function parseAlistTrackId(
+  id: string
+): { serverId: string; filePath: string } | null {
+  if (!id.startsWith(ALIST_ID_PREFIX)) return null;
+  const rest = id.slice(ALIST_ID_PREFIX.length);
+  const colonIdx = rest.indexOf(":");
+  if (colonIdx === -1) return null;
+  return {
+    serverId: rest.slice(0, colonIdx),
+    filePath: rest.slice(colonIdx + 1),
+  };
 }
 
 /**
