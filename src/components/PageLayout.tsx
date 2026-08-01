@@ -16,7 +16,6 @@ interface PageLayoutProps {
 export function PageLayout({
   title,
   onBack,
-  onHome,
   action,
   children,
   className,
@@ -33,12 +32,7 @@ export function PageLayout({
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <PageHeader
-        title={title}
-        onBack={handleBack}
-        onHome={onHome}
-        action={action}
-      />
+      <PageHeader title={title} onBack={handleBack} action={action} />
       {children}
     </div>
   );

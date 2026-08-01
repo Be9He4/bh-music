@@ -375,7 +375,7 @@ export function PlaylistMarket() {
                 </div>
                 <div className="px-0.5 text-center">
                   <h3 className="text-[13px] font-medium leading-snug text-muted-foreground group-hover:text-primary transition-colors">
-                    添加服务器
+                    添加站点
                   </h3>
                 </div>
               </div>

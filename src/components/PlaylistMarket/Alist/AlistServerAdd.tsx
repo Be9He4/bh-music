@@ -83,7 +83,7 @@ export function AlistServerAdd({
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      toast("请填写合法的服务器地址");
+      toast("请填写合法的站点地址");
       return;
     }
 
@@ -120,6 +120,7 @@ export function AlistServerAdd({
 
   const handleDelete = () => {
     if (!editingServer) return;
+    if (!confirm("确定删除此站点?")) return;
     removeServer(editingServer.id);
     toast.success("已删除");
     onOpenChange(false);
@@ -136,10 +137,10 @@ export function AlistServerAdd({
       <DrawerContent className="max-h-[90vh] overflow-hidden">
         <DrawerHeader className="mb-1 px-4">
           <DrawerTitle className="text-center text-lg">
-            {isEdit ? "编辑 Alist 服务器" : "添加 Alist 服务器"}
+            {isEdit ? "编辑 Alist 站点" : "添加 Alist 站点"}
           </DrawerTitle>
           <DrawerDescription className="text-center text-xs">
-            填写服务器地址与访问凭证，将验证根目录连通性
+            填写站点地址与访问凭证，将验证根目录连通性
           </DrawerDescription>
         </DrawerHeader>
 
@@ -200,7 +201,7 @@ export function AlistServerAdd({
               onClick={handleDelete}
               disabled={submitting}
             >
-              删除服务器
+              删除站点
             </Button>
           )}
         </div>

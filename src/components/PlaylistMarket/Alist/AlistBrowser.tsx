@@ -5,6 +5,7 @@ import { PageError } from "@/components/PageError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAlistStore } from "@/store/alist-store";
+import { useMusicStore } from "@/store/music-store";
 import { listDir, searchFiles, isAudioFile, joinPath } from "@/lib/alist";
 import type { AlistServer, AlistFsItem } from "@/types/alist";
 import type { MusicTrack } from "@/types/music";
@@ -18,9 +19,11 @@ import {
   Search,
   X,
   ArrowDownAZ,
+  ListPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import toast from "react-hot-toast";
 
 const splitPath = (path: string) => {
   if (!path || path === "/") return [{ name: "根目录", path: "/" }];
@@ -108,6 +111,19 @@ const naturalSort = (a: { name: string }, b: { name: string }) =>
     sensitivity: "base",
   });
 
+/** 格式化文件大小:< 1MB 显示 KB,≥ 1MB 显示 MB,1 位小数 */
+const formatSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return "";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+/** 从文件路径提取扩展名(小写,无前导点) */
+const getFormat = (path: string): string => {
+  const m = path.match(/\.([^.]+)$/);
+  return m ? m[1].toLowerCase() : "";
+};
+
 // --- 公共 UI 组件 ---
 const PlayIndicator = () => (
   <div className="flex items-end gap-0.5 h-3 shrink-0 ml-2">
@@ -166,55 +182,71 @@ const DirItem = ({
 const TrackItem = ({
   track,
   parent,
+  size,
   isActive,
   isPlaying,
   onClick,
 }: {
   track: MusicTrack;
   parent?: string;
+  size?: number;
   isActive: boolean;
   isPlaying?: boolean;
   onClick: () => void;
-}) => (
-  <div
-    onClick={onClick}
-    className={cn(
-      LIST_ITEM_CLASS,
-      isActive ? "bg-primary/10 text-primary" : "text-foreground/90"
-    )}
-  >
-    <div className="flex items-center gap-3 min-w-0 flex-1">
-      <Music
-        className={cn(
-          "w-4 h-4 shrink-0",
-          isActive
-            ? "text-primary"
-            : "text-muted-foreground/60 group-hover:text-foreground"
-        )}
-      />
-      <div className="min-w-0">
-        <span
+}) => {
+  const fmt = getFormat(track.url_id);
+  const sizeStr = formatSize(size);
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        LIST_ITEM_CLASS,
+        isActive ? "bg-primary/10 text-primary" : "text-foreground/90"
+      )}
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <Music
           className={cn(
-            "truncate font-medium block",
-            isActive && "font-semibold"
+            "w-4 h-4 shrink-0",
+            isActive
+              ? "text-primary"
+              : "text-muted-foreground/60 group-hover:text-foreground"
           )}
-        >
-          {track.name}
-        </span>
-        {parent && (
-          <span className="text-[11px] text-muted-foreground/50 truncate block">
-            {parent}
+        />
+        <div className="min-w-0">
+          <span
+            className={cn(
+              "truncate font-medium block",
+              isActive && "font-semibold"
+            )}
+          >
+            {track.name}
           </span>
-        )}
+          {(parent || sizeStr || fmt) && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50 mt-0.5">
+              {parent && <span className="truncate">{parent}</span>}
+              {sizeStr && (
+                <span className="shrink-0 text-muted-foreground/40">
+                  {sizeStr}
+                </span>
+              )}
+              {fmt && (
+                <span className="shrink-0 uppercase text-[10px] text-muted-foreground/40">
+                  {fmt}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      {isActive && isPlaying ? (
+        <PlayIndicator />
+      ) : (
+        <Play className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      )}
     </div>
-    {isActive && isPlaying ? (
-      <PlayIndicator />
-    ) : (
-      <Play className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-    )}
-  </div>
-);
+  );
+};
 
 export function AlistBrowser({
   serverId,
@@ -232,6 +264,8 @@ export function AlistBrowser({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const servers = useAlistStore((s) => s.servers);
+  const createPlaylist = useMusicStore((s) => s.createPlaylist);
+  const addBatchToPlaylist = useMusicStore((s) => s.addBatchToPlaylist);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const server = useMemo(
@@ -279,17 +313,27 @@ export function AlistBrowser({
   const isLoaded = loadState.path === currentPath;
   const keyword = searchInput.trim().toLowerCase();
 
-  // 数据过滤与自然排序
-  const { subDirs, audioTracks } = useMemo(() => {
-    if (!server || !isLoaded) return { subDirs: [], audioTracks: [] };
+  // 数据过滤与自然排序,同时构建 trackId → size 映射供 TrackItem 展示
+  const { subDirs, audioTracks, sizeMap } = useMemo(() => {
+    if (!server || !isLoaded)
+      return {
+        subDirs: [],
+        audioTracks: [],
+        sizeMap: new Map<string, number>(),
+      };
     const dirs: AlistFsItem[] = [];
     const tracks: MusicTrack[] = [];
+    const sizeMap = new Map<string, number>();
 
     for (const item of loadState.items) {
       if (keyword && !item.name.toLowerCase().includes(keyword)) continue;
-      item.is_dir
-        ? dirs.push(item)
-        : isAudioFile(item.name) && tracks.push(fsItemToTrack(item, server));
+      if (item.is_dir) {
+        dirs.push(item);
+      } else if (isAudioFile(item.name)) {
+        const track = fsItemToTrack(item, server);
+        tracks.push(track);
+        if (item.size) sizeMap.set(track.id, item.size);
+      }
     }
 
     if (isSorted) {
@@ -297,7 +341,7 @@ export function AlistBrowser({
       tracks.sort(naturalSort);
     }
 
-    return { subDirs: dirs, audioTracks: tracks };
+    return { subDirs: dirs, audioTracks: tracks, sizeMap };
   }, [isLoaded, loadState.items, server, keyword, isSorted]);
 
   const globalAudioTracks = useMemo(() => {
@@ -344,6 +388,27 @@ export function AlistBrowser({
     setSearchParams({ path });
   };
 
+  /** 把当前可见音频列表一次性导入为普通歌单(快照,不与 Alist 同步) */
+  const handleImportToPlaylist = () => {
+    if (!server || playableTracks.length === 0) return;
+    const dirName =
+      searchState.query !== null
+        ? `搜索:${searchState.query}`
+        : currentPath.split("/").filter(Boolean).pop() || "根目录";
+    const playlistName = `${server.name} · ${dirName}`;
+    try {
+      const id = createPlaylist(playlistName);
+      addBatchToPlaylist(id, playableTracks);
+      toast.success(`已导入歌单「${playlistName}」`);
+    } catch (e) {
+      logger.error("alist", "import to playlist failed", String(e), {
+        serverId: server.id,
+        path: currentPath,
+      });
+      toast.error("导入失败,请重试");
+    }
+  };
+
   // 渲染主体内容(扁平化)
   const renderContent = () => {
     if (searchState.query !== null) {
@@ -352,7 +417,7 @@ export function AlistBrowser({
       if (searchState.error)
         return (
           <StatusView
-            text="搜索失败，请检查服务器与网络"
+            text="搜索失败，请检查站点与网络"
             action={
               <Button variant="outline" size="sm" onClick={handleSearchSubmit}>
                 重试
@@ -390,6 +455,7 @@ export function AlistBrowser({
                 <TrackItem
                   key={item.name}
                   parent={item.parent}
+                  size={item.size}
                   track={fsItemToTrack(item, server!)}
                   isActive={currentTrackId === fsItemToTrack(item, server!).id}
                   isPlaying={isPlaying}
@@ -411,37 +477,45 @@ export function AlistBrowser({
     if (!isLoaded) return <StatusView icon={Loader2} text="加载中..." />;
     if (loadState.error) return <PageError onRetry={() => navigate(0)} />;
     if (!subDirs.length && !audioTracks.length)
-      return <StatusView text={keyword ? "无匹配结果" : "空目录"} />;
+      return (
+        <StatusView text={keyword ? "无匹配结果" : "此目录暂无音频文件"} />
+      );
 
     return (
-      <div className="divide-y divide-border/30 text-sm">
-        {subDirs.map((dir) => (
-          <DirItem
-            key={dir.name}
-            name={dir.name}
-            onClick={() => navigateToDir(joinPath(dir.parent, dir.name))}
-          />
-        ))}
-        {audioTracks.map((track) => (
-          <TrackItem
-            key={track.id}
-            track={track}
-            isActive={currentTrackId === track.id}
-            isPlaying={isPlaying}
-            onClick={() => onPlay(track, audioTracks, "alist")}
-          />
-        ))}
+      <div>
+        <div className="flex items-center justify-between px-4 py-2 text-[11px] text-muted-foreground/60 border-b border-border/30">
+          <span>
+            {subDirs.length > 0 && `${subDirs.length} 个文件夹`}
+            {subDirs.length > 0 && audioTracks.length > 0 && " · "}
+            {audioTracks.length > 0 && `${audioTracks.length} 首`}
+          </span>
+        </div>
+        <div className="divide-y divide-border/30 text-sm">
+          {subDirs.map((dir) => (
+            <DirItem
+              key={dir.name}
+              name={dir.name}
+              onClick={() => navigateToDir(joinPath(dir.parent, dir.name))}
+            />
+          ))}
+          {audioTracks.map((track) => (
+            <TrackItem
+              key={track.id}
+              track={track}
+              size={sizeMap.get(track.id)}
+              isActive={currentTrackId === track.id}
+              isPlaying={isPlaying}
+              onClick={() => onPlay(track, audioTracks, "alist")}
+            />
+          ))}
+        </div>
       </div>
     );
   };
 
   if (!server) {
     return (
-      <PageLayout
-        title="Alist"
-        onBack={onBack}
-        onHome={() => navigate("/search")}
-      >
+      <PageLayout title="Alist" onBack={() => navigate("/search")}>
         <PageError onBack={onBack} />
       </PageLayout>
     );
@@ -450,18 +524,29 @@ export function AlistBrowser({
   return (
     <PageLayout
       title={server.name}
-      onBack={onBack}
-      onHome={() => navigate("/search")}
+      onBack={() => navigate("/search")}
       action={
         playableTracks.length > 0 ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            onClick={() => onPlay(playableTracks[0], playableTracks, "alist")}
-          >
-            <Play className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={() => onPlay(playableTracks[0], playableTracks, "alist")}
+              title="播放全部"
+            >
+              <Play className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={handleImportToPlaylist}
+              title="导入为歌单"
+            >
+              <ListPlus className="w-4 h-4" />
+            </Button>
+          </div>
         ) : undefined
       }
     >
@@ -469,18 +554,16 @@ export function AlistBrowser({
       <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border/30 overflow-x-auto no-scrollbar bg-background/50 text-xs">
         {breadcrumbs.map((crumb, idx) => (
           <div key={crumb.path} className="flex items-center gap-1.5 shrink-0">
-            {idx === 0 && (
-              <Home className="w-3.5 h-3.5 text-muted-foreground/70" />
-            )}
             <button
               className={cn(
-                "transition-colors hover:text-foreground",
+                "inline-flex items-center gap-1 transition-colors hover:text-foreground",
                 idx === breadcrumbs.length - 1
                   ? "font-medium text-foreground"
                   : "text-muted-foreground/80"
               )}
               onClick={() => navigateToDir(crumb.path)}
             >
+              {idx === 0 && <Home className="w-3.5 h-3.5" />}
               {crumb.name}
             </button>
             {idx < breadcrumbs.length - 1 && (
@@ -534,7 +617,7 @@ export function AlistBrowser({
       </div>
 
       {/* 目录列表 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-24">
         {renderContent()}
       </div>
     </PageLayout>

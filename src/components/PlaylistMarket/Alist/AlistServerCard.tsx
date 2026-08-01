@@ -8,15 +8,6 @@ interface AlistServerCardProps {
   onEdit: () => void;
 }
 
-/** 从 URL 提取域名作为副标题 */
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-}
-
 export function AlistServerCard({ server, onEdit }: AlistServerCardProps) {
   const navigate = useNavigate();
 
@@ -32,7 +23,7 @@ export function AlistServerCard({ server, onEdit }: AlistServerCardProps) {
       <div className="relative aspect-square rounded-md overflow-hidden shadow-md ring-1 ring-black/5 hover:shadow-xl transition-shadow cursor-pointer bg-gradient-to-br from-primary/10 to-muted/40 flex items-center justify-center">
         <div className="w-8 h-8 shrink-0 flex-[0_0_32px] min-w-8 min-h-8">
           <Server
-            size={32}
+            size={36}
             className="h-full w-full text-primary/70 group-hover:text-primary transition-colors"
           />
         </div>
@@ -54,9 +45,6 @@ export function AlistServerCard({ server, onEdit }: AlistServerCardProps) {
         <h3 className="text-[13px] font-medium leading-snug line-clamp-1 text-foreground/80 group-hover:text-primary transition-colors cursor-pointer">
           {server.name}
         </h3>
-        <p className="text-[11px] text-muted-foreground/60 line-clamp-1">
-          {getDomain(server.serverUrl)}
-        </p>
       </div>
     </div>
   );

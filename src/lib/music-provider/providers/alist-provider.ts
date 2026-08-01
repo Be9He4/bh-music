@@ -38,7 +38,7 @@ function parseFilePathFromTrack(track: MusicTrack): string | null {
   return rest.slice(colonIdx + 1);
 }
 
-/** 根据 track 反查所属的 Alist 服务器配置 */
+/** 根据 track 反查所属的 Alist 站点配置 */
 function resolveServerFromTrack(track: MusicTrack): AlistServer | null {
   const serverId = parseServerIdFromTrack(track);
   if (!serverId) return null;

@@ -1,8 +1,8 @@
-/** Alist 服务器配置 */
+/** Alist 站点配置 */
 export interface AlistServer {
   id: string;
   name: string;
-  /** 服务器地址，如 https://alist.example.com */
+  /** 站点地址，如 https://alist.example.com */
   serverUrl: string;
   /** 访问令牌（作为 Authorization 头或 password 字段） */
   token?: string;
