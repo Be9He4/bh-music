@@ -19,7 +19,7 @@ import {
   Search,
   X,
   ArrowDownAZ,
-  ListPlus,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -532,19 +532,10 @@ export function AlistBrowser({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-primary"
-              onClick={() => onPlay(playableTracks[0], playableTracks, "alist")}
-              title="播放全部"
-            >
-              <Play className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary"
               onClick={handleImportToPlaylist}
-              title="导入为歌单"
+              title="导入歌单"
             >
-              <ListPlus className="w-4 h-4" />
+              <FolderPlus className="w-4 h-4" />
             </Button>
           </div>
         ) : undefined
