@@ -12,10 +12,6 @@ export interface SongUrl {
   size: number;
 }
 
-export interface SongPic {
-  url: string;
-}
-
 export interface SongLyric {
   lyric: string;
   tlyric?: string;
@@ -215,24 +211,4 @@ export interface Playlist {
   is_deleted?: boolean;
   coverUrl?: string;
   description?: string;
-}
-
-export interface LocalMusicTrack extends MusicTrack {
-  localPath: string;
-  fileSize?: number;
-  lastModified?: number;
-}
-
-export interface MusicStoreData {
-  favorites: MusicTrack[];
-  playlists: Playlist[];
-  queue: MusicTrack[];
-  originalQueue?: MusicTrack[];
-  currentIndex: number;
-  volume: number;
-  isRepeat: boolean;
-  isShuffle: boolean;
-  quality: string;
-  searchSource: MusicSource;
-  updatedAt?: number;
 }
