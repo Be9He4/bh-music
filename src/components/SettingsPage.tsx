@@ -98,7 +98,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   return (
     <PageLayout title="系统设置" onBack={onBack}>
-      <div className="flex-1 p-4 pb-28 overflow-y-auto">
+      <div className="flex-1 p-4 pb-bottom-stack overflow-y-auto">
         <SettingsSection title="常用设置">
           <AggregatedSourceSelect />
           <SettingItem

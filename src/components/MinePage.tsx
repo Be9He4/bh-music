@@ -97,11 +97,11 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
   };
 
   return (
-    <div className="p-5 pb-24">
+    <div className="p-5 pb-bottom-stack">
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => navigate("/history")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
+          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/50 border border-border/50 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
             <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
@@ -113,7 +113,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
 
         <button
           onClick={() => navigate("/queue")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
+          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/50 border border-border/50 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
             <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
@@ -125,7 +125,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
 
         <button
           onClick={() => navigate("/local")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
+          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/50 border border-border/50 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
             <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
@@ -140,7 +140,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
 
         <button
           onClick={() => navigate("/settings")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
+          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/50 border border-border/50 hover:bg-card transition-all duration-300"
         >
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
             <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
@@ -232,7 +232,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
           {activePlaylists.map((playlist) => (
             <div
               key={playlist.id}
-              className="flex items-center gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors cursor-pointer group"
+              className="flex items-center gap-3 p-3 rounded-xl bg-card/50 border border-border/50 hover:bg-card transition-colors cursor-pointer group"
               onClick={() => onSelectPlaylist(playlist.id)}
             >
               <PlaylistCover

@@ -34,9 +34,6 @@
   --sidebar-accent-foreground: hsl(205 25% 13%);
   --sidebar-border: hsl(206 35% 87%);
   --sidebar-ring: hsl(158 100% 31%);
-  --gradient-from: hsl(151 81% 90%);
-  --gradient-via: hsl(174 83% 95%);
-  --gradient-to: hsl(188 100% 89%);
 }
 
 .dark {
@@ -69,14 +66,9 @@
   --sidebar-accent-foreground: hsl(213 18% 90%);
   --sidebar-border: hsl(215 15% 16%);
   --sidebar-ring: hsl(169 37% 52%);
-  --gradient-from: hsl(217 41% 9%);
-  --gradient-via: hsl(197 80% 8%);
-  --gradient-to: hsl(178 57% 8%);
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -114,10 +106,6 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --color-gradient-from: var(--gradient-from);
-  --color-gradient-via: var(--gradient-via);
-  --color-gradient-to: var(--gradient-to);
-
   --color-glass-bg: var(--glass-bg);
   --color-glass-border: var(--glass-border);
 
@@ -134,10 +122,8 @@
   --now-playing-safe-height: calc(
     var(--now-playing-base-height) + var(--safe-area-bottom)
   );
-  --bottom-stack-gap: 8px;
   --bottom-stack-height: calc(
-    var(--tab-bar-safe-height) + var(--now-playing-base-height) +
-      var(--bottom-stack-gap)
+    var(--tab-bar-safe-height) + var(--now-playing-base-height)
   );
 }
 
@@ -171,6 +157,9 @@
   }
   .h-safe-bottom {
     height: var(--safe-area-bottom);
+  }
+  .pb-bottom-stack {
+    padding-bottom: var(--bottom-stack-height);
   }
 }
 

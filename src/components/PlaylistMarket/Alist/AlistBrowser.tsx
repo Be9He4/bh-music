@@ -608,7 +608,7 @@ export function AlistBrowser({
       </div>
 
       {/* 目录列表 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-24">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-bottom-stack">
         {renderContent()}
       </div>
     </PageLayout>

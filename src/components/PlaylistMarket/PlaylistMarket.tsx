@@ -277,7 +277,7 @@ export function PlaylistMarket() {
 
   return (
     <div className="flex flex-col h-full bg-background/50 animate-in fade-in duration-500">
-      <header className="sticky top-0 z-20 bg-background/90 backdrop-blur-xl border-b border-white/5 shadow-sm">
+      <header className="sticky top-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/20 shadow-sm">
         <div className="flex items-center justify-between px-3 py-1.5 gap-2">
           <div className="flex-1 overflow-hidden relative">
             <div
@@ -324,7 +324,7 @@ export function PlaylistMarket() {
         {activeCategory === "mine" ? (
           <MineSection />
         ) : activeCategory === "播客" ? (
-          <div className="p-4 pb-24">
+          <div className="p-4 pb-bottom-stack">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-3 gap-y-4">
               <div
                 className="group flex flex-col gap-2.5 transition-all hover:translate-y-[-4px] relative cursor-pointer"
@@ -356,7 +356,7 @@ export function PlaylistMarket() {
             />
           </div>
         ) : activeCategory === "Alist" ? (
-          <div className="p-4 pb-24">
+          <div className="p-4 pb-bottom-stack">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-3 gap-y-4">
               <div
                 className="group flex flex-col gap-2.5 transition-all hover:translate-y-[-4px] relative cursor-pointer"
@@ -402,7 +402,7 @@ export function PlaylistMarket() {
             />
           </div>
         ) : (
-          <div className="p-4 pb-24">
+          <div className="p-4 pb-bottom-stack">
             {activeCategory === "全部" && (
               <div
                 className={cn(
