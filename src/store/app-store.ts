@@ -17,11 +17,14 @@ interface AppState {
   latestVersionInfo: UpdateInfo | null;
   hasUpdate: boolean;
   isChecking: boolean;
+  /** 启动时是否自动检查更新并提醒 */
+  enableUpdateNotify: boolean;
 }
 
 interface AppActions {
   checkUpdate: (silent?: boolean) => Promise<void>;
   resetCheckTime: () => void;
+  setEnableUpdateNotify: (enableUpdateNotify: boolean) => void;
 }
 
 const initialState: AppState = {
@@ -30,6 +33,7 @@ const initialState: AppState = {
   latestVersionInfo: null,
   hasUpdate: false,
   isChecking: false,
+  enableUpdateNotify: true,
 };
 
 /* =========================
@@ -136,6 +140,9 @@ export const useAppStore = create<AppState & AppActions>()(
       },
 
       resetCheckTime: () => set({ lastCheckTime: 0 }),
+
+      setEnableUpdateNotify: (enableUpdateNotify) =>
+        set({ enableUpdateNotify }),
     }),
     {
       name: storeKey.AppStore,
@@ -145,6 +152,7 @@ export const useAppStore = create<AppState & AppActions>()(
         lastCheckTime: state.lastCheckTime,
         latestVersionInfo: state.latestVersionInfo,
         hasUpdate: state.hasUpdate,
+        enableUpdateNotify: state.enableUpdateNotify,
       }),
     }
   )
