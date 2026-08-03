@@ -12,10 +12,6 @@ export interface SongUrl {
   size: number;
 }
 
-export interface SongPic {
-  url: string;
-}
-
 export interface SongLyric {
   lyric: string;
   tlyric?: string;
@@ -55,6 +51,7 @@ export const sourceLabels: Record<string, string> = {
   qq: "QQ",
   lx_kuwo: "小蜗",
   lx_qq: "小秋",
+  alist: "Alist",
 };
 
 export const aggregatedSourceOptions: {
@@ -170,7 +167,8 @@ export type MusicSource =
   | "all"
   | "local"
   | "lx_kuwo"
-  | "lx_qq";
+  | "lx_qq"
+  | "alist";
 
 export interface SearchIntent {
   type: "artist" | "album" | "playlist" | "";
@@ -213,24 +211,4 @@ export interface Playlist {
   is_deleted?: boolean;
   coverUrl?: string;
   description?: string;
-}
-
-export interface LocalMusicTrack extends MusicTrack {
-  localPath: string;
-  fileSize?: number;
-  lastModified?: number;
-}
-
-export interface MusicStoreData {
-  favorites: MusicTrack[];
-  playlists: Playlist[];
-  queue: MusicTrack[];
-  originalQueue?: MusicTrack[];
-  currentIndex: number;
-  volume: number;
-  isRepeat: boolean;
-  isShuffle: boolean;
-  quality: string;
-  searchSource: MusicSource;
-  updatedAt?: number;
 }

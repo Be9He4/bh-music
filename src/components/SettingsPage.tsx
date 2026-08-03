@@ -22,8 +22,11 @@ import {
   Trash2,
   Tag,
   Database,
+  Shield,
+  Bell,
 } from "lucide-react";
 import { Switch } from "./ui/switch";
+import { useAppStore } from "@/store/app-store";
 import {
   Select,
   SelectContent,
@@ -67,10 +70,13 @@ function SettingsSection({
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const navigate = useNavigate();
   const [dataBackupOpen, setDataBackupOpen] = useState(false);
+  const { enableUpdateNotify, setEnableUpdateNotify } = useAppStore();
   const {
     volume,
     setVolume,
     enableAutoMatch,
+    enableProxyFallback,
+    setEnableProxyFallback,
     bilibiliKeepOriginalMeta,
     setBilibiliKeepOriginalMeta,
     showSourceBadge,
@@ -82,6 +88,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       volume: state.volume,
       setVolume: state.setVolume,
       enableAutoMatch: state.enableAutoMatch,
+      enableProxyFallback: state.enableProxyFallback,
+      setEnableProxyFallback: state.setEnableProxyFallback,
       bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
       setBilibiliKeepOriginalMeta: state.setBilibiliKeepOriginalMeta,
       showSourceBadge: state.showSourceBadge,
@@ -93,7 +101,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   return (
     <PageLayout title="系统设置" onBack={onBack}>
-      <div className="flex-1 p-4 pb-28 overflow-y-auto">
+      <div className="flex-1 p-4 pb-bottom-stack overflow-y-auto">
         <SettingsSection title="常用设置">
           <AggregatedSourceSelect />
           <SettingItem
@@ -198,11 +206,33 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <SettingsSection title="高级设置">
           <ApiUrlConfig />
+          <SettingItem
+            icon={Shield}
+            title="代理回退"
+            subtitle="自动切换代理线路（但容易卡顿）"
+            action={
+              <Switch
+                checked={enableProxyFallback}
+                onCheckedChange={setEnableProxyFallback}
+              />
+            }
+          />
           <AutoMatchSetting />
           <StreamCacheSetting />
         </SettingsSection>
 
         <SettingsSection title="关于系统">
+          <SettingItem
+            icon={Bell}
+            title="更新提醒"
+            subtitle="启动时自动检查新版本"
+            action={
+              <Switch
+                checked={enableUpdateNotify}
+                onCheckedChange={setEnableUpdateNotify}
+              />
+            }
+          />
           <UpdateCheck />
           <IssueLogs />
         </SettingsSection>

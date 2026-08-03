@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useState, memo, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LyricsPanel } from "./LyricsPanel";
@@ -41,8 +41,8 @@ import {
 } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
-import { ColorExtractor } from "react-color-extractor";
-import { pickBestColor } from "@/lib/utils/color";
+import { useCoverColors } from "@/hooks/useCoverColors";
+import { pickBestColor, createBackgroundColor } from "@/lib/utils/color";
 
 interface ModeIconProps {
   isRepeat: boolean;
@@ -217,12 +217,15 @@ export function FullScreenPlayer({
     trackInfoPressHandlers,
   } = usePlayerActions(currentTrack, currentAudioUrl);
 
-  const [colorInfo, setColorInfo] = useState<{
-    coverUrl: string | null;
-    hslColor: [number, number, number] | null;
-  }>({ coverUrl: null, hslColor: null });
+  const { swatches } = useCoverColors(
+    coverUrl && fullScreenBackgroundMode === "theme" ? coverUrl : null
+  );
 
-  const hslColor = colorInfo.coverUrl === coverUrl ? colorInfo.hslColor : null;
+  const hslColor = useMemo(() => {
+    if (!swatches) return null;
+    const dominant = pickBestColor(swatches);
+    return dominant ? createBackgroundColor(dominant) : null;
+  }, [swatches]);
 
   const playTrack = (index: number) => setCurrentIndexAndPlay(index);
 
@@ -239,6 +242,7 @@ export function FullScreenPlayer({
 
   if (!isMounted) return null;
 
+  // 循环切换播放模式：none → repeat → shuffle → none
   const handleModeToggle = () => {
     if (!isShuffle && !isRepeat) toggleRepeat();
     else if (isRepeat) {
@@ -264,19 +268,6 @@ export function FullScreenPlayer({
         isFullScreen ? "translate-y-0" : "translate-y-full"
       )}
     >
-      {coverUrl && fullScreenBackgroundMode === "theme" && (
-        <div className="hidden">
-          <ColorExtractor
-            src={coverUrl}
-            maxColors={10}
-            getColors={(colors: string[]) =>
-              setColorInfo({ coverUrl, hslColor: pickBestColor(colors) })
-            }
-            onError={() => setColorInfo({ coverUrl, hslColor: null })}
-          />
-        </div>
-      )}
-
       {/* 背景渲染层 */}
       <BackgroundLayer
         hslColor={hslColor}

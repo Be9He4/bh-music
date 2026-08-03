@@ -19,6 +19,8 @@ const F = (name: string): CatItem => ({
  * 顺序：语种 → 风格 → 场景 → 情感 → 主题
  * ========================================================= */
 
+export const ALIST_CAT: CatItem = F("Alist");
+
 export const NETEASE_CATS: CatGroup[] = [
   {
     category: "语种",
@@ -126,6 +128,7 @@ export const NETEASE_CATS: CatGroup[] = [
       F("80后"),
       F("90后"),
       F("00后"),
+      ALIST_CAT,
     ],
   },
 ];

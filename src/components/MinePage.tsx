@@ -6,7 +6,7 @@ import {
   Settings,
   ListMusic,
   SquarePlus,
-  MoreHorizontal,
+  MoreVertical,
   Trash2,
   Pencil,
   HardDriveDownload,
@@ -96,80 +96,52 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
     }
   };
 
+  const quickNavs = [
+    { label: "历史", icon: History, path: "/history" },
+    { label: "列表", icon: ListVideo, path: "/queue" },
+    { label: "本地", icon: HardDriveDownload, path: "/local" },
+    { label: "设置", icon: Settings, path: "/settings" },
+  ];
+
   return (
-    <div className="p-5 pb-24">
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => navigate("/history")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
-        >
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
-            <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
-              <History size={24} className="h-full w-full text-primary" />
+    <div className="p-5 pb-bottom-stack">
+      <div className="grid grid-cols-4 gap-2 mb-6">
+        {quickNavs.map(({ label, icon: Icon, path }) => (
+          <button
+            key={path}
+            onClick={() => navigate(path)}
+            className="flex flex-col items-center gap-1.5 py-2 rounded-xl hover:bg-muted/50 transition-colors"
+          >
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_40px] min-w-10 min-h-10">
+              <div className="h-5 w-5 shrink-0 flex-[0_0_20px] min-w-5 min-h-5">
+                <Icon size={20} className="h-full w-full text-primary" />
+              </div>
             </div>
-          </div>
-          <span className="text-sm font-medium text-foreground">历史</span>
-        </button>
-
-        <button
-          onClick={() => navigate("/queue")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
-        >
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
-            <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
-              <ListVideo size={24} className="h-full w-full text-primary" />
-            </div>
-          </div>
-          <span className="text-sm font-medium text-foreground">列表</span>
-        </button>
-
-        <button
-          onClick={() => navigate("/local")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
-        >
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
-            <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
-              <HardDriveDownload
-                size={24}
-                className="h-full w-full text-primary"
-              />
-            </div>
-          </div>
-          <span className="text-sm font-medium text-foreground">本地</span>
-        </button>
-
-        <button
-          onClick={() => navigate("/settings")}
-          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-card/70 hover:bg-card transition-all duration-300"
-        >
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_48px] min-w-12 min-h-12">
-            <div className="h-6 w-6 shrink-0 flex-[0_0_24px] min-w-6 min-h-6">
-              <Settings size={24} className="h-full w-full text-primary" />
-            </div>
-          </div>
-          <span className="text-sm font-medium text-foreground">设置</span>
-        </button>
+            <span className="text-xs text-muted-foreground">{label}</span>
+          </button>
+        ))}
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">我的歌单</h2>
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between mb-3 px-1">
+        <h2 className="text-base font-semibold text-foreground">我的歌单</h2>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1"
+            className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
             onClick={() => setIsImportOpen(true)}
           >
-            <Link2 className="h-4 w-4" />
+            <Link2 className="h-3.5 w-3.5" />
             导入
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1"
+            className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
             onClick={() => setIsCreateOpen(true)}
           >
-            <SquarePlus className="h-4 w-4" />
+            <SquarePlus className="h-3.5 w-3.5" />
             新建
           </Button>
         </div>
@@ -228,16 +200,16 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {activePlaylists.map((playlist) => (
             <div
               key={playlist.id}
-              className="flex items-center gap-3 p-3 rounded-xl bg-card/50 hover:bg-card transition-colors cursor-pointer group"
+              className="flex items-center gap-3 p-2 rounded-xl transition-colors cursor-pointer group"
               onClick={() => onSelectPlaylist(playlist.id)}
             >
               <PlaylistCover
                 playlist={playlist}
-                className="h-11 w-11 rounded-lg bg-primary/10 shrink-0"
+                className="h-14 w-14 rounded-lg shrink-0 object-cover"
               />
               <div className="flex-1 min-w-0">
                 {editingPlaylistId === playlist.id ? (
@@ -259,10 +231,10 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
                   />
                 ) : (
                   <>
-                    <p className="font-medium text-foreground truncate">
+                    <p className="font-medium text-foreground text-sm truncate">
                       {playlist.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground/80 mt-0.5">
                       {
                         playlist.tracks.filter(
                           (track) => track.is_deleted !== true
@@ -276,10 +248,10 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="p-2 text-muted-foreground"
+                    className="p-2 text-muted-foreground/60 hover:text-foreground transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MoreHorizontal className="h-4 w-4" />
+                    <MoreVertical className="h-4 w-4" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

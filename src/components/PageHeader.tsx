@@ -25,11 +25,7 @@ export function PageHeader({ title, onBack, action }: PageHeaderProps) {
           <h1 className="font-semibold tracking-tight truncate">{title}</h1>
         </div>
       </div>
-      {action && (
-        <div className="flex-none pl-4">
-          {action}
-        </div>
-      )}
+      {action && <div className="flex-none pl-4">{action}</div>}
     </div>
   );
 }

@@ -109,7 +109,7 @@ export function TrashPage() {
 
           <TabsContent
             value="tracks"
-            className="flex-1 overflow-y-auto mt-0 pb-24 outline-none"
+            className="flex-1 overflow-y-auto mt-0 pb-bottom-stack outline-none"
           >
             {deletedTracks.length === 0 ? (
               <EmptyState icon={Music} text="暂无删除的歌曲" />
@@ -134,7 +134,7 @@ export function TrashPage() {
 
           <TabsContent
             value="playlists"
-            className="flex-1 overflow-y-auto mt-0 pb-24 outline-none"
+            className="flex-1 overflow-y-auto mt-0 pb-bottom-stack outline-none"
           >
             {deletedPlaylists.length === 0 ? (
               <EmptyState icon={ListMusic} text="暂无删除的歌单" />

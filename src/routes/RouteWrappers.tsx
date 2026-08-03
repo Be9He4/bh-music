@@ -59,6 +59,11 @@ const BilibiliCollectionDetail = lazy(() =>
     default: m.BilibiliCollectionDetail,
   }))
 );
+const AlistBrowser = lazy(() =>
+  import("@/components/PlaylistMarket/Alist/AlistBrowser").then((m) => ({
+    default: m.AlistBrowser,
+  }))
+);
 
 // ==========================================
 // 2. 核心优化 Hooks & HOC
@@ -306,6 +311,23 @@ export const BilibiliCollectionDetailRoute = withSuspense(() => {
       id={id || null}
       onBack={() => navigate(-1)}
       onPlay={(track, list) => handlePlay(track, list, "bilibili_collection")}
+      currentTrackId={currentTrackId}
+      isPlaying={isPlaying}
+    />
+  );
+});
+
+export const AlistBrowserRoute = withSuspense(() => {
+  const { serverId } = useParams<{ serverId: string }>();
+  const navigate = useNavigate();
+  const { handlePlay } = usePlayHelper();
+  const { currentTrackId, isPlaying } = usePlaybackState();
+
+  return (
+    <AlistBrowser
+      serverId={serverId || ""}
+      onBack={() => navigate(-1)}
+      onPlay={(track, list, contextId) => handlePlay(track, list, contextId)}
       currentTrackId={currentTrackId}
       isPlaying={isPlaying}
     />

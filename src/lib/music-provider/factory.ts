@@ -3,6 +3,7 @@ import { MusicSource } from "@/types/music";
 import { LocalProvider } from "./providers/local-provider";
 import { AggregateProvider } from "./providers/aggregate-provider";
 import { PodcastProvider } from "./providers/podcast-provider";
+import { AlistProvider } from "./providers/alist-provider";
 import { JooxProvider } from "./providers/joox-provider";
 import { KuwoProvider } from "./providers/kuwo-provider";
 import { KugouApiProvider } from "./providers/kugou-api-provider";
@@ -41,6 +42,9 @@ export class MusicProviderFactory {
         break;
       case "podcast":
         provider = new PodcastProvider();
+        break;
+      case "alist":
+        provider = new AlistProvider();
         break;
       case "joox":
         provider = new JooxProvider();

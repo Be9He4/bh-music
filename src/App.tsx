@@ -24,8 +24,10 @@ export default function App() {
   }, [syncKey]);
 
   useEffect(() => {
-    // 启动时静默检查更新
-    useAppStore.getState().checkUpdate(true);
+    // 启动时静默检查更新（用户关闭更新提醒后跳过）
+    if (useAppStore.getState().enableUpdateNotify) {
+      useAppStore.getState().checkUpdate(true);
+    }
     // 初始化下载记录
     useDownloadStore.getState().init();
 

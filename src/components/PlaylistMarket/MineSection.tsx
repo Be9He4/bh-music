@@ -329,7 +329,7 @@ export function MineSection() {
   const isDataReady = !!mineData[mineTab as keyof typeof mineData];
 
   return (
-    <div className="p-4 pb-24 space-y-6">
+    <div className="p-4 pb-bottom-stack space-y-6">
       <div
         className={cn(
           "flex items-center justify-between mb-4 px-1 relative",

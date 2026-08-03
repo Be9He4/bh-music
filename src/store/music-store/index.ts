@@ -72,6 +72,7 @@ export const useMusicStore = create<MusicState>()(
         enableAutoMatch: state.enableAutoMatch,
         autoMatchFavorites: state.autoMatchFavorites,
         autoMatchPlaylists: state.autoMatchPlaylists,
+        enableProxyFallback: state.enableProxyFallback,
         bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
         bilibiliAutoMatchSuffix: state.bilibiliAutoMatchSuffix,
         fullScreenBackgroundMode: state.fullScreenBackgroundMode,

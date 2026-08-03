@@ -7,14 +7,21 @@ import { useNavigate } from "react-router-dom";
 interface PageLayoutProps {
   title: string;
   onBack?: () => void;
+  onHome?: () => void;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }
 
-export function PageLayout({ title, onBack, action, children, className }: PageLayoutProps) {
+export function PageLayout({
+  title,
+  onBack,
+  action,
+  children,
+  className,
+}: PageLayoutProps) {
   const navigate = useNavigate();
-  
+
   const handleBack = () => {
     if (onBack) {
       onBack();

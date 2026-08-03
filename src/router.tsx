@@ -16,6 +16,7 @@ import {
   TrashRoute,
   PodcastDetailRoute,
   BilibiliCollectionDetailRoute,
+  AlistBrowserRoute,
 } from "@/routes/RouteWrappers";
 import { RouteErrorPage } from "@/components/RouteErrorPage";
 import { PageLoader } from "@/components/PageLoader";
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
       {
         path: "podcast/:id",
         element: <PodcastDetailRoute />,
+      },
+      {
+        path: "alist/:serverId",
+        element: <AlistBrowserRoute />,
       },
       {
         path: "bilibili-collection/:id",

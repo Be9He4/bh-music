@@ -17,15 +17,25 @@ import {
   Disc,
   MessageSquareQuote,
   Link2,
+  Check,
+  Folder,
 } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import { MusicCover } from "./MusicCover";
 import { useMusicCover } from "@/hooks/useMusicCover";
-import { MusicTrack, SearchIntent, sourceLabels } from "@/types/music";
-import { useNavigate } from "react-router-dom";
+import {
+  MusicTrack,
+  SearchIntent,
+  sourceLabels,
+  searchOptions,
+} from "@/types/music";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { MusicProviderFactory } from "@/lib/music-provider";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
+import { handleAutoMatch } from "@/lib/audio-match";
+import { getAllVisibleSourcesForSwitch } from "@/hooks/use-aggregated-sources";
+import { parseAlistTrackId } from "@/lib/alist/alist-api";
 import {
   Dialog,
   DialogContent,
@@ -95,8 +105,10 @@ export function MusicTrackMobileMenu({
 }: MusicTrackMobileMenuProps) {
   const coverUrl = useMusicCover(track, open);
   const navigate = useNavigate();
+  const location = useLocation();
   const [showArtistSelection, setShowArtistSelection] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showSourceSwitch, setShowSourceSwitch] = useState(false);
 
   // Zustand Store
   const setSearchQuery = useMusicStore((s) => s.setSearchQuery);
@@ -105,6 +117,22 @@ export function MusicTrackMobileMenu({
   const setSearchSource = useMusicStore((s) => s.setSearchSource);
 
   const provider = MusicProviderFactory.getProvider(track.source);
+
+  // 音源切换可用性：仅收藏页、歌单页、或当前正在播放的歌曲允许切换
+  const canSwitchSource = useMemo(() => {
+    if (
+      track.source === "local" ||
+      track.source === "podcast" ||
+      track.source === "alist"
+    )
+      return false;
+    const { queue, currentIndex } = useMusicStore.getState();
+    if (queue[currentIndex]?.id === track.id) return true;
+    const path = location.pathname;
+    if (path === "/favorites") return true;
+    if (path.startsWith("/playlist/")) return true;
+    return false;
+  }, [track.id, track.source, location.pathname]);
 
   const handleSearch = async (
     keyword: string,
@@ -178,7 +206,7 @@ export function MusicTrackMobileMenu({
     }
     let searchKeyword = keyword;
     if (type === "album" && artist) {
-      searchKeyword = `${keyword} ${artist}`;
+      searchKeyword = `${artist} ${keyword}`;
     }
 
     setSearchQuery(searchKeyword);
@@ -295,50 +323,80 @@ export function MusicTrackMobileMenu({
               </ActionButton>
             )}
 
-            {/* 除播客外，有歌手即显示歌手入口 */}
-            {track.source !== "podcast" && track.artist?.length > 0 && (
-              <ActionButton
-                icon={User}
-                onClick={() => {
-                  if (track.artist.length > 1) {
-                    setShowArtistSelection(true);
-                  } else {
-                    handleSearch(
-                      track.artist[0],
-                      "artist",
-                      undefined,
-                      track.artist_ids?.[0]
-                    );
-                  }
-                }}
-              >
-                歌手：{track.artist.join(" / ")}
-              </ActionButton>
-            )}
+            {/* 除播客/Alist 外，有歌手即显示歌手入口 */}
+            {track.source !== "podcast" &&
+              track.source !== "alist" &&
+              track.artist?.length > 0 && (
+                <ActionButton
+                  icon={User}
+                  onClick={() => {
+                    if (track.artist.length > 1) {
+                      setShowArtistSelection(true);
+                    } else {
+                      handleSearch(
+                        track.artist[0],
+                        "artist",
+                        undefined,
+                        track.artist_ids?.[0]
+                      );
+                    }
+                  }}
+                >
+                  歌手：{track.artist.join(" / ")}
+                </ActionButton>
+              )}
 
-            {/* 除播客外，有专辑即显示专辑入口 */}
-            {track.source !== "podcast" && track.album && (
+            {/* 除播客/Alist 外，有专辑即显示专辑入口 */}
+            {track.source !== "podcast" &&
+              track.source !== "alist" &&
+              track.album && (
+                <ActionButton
+                  icon={Disc}
+                  onClick={() => {
+                    handleSearch(
+                      track.album!,
+                      "album",
+                      track.artist[0],
+                      track.album_id
+                    );
+                  }}
+                >
+                  专辑：{track.album}
+                </ActionButton>
+              )}
+
+            {/* Alist 音源：专辑入口跳转到所在目录 */}
+            {track.source === "alist" && track.album && (
               <ActionButton
-                icon={Disc}
+                icon={Folder}
                 onClick={() => {
-                  handleSearch(
-                    track.album!,
-                    "album",
-                    track.artist[0],
-                    track.album_id
+                  const parsed = parseAlistTrackId(track.id);
+                  if (!parsed) return;
+                  onOpenChange(false);
+                  onNavigate?.();
+                  navigate(
+                    `/alist/${parsed.serverId}?path=${encodeURIComponent(
+                      track.album
+                    )}`
                   );
                 }}
               >
-                专辑：{track.album}
+                目录：
+                {track.album.split("/").filter(Boolean).pop() || track.album}
               </ActionButton>
             )}
 
+            {/* 音源显示：local/podcast 或歌曲不在任何歌单/收藏中时不可切换 */}
             <Button
               variant="ghost"
-              className="justify-start w-full cursor-default text-muted-foreground"
+              className="justify-start w-full"
+              disabled={!canSwitchSource}
+              onClick={() => setShowSourceSwitch(true)}
             >
-              <Link2 className="mr-2 h-4 w-4" /> 音源：
-              {sourceLabels[track.source] || track.source}
+              <Link2 className="mr-2 h-4 w-4 shrink-0" />
+              <span className="truncate">
+                音源：{sourceLabels[track.source] || track.source}
+              </span>
             </Button>
 
             {onRemove && (
@@ -393,6 +451,43 @@ export function MusicTrackMobileMenu({
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showSourceSwitch} onOpenChange={setShowSourceSwitch}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>切换音源</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {getAllVisibleSourcesForSwitch().map((source) => {
+              const isCurrent = source === track.source;
+              return (
+                <Button
+                  key={source}
+                  variant="ghost"
+                  className={cn(
+                    "justify-start w-full",
+                    isCurrent && "text-primary"
+                  )}
+                  disabled={isCurrent}
+                  onClick={async () => {
+                    setShowSourceSwitch(false);
+                    onOpenChange(false);
+                    await handleAutoMatch(track, source, location.pathname);
+                  }}
+                >
+                  {isCurrent ? (
+                    <Check className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Link2 className="mr-2 h-4 w-4" />
+                  )}
+                  {searchOptions[source] || sourceLabels[source] || source}
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <MusicCommentsDrawer
         track={track}
         open={showComments}
