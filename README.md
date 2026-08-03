@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  基于 <a href="https://music-api.gdstudio.xyz/api.php">GD Studio's API</a> 的多音源聚合音乐播放器，由 <a href="https://github.com/DJChanahCJD/otter-music">Otter Music</a> 深度定制而来
+  基于 <a href="https://music-api.gdstudio.xyz/api.php">GD Studio's API</a> 的多音源聚合音乐播放器
 </p>
 
 <p align="center">
