@@ -47,7 +47,7 @@ CI 流程依赖 GitHub Secrets 进行自动签名。若尚未配置，请按以�
 1. **生成签名证书（若无 `.jks`）**：
 
 ```bash
-keytool -genkeypair -v -keystore otter-music-release.jks -alias otter-music -keyalg RSA -keysize 2048 -validity 10000
+keytool -genkeypair -v -keystore bh-music-release.jks -alias bh-music -keyalg RSA -keysize 2048 -validity 10000
 
 ```
 
@@ -55,7 +55,7 @@ keytool -genkeypair -v -keystore otter-music-release.jks -alias otter-music -key
 
 ```powershell
 # Windows PowerShell 示例
-$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("android/otter-music-release.jks"))
+$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("android/bh-music-release.jks"))
 Set-Clipboard $b64
 
 ```
@@ -64,7 +64,7 @@ Set-Clipboard $b64
    | Name | Value | 说明 |
    | :--- | :--- | :--- |
    | `SIGNING_KEY` | _(粘贴上述 Base64)_ | Keystore 文件内容 |
-   | `ALIAS` | `otter-music` | 密钥别名 |
+   | `ALIAS` | `bh-music` | 密钥别名 |
    | `KEY_STORE_PASSWORD` | _(你的密码)_ | Keystore 密码 |
    | `KEY_PASSWORD` | _(你的密码)_ | 密钥密码 |
 

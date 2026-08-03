@@ -1,4 +1,4 @@
-package com.otterhub.music;
+package com.bh.music;
 
 import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.IHTTPSession;

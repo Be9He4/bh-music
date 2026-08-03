@@ -1,4 +1,4 @@
-export const SYNC_KEY_PREFIX = "otter-music:user:";
+export const SYNC_KEY_PREFIX = "bh-music:user:";
 
 export interface SyncKeyMetadata {
   lastSyncTime: number;

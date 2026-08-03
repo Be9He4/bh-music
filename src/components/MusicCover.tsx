@@ -63,12 +63,12 @@ export function MusicCover({
         const blob = await response.blob();
         const base64 = await blobToBase64(blob);
         await Filesystem.writeFile({
-          path: `Pictures/OtterMusic/${filename}`,
+          path: `Pictures/BHMusic/${filename}`,
           data: base64,
           directory: Directory.ExternalStorage,
           recursive: true,
         });
-        toast.success(`已保存到 Pictures/OtterMusic`);
+        toast.success(`已保存到 Pictures/BHMusic`);
       } else {
         const response = await fetch(coverUrl);
         const blob = await response.blob();

@@ -15,7 +15,7 @@ export const CACHE_CONFIG = {
   },
 };
 
-const cacheName = 'otter-music-cache';
+const cacheName = 'bh-music-cache';
 
 
 export function createCacheKey(request: Request): Request {

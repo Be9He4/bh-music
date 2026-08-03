@@ -5,7 +5,7 @@ import { Env } from "../types/hono";
 const app = new Hono<{ Bindings: Env }>();
 
 const GITHUB_API_URL =
-  "https://api.github.com/repos/DJChanahCJD/otter-music/releases/latest";
+  "https://api.github.com/repos/Be9He4/bh-music/releases/latest";
 
 interface GitHubRelease {
   tag_name: string;
@@ -65,7 +65,7 @@ app.get("/download", async (c) => {
 
   try {
     const fetchHeaders: Record<string, string> = {
-      "User-Agent": "Otter-Music-App",
+      "User-Agent": "BH-Music-App",
     };
     if (c.env.GITHUB_TOKEN) {
       fetchHeaders.Authorization = `Bearer ${c.env.GITHUB_TOKEN}`;
@@ -100,7 +100,7 @@ app.get("/download", async (c) => {
 
 async function fetchRelease(token?: string) {
   const headers: Record<string, string> = {
-    "User-Agent": "Otter-Music-App",
+    "User-Agent": "BH-Music-App",
     Accept: "application/vnd.github.v3+json",
   };
 

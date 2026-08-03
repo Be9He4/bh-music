@@ -1,9 +1,9 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.otterhub.music',
-  appName: 'Otter Music',
-  webDir: 'dist',
+  appId: "com.bh.music",
+  appName: "BH Music",
+  webDir: "dist",
 };
 
 export default config;

@@ -7,7 +7,7 @@ import { fail } from "@utils/response";
 
 export const proxyRoutes = new Hono<{ Bindings: Env }>();
 
-const PROXY_RECURSION_HEADER = "X-Otter-Proxy-Request";
+const PROXY_RECURSION_HEADER = "X-BH-Music-Proxy-Request";
 
 const proxySchema = z.object({
   url: z.string().url(),

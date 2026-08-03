@@ -83,6 +83,7 @@ export function DataBackup({ open, onOpenChange }: DataBackupProps) {
       setValidation(null);
       onOpenChange(false);
     } catch (e) {
+      console.error("导入失败", e);
       toastUtils.error("导入失败，数据可能不完整");
     } finally {
       setImporting(false);

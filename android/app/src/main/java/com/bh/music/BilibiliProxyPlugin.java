@@ -1,4 +1,4 @@
-package com.otterhub.music;
+package com.bh.music;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;

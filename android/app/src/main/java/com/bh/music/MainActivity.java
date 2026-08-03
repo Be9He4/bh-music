@@ -1,4 +1,4 @@
-package com.otterhub.music;
+package com.bh.music;
 
 import static androidx.core.view.WindowCompat.enableEdgeToEdge;
 

@@ -1,4 +1,4 @@
-package com.otterhub.music;
+package com.bh.music;
 
 import android.Manifest;
 import android.app.Activity;

@@ -16,6 +16,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.settings/
 .DS_Store
 *.suo
 *.ntvs*
@@ -46,3 +47,4 @@ tsconfig.tsbuildinfo
 .trae/
 .claude/
 openspec/
+CLAUDE_PROJECT_MEMORY.md

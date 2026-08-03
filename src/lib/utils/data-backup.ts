@@ -17,7 +17,7 @@ const CURRENT_VERSION = 1;
 /** 备份 JSON 顶层结构 */
 interface BackupEnvelope {
   version: number;
-  type: "otter-music-backup";
+  type: "bh-music-backup";
   exportedAt: number;
   data: BackupPayload;
 }
@@ -112,7 +112,7 @@ export function serializeStoreData(): string {
 
   const envelope: BackupEnvelope = {
     version: CURRENT_VERSION,
-    type: "otter-music-backup",
+    type: "bh-music-backup",
     exportedAt: Date.now(),
     data: payload,
   };
@@ -180,7 +180,7 @@ export function validateBackupData(raw: string): BackupValidationResult {
   }
 
   // 校验 type（可选但建议）
-  if (envelope.type !== "otter-music-backup") {
+  if (envelope.type !== "bh-music-backup") {
     return { valid: false, error: "数据格式不匹配，缺少正确的 type 标识" };
   }
 
@@ -212,6 +212,45 @@ export function validateBackupData(raw: string): BackupValidationResult {
     }
   }
 
+  // 校验标量字段类型，防止畸形备份腐蚀 store
+  // （?? 兜底只拦 null/undefined，不拦错类型，如 volume:"high" 会让 volume*100=NaN）
+  const scalarChecks: Array<[string, "number" | "string" | "boolean"]> = [
+    ["volume", "number"],
+    ["isRepeat", "boolean"],
+    ["isShuffle", "boolean"],
+    ["quality", "string"],
+    ["searchSource", "string"],
+    ["lastPlaylistCategory", "string"],
+    ["lastMineTab", "string"],
+    ["lastFeaturedTab", "string"],
+    ["enableAutoMatch", "boolean"],
+    ["autoMatchFavorites", "boolean"],
+    ["autoMatchPlaylists", "boolean"],
+    ["bilibiliKeepOriginalMeta", "boolean"],
+    ["bilibiliAutoMatchSuffix", "string"],
+    ["fullScreenBackgroundMode", "string"],
+    ["showSourceBadge", "boolean"],
+    ["downloadQuality", "string"],
+    ["embedCover", "boolean"],
+    ["embedLyric", "boolean"],
+    ["downloadDirectory", "string"],
+    ["sleepTimerDuration", "number"],
+    ["playbackSpeed", "number"],
+  ];
+  for (const [key, kind] of scalarChecks) {
+    const v = (payload as Record<string, unknown>)[key];
+    if (v === undefined) continue; // 缺失字段走默认值
+    if (typeof v !== kind) {
+      return { valid: false, error: `字段 ${key} 类型不正确` };
+    }
+  }
+  if (
+    payload.sourceConfigs !== undefined &&
+    !Array.isArray(payload.sourceConfigs)
+  ) {
+    return { valid: false, error: "字段 sourceConfigs 类型不正确" };
+  }
+
   // 过滤无效 track
   const validFavorites = Array.isArray(favorites)
     ? favorites.filter(isValidTrack)
@@ -240,38 +279,42 @@ export function validateBackupData(raw: string): BackupValidationResult {
  * 播放列表逐条创建以兼容 createPlaylist 逻辑
  */
 export function importStoreData(payload: BackupPayload): void {
-  const store = useMusicStore.getState();
+  // 原子导入：在内存中构造完整的新状态，再一次 setState 写入。
+  // 避免原实现"先逐条软删旧歌单、再逐条 createPlaylist"多次持久化，
+  // 中断（崩溃/关页/异常）时旧歌单已删、新歌单未建完 → 数据永久丢失。
+  // 保留原"软删旧歌单可恢复"语义，但在内存中构造后一次写入。
+  const state = useMusicStore.getState();
+  const oldPlaylistsSoftDeleted = state.playlists.map((pl) => ({
+    ...pl,
+    is_deleted: true,
+    update_time: Date.now(),
+  }));
 
-  // 先清空现有歌单（软删除），再逐条创建新歌单
-  for (const pl of store.playlists) {
-    if (!pl.is_deleted) {
-      store.deletePlaylist(pl.id);
-    }
-  }
+  const newFavorites = payload.favorites.map((t) => ({
+    ...withMeta(t),
+    is_deleted: false,
+  }));
 
-  // 写入简单字段
-  store.setFavorites(
-    payload.favorites.map((t) => ({ ...withMeta(t), is_deleted: false }))
-  );
+  const newPlaylists = payload.playlists.map((pl) => ({
+    id: crypto.randomUUID(),
+    name: pl.name,
+    coverUrl: pl.coverUrl,
+    description: pl.description, // 保留 description（原 createPlaylist 仅取 name/coverUrl 会丢）
+    tracks: pl.tracks.map((t) => ({ ...withMeta(t), is_deleted: false })),
+    createdAt: pl.createdAt ?? Date.now(), // 保留原始创建时间（原 createPlaylist 会重置为 now）
+    update_time: Date.now(),
+    is_deleted: false,
+  }));
 
-  // 歌单：逐条创建并写入 tracks
-  for (const pl of payload.playlists) {
-    const newId = store.createPlaylist(pl.name, pl.coverUrl);
-    store.setPlaylistTracks(
-      newId,
-      pl.tracks.map((t) => ({ ...withMeta(t), is_deleted: false }))
-    );
-  }
-
-  // 播放设置
+  // 单次 setState = 单次持久化写入，原子
   useMusicStore.setState({
+    favorites: newFavorites,
+    playlists: [...oldPlaylistsSoftDeleted, ...newPlaylists],
+    // 播放设置
     volume: payload.volume ?? 1.0,
     isRepeat: payload.isRepeat ?? false,
     isShuffle: payload.isShuffle ?? false,
-  });
-
-  // UI 设置
-  useMusicStore.setState({
+    // UI 设置
     quality: payload.quality ?? "192",
     searchSource: payload.searchSource ?? "all",
     sourceConfigs: payload.sourceConfigs ?? [],
