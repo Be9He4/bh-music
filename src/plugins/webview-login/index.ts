@@ -17,7 +17,8 @@ interface WebViewLoginPluginInterface {
   clearCookies(): Promise<void>;
 }
 
-const WebViewLogin = registerPlugin<WebViewLoginPluginInterface>("WebViewLogin");
+const WebViewLogin =
+  registerPlugin<WebViewLoginPluginInterface>("WebViewLogin");
 
 /** B 站 WebView 登录，成功后返回捕获的 Cookie */
 export function openBilibiliLogin(): Promise<{ cookie: string } | null> {

@@ -34,7 +34,10 @@ const createTrack = (id: string, title: string): MusicTrack => ({
   source: "netease",
 });
 
-const envelope = (data: Record<string, unknown>, overrides: Record<string, unknown> = {}) =>
+const envelope = (
+  data: Record<string, unknown>,
+  overrides: Record<string, unknown> = {}
+) =>
   JSON.stringify({
     version: 1,
     type: "bh-music-backup",
@@ -74,25 +77,39 @@ describe("data-backup", () => {
     });
 
     it("rejects wrong version", () => {
-      const r = validateBackupData(envelope({ playlists: [] }, { version: 99 }));
+      const r = validateBackupData(
+        envelope({ playlists: [] }, { version: 99 })
+      );
       expect(r.valid).toBe(false);
     });
 
     it("accepts bh and otter type tags (compat)", () => {
       // 同步上游后兼容 otter-music-backup 标识的备份
       const bh = validateBackupData(
-        JSON.stringify({ version: 1, type: "bh-music-backup", data: { playlists: [] } })
+        JSON.stringify({
+          version: 1,
+          type: "bh-music-backup",
+          data: { playlists: [] },
+        })
       );
       expect(bh.valid).toBe(true);
       const otter = validateBackupData(
-        JSON.stringify({ version: 1, type: "otter-music-backup", data: { playlists: [] } })
+        JSON.stringify({
+          version: 1,
+          type: "otter-music-backup",
+          data: { playlists: [] },
+        })
       );
       expect(otter.valid).toBe(true);
     });
 
     it("rejects unknown type tag", () => {
       const r = validateBackupData(
-        JSON.stringify({ version: 1, type: "unknown-backup", data: { playlists: [] } })
+        JSON.stringify({
+          version: 1,
+          type: "unknown-backup",
+          data: { playlists: [] },
+        })
       );
       expect(r.valid).toBe(false);
     });
@@ -112,7 +129,9 @@ describe("data-backup", () => {
     });
 
     it("rejects non-array sourceConfigs", () => {
-      const r = validateBackupData(envelope({ playlists: [], sourceConfigs: "no" }));
+      const r = validateBackupData(
+        envelope({ playlists: [], sourceConfigs: "no" })
+      );
       expect(r.valid).toBe(false);
     });
 
@@ -179,9 +198,7 @@ describe("data-backup", () => {
       };
       // 先用 B 状态生成备份
       useMusicStore.setState({
-        playlists: [
-          { id: "b", name: "New B", tracks: [], createdAt: 2 },
-        ],
+        playlists: [{ id: "b", name: "New B", tracks: [], createdAt: 2 }],
       });
       const result = validateBackupData(serializeStoreData());
       expect(result.valid).toBe(true);
@@ -204,7 +221,9 @@ describe("data-backup", () => {
     it("applies scalar settings from backup", () => {
       // 用含特定设置的 store 生成备份
       useMusicStore.setState({
-        playlists: [{ id: "x", name: "P", tracks: [], createdAt: 1 } as Playlist],
+        playlists: [
+          { id: "x", name: "P", tracks: [], createdAt: 1 } as Playlist,
+        ],
         volume: 0.7,
         isRepeat: true,
         quality: "999",
