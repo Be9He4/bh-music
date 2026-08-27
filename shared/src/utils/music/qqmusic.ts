@@ -23,6 +23,25 @@ export const QQ_FILE_CONFIG = [
   { key: "m4a", prefix: "C400", ext: ".m4a" },
 ] as const;
 
+/**
+ * 将全局音质档位 (br, kbps) 映射为 QQ 首选质量键。
+ * QQ 无 192 档，就近降到 128k；最高 320k 封顶。
+ */
+export function qqBrToQualityKey(br = 320): string {
+  return br < 320 ? "128k" : "320k";
+}
+
+/**
+ * 按首选质量键返回优先级排列的质量键列表（用于 vkey 请求降级）。
+ * 首选键无效时回退默认顺序。
+ */
+export function orderQqQualityKeys(preferred: string): string[] {
+  const all = QQ_FILE_CONFIG.map((c) => c.key) as string[];
+  return all.includes(preferred)
+    ? [preferred, ...all.filter((k) => k !== preferred)]
+    : all;
+}
+
 // ─────────────────────────────────────
 // 歌单
 // ─────────────────────────────────────
@@ -120,7 +139,8 @@ export function convertQqSearchSongToMusicTrack(
  */
 export function buildVkeyRequestBody(
   songmid: string,
-  qualityKeys: readonly string[]
+  qualityKeys: readonly string[],
+  uin = "0"
 ) {
   const filenames = qualityKeys
     .map((key) => {
@@ -138,14 +158,14 @@ export function buildVkeyRequestBody(
         guid: "10000",
         songmid: qualityKeys.map(() => songmid),
         songtype: qualityKeys.map(() => 0),
-        uin: "0",
+        uin,
         loginflag: 1,
         platform: "20",
       },
     },
-    loginUin: "0",
+    loginUin: uin,
     comm: {
-      uin: "0",
+      uin,
       format: "json",
       ct: 24,
       cv: 0,
@@ -154,16 +174,22 @@ export function buildVkeyRequestBody(
 }
 
 /**
- * 从 vkey 响应中提取可用音频 URL，返回第一个 purl 非空的链接
+ * 从 vkey 响应中提取可用音频 URL，返回第一个 purl 非空的链接。
+ * 优先选用 https 镜像；若仅有 http 镜像则强制升级为 https，
+ * 避免 Android WebView 明文流媒体缓冲不稳/被运营商干扰。
  */
 export function extractVkeyUrl(data: QqVkeyResponse): string | null {
   const sip = data.req_1?.data?.sip;
   const midurlinfo = data.req_1?.data?.midurlinfo;
   if (!sip?.length || !midurlinfo?.length) return null;
 
+  const base =
+    sip.find((s) => s.startsWith("https://")) ||
+    sip[0].replace(/^http:\/\//i, "https://");
+
   for (const info of midurlinfo) {
     if (info.purl) {
-      return sip[0] + info.purl;
+      return base + info.purl;
     }
   }
   return null;

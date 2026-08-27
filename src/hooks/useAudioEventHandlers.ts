@@ -65,9 +65,10 @@ export function useAudioEventHandlers(
         const duration = audio.duration || 0;
         state.setDuration(duration);
 
-        // 检测网易云试听片段
+        // 检测网易云试听片段（音频时长可能是浮点型）
         const isNeteaseSample =
-          [30, 45, 60].includes(duration) || audio.src.includes("jdusicrep-ts");
+          [30, 45, 60].some((d) => Math.abs(duration - d) < 1) ||
+          audio.src.includes("jdusicrep-ts");
         if (
           state.enableAutoMatch &&
           track?.source === "_netease" &&
@@ -88,7 +89,13 @@ export function useAudioEventHandlers(
         syncPositionState(0);
         const state = getMusicState();
 
-        if (state.isRepeat) {
+        if (state.sleepTimerStopAfterCurrentTrack) {
+          state.setIsPlaying(false);
+          state.setSleepTimerIsActive(false);
+          state.setSleepTimerStopAfterCurrentTrack(false);
+          state.setSleepTimerRemaining(0);
+          state.setSleepTimerEndTime(0);
+        } else if (state.isRepeat) {
           audio.currentTime = 0;
           audio.play().catch(() => state.setIsPlaying(false));
         } else if (state.queue.length) {

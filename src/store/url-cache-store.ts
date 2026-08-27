@@ -41,6 +41,9 @@ interface UrlCacheState {
 
   /** 删除缓存 URL；若为 blob URL 则先释放 */
   delete: (key: string) => void;
+
+  /** 清空所有缓存 URL；若包含 blob URL 则先释放 */
+  clear: () => void;
 }
 
 export const useUrlCacheStore = create<UrlCacheState>()(
@@ -68,6 +71,15 @@ export const useUrlCacheStore = create<UrlCacheState>()(
           }
           const { [key]: _, ...rest } = state.urlMap;
           return { urlMap: rest };
+        });
+      },
+
+      clear: () => {
+        set((state) => {
+          for (const url of Object.values(state.urlMap)) {
+            if (url.startsWith("blob:")) revokeBlobUrl(url);
+          }
+          return { urlMap: {} };
         });
       },
     }),

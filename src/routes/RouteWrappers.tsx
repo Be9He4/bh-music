@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { useHistoryStore } from "@/store/history-store";
 import { usePlayHelper } from "@/hooks/usePlayHelper";
@@ -59,9 +59,19 @@ const BilibiliCollectionDetail = lazy(() =>
     default: m.BilibiliCollectionDetail,
   }))
 );
+const BilibiliArtistDetail = lazy(() =>
+  import("@/components/BilibiliArtistDetail").then((m) => ({
+    default: m.BilibiliArtistDetail,
+  }))
+);
 const AlistBrowser = lazy(() =>
   import("@/components/PlaylistMarket/Alist/AlistBrowser").then((m) => ({
     default: m.AlistBrowser,
+  }))
+);
+const BillboardChart = lazy(() =>
+  import("@/components/BillboardChart").then((m) => ({
+    default: m.BillboardChart,
   }))
 );
 
@@ -317,6 +327,23 @@ export const BilibiliCollectionDetailRoute = withSuspense(() => {
   );
 });
 
+export const BilibiliArtistDetailRoute = withSuspense(() => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { handlePlay } = usePlayHelper();
+  const { currentTrackId, isPlaying } = usePlaybackState();
+
+  return (
+    <BilibiliArtistDetail
+      id={id || null}
+      onBack={() => navigate(-1)}
+      onPlay={(track, list) => handlePlay(track, list, "bilibili_artist")}
+      currentTrackId={currentTrackId}
+      isPlaying={isPlaying}
+    />
+  );
+});
+
 export const AlistBrowserRoute = withSuspense(() => {
   const { serverId } = useParams<{ serverId: string }>();
   const navigate = useNavigate();
@@ -328,6 +355,22 @@ export const AlistBrowserRoute = withSuspense(() => {
       serverId={serverId || ""}
       onBack={() => navigate(-1)}
       onPlay={(track, list, contextId) => handlePlay(track, list, contextId)}
+      currentTrackId={currentTrackId}
+      isPlaying={isPlaying}
+    />
+  );
+});
+
+export const BillboardChartRoute = withSuspense(() => {
+  const { chartId } = useParams<{ chartId: string }>();
+  const [searchParams] = useSearchParams();
+  const date = searchParams.get("date") ?? undefined;
+  const { currentTrackId, isPlaying } = usePlaybackState();
+
+  return (
+    <BillboardChart
+      chartId={chartId ?? ""}
+      date={date}
       currentTrackId={currentTrackId}
       isPlaying={isPlaying}
     />

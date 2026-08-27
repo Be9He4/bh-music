@@ -36,11 +36,14 @@ interface MarketSessionState {
   mineData: MineDataState;
   listSnapshots: Record<string, ListSnapshot>;
   searchCache: SearchCache | null;
+  /** Billboard 历史周榜日期（YYYY-MM-DD，undefined 表示最新一期），会话级缓存 */
+  billboardDate: string | undefined;
   setMineData: (
     data: Partial<MineDataState> | ((prev: MineDataState) => MineDataState)
   ) => void;
   saveListSnapshot: (key: string, snapshot: ListSnapshot) => void;
   saveSearchCache: (cache: SearchCache | null) => void;
+  setBillboardDate: (date: string | undefined) => void;
   toggleAlbumInSession: (
     album: {
       id: string | number;
@@ -63,6 +66,7 @@ export const useMarketSession = create<MarketSessionState>()(
       mineData: INITIAL_MINE_DATA,
       listSnapshots: {},
       searchCache: null,
+      billboardDate: undefined,
 
       setMineData: (data) =>
         set((state) => ({
@@ -78,6 +82,8 @@ export const useMarketSession = create<MarketSessionState>()(
         })),
 
       saveSearchCache: (cache) => set({ searchCache: cache }),
+
+      setBillboardDate: (billboardDate) => set({ billboardDate }),
 
       toggleAlbumInSession: (album, shouldSub) =>
         set((state) => {
@@ -120,6 +126,7 @@ export const useMarketSession = create<MarketSessionState>()(
           mineData: INITIAL_MINE_DATA,
           listSnapshots: {},
           searchCache: null,
+          billboardDate: undefined,
         }),
     }),
     {
@@ -129,6 +136,7 @@ export const useMarketSession = create<MarketSessionState>()(
         mineData: state.mineData,
         listSnapshots: state.listSnapshots,
         searchCache: state.searchCache,
+        billboardDate: state.billboardDate,
       }),
     }
   )

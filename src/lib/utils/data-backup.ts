@@ -2,6 +2,9 @@ import {
   useMusicStore,
   type FullScreenBackgroundMode,
 } from "@/store/music-store";
+import { useAppStore } from "@/store/app-store";
+import { usePodcastStore } from "@/store/podcast-store";
+import { useAlistStore } from "@/store/alist-store";
 import { cleanTrack } from "@/lib/utils/music";
 import { withMeta } from "@/store/music-store/shared";
 import type {
@@ -10,9 +13,52 @@ import type {
   MusicSource,
   SourceConfig,
 } from "@/types/music";
+import type { PodcastRssSource } from "@/types/podcast";
+import type { AlistServer } from "@/types/alist";
+import { Capacitor } from "@capacitor/core";
+import { Encoding, Filesystem } from "@capacitor/filesystem";
+import { STORAGE_CONFIG } from "@/lib/storage-manager";
+import { logger } from "@/lib/logger";
 
 /** 备份数据版本号 */
 const CURRENT_VERSION = 1;
+
+function backupFileName(): string {
+  return `bh-music-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+}
+
+/** 将备份保存为用户可访问的 JSON 文件，兼容原生端和 Web 端。 */
+export async function saveBackupFile(json: string): Promise<string> {
+  const fileName = backupFileName();
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const path = `${STORAGE_CONFIG.ROOT}/${fileName}`;
+      await Filesystem.writeFile({
+        path,
+        data: json,
+        directory: STORAGE_CONFIG.BASE_DIR,
+        encoding: Encoding.UTF8,
+        recursive: true,
+      });
+      return path;
+    }
+
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    return fileName;
+  } catch (error) {
+    logger.error("data-backup", "Save backup file failed", error);
+    throw error;
+  }
+}
 
 /** 备份 JSON 顶层结构 */
 interface BackupEnvelope {
@@ -35,9 +81,11 @@ interface BackupPayload {
   lastPlaylistCategory: string;
   lastMineTab: "recommend" | "created" | "subscribed" | "albums";
   lastFeaturedTab: string;
+  lastBillboardGroup: "songs" | "albums" | "artists";
   enableAutoMatch: boolean;
   autoMatchFavorites: boolean;
   autoMatchPlaylists: boolean;
+  enableProxyFallback: boolean;
   bilibiliKeepOriginalMeta: boolean;
   bilibiliAutoMatchSuffix: string;
   fullScreenBackgroundMode: FullScreenBackgroundMode;
@@ -48,6 +96,9 @@ interface BackupPayload {
   downloadDirectory: string;
   sleepTimerDuration: number;
   playbackSpeed: number;
+  enableUpdateNotify: boolean;
+  rssSources: PodcastRssSource[];
+  servers: AlistServer[];
 }
 
 /** 校验成功结果 */
@@ -95,9 +146,11 @@ export function serializeStoreData(): string {
     lastPlaylistCategory: state.lastPlaylistCategory,
     lastMineTab: state.lastMineTab,
     lastFeaturedTab: state.lastFeaturedTab,
+    lastBillboardGroup: state.lastBillboardGroup,
     enableAutoMatch: state.enableAutoMatch,
     autoMatchFavorites: state.autoMatchFavorites,
     autoMatchPlaylists: state.autoMatchPlaylists,
+    enableProxyFallback: state.enableProxyFallback,
     bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
     bilibiliAutoMatchSuffix: state.bilibiliAutoMatchSuffix,
     fullScreenBackgroundMode: state.fullScreenBackgroundMode,
@@ -108,6 +161,9 @@ export function serializeStoreData(): string {
     downloadDirectory: state.downloadDirectory,
     sleepTimerDuration: state.sleepTimerDuration,
     playbackSpeed: state.playbackSpeed,
+    enableUpdateNotify: useAppStore.getState().enableUpdateNotify,
+    rssSources: usePodcastStore.getState().rssSources,
+    servers: useAlistStore.getState().servers,
   };
 
   const envelope: BackupEnvelope = {
@@ -179,8 +235,11 @@ export function validateBackupData(raw: string): BackupValidationResult {
     };
   }
 
-  // 校验 type（可选但建议）
-  if (envelope.type !== "bh-music-backup") {
+  // 校验 type（兼容 BH 与上游 Otter 备份标识，同步上游后上游导出的备份仍可导入）
+  if (
+    envelope.type !== "bh-music-backup" &&
+    envelope.type !== "otter-music-backup"
+  ) {
     return { valid: false, error: "数据格式不匹配，缺少正确的 type 标识" };
   }
 
@@ -223,9 +282,11 @@ export function validateBackupData(raw: string): BackupValidationResult {
     ["lastPlaylistCategory", "string"],
     ["lastMineTab", "string"],
     ["lastFeaturedTab", "string"],
+    ["lastBillboardGroup", "string"],
     ["enableAutoMatch", "boolean"],
     ["autoMatchFavorites", "boolean"],
     ["autoMatchPlaylists", "boolean"],
+    ["enableProxyFallback", "boolean"],
     ["bilibiliKeepOriginalMeta", "boolean"],
     ["bilibiliAutoMatchSuffix", "string"],
     ["fullScreenBackgroundMode", "string"],
@@ -236,6 +297,7 @@ export function validateBackupData(raw: string): BackupValidationResult {
     ["downloadDirectory", "string"],
     ["sleepTimerDuration", "number"],
     ["playbackSpeed", "number"],
+    ["enableUpdateNotify", "boolean"],
   ];
   for (const [key, kind] of scalarChecks) {
     const v = (payload as Record<string, unknown>)[key];
@@ -244,11 +306,11 @@ export function validateBackupData(raw: string): BackupValidationResult {
       return { valid: false, error: `字段 ${key} 类型不正确` };
     }
   }
-  if (
-    payload.sourceConfigs !== undefined &&
-    !Array.isArray(payload.sourceConfigs)
-  ) {
-    return { valid: false, error: "字段 sourceConfigs 类型不正确" };
+  for (const key of ["sourceConfigs", "rssSources", "servers"] as const) {
+    const v = payload[key];
+    if (v !== undefined && !Array.isArray(v)) {
+      return { valid: false, error: `字段 ${key} 类型不正确` };
+    }
   }
 
   // 过滤无效 track
@@ -321,9 +383,11 @@ export function importStoreData(payload: BackupPayload): void {
     lastPlaylistCategory: payload.lastPlaylistCategory ?? "全部",
     lastMineTab: payload.lastMineTab ?? "recommend",
     lastFeaturedTab: payload.lastFeaturedTab ?? "",
+    lastBillboardGroup: payload.lastBillboardGroup ?? "songs",
     enableAutoMatch: payload.enableAutoMatch ?? true,
     autoMatchFavorites: payload.autoMatchFavorites ?? false,
     autoMatchPlaylists: payload.autoMatchPlaylists ?? true,
+    enableProxyFallback: payload.enableProxyFallback ?? true,
     bilibiliKeepOriginalMeta: payload.bilibiliKeepOriginalMeta ?? false,
     bilibiliAutoMatchSuffix: payload.bilibiliAutoMatchSuffix ?? "高音质 原曲",
     fullScreenBackgroundMode: payload.fullScreenBackgroundMode ?? "theme",
@@ -335,4 +399,14 @@ export function importStoreData(payload: BackupPayload): void {
     downloadDirectory: payload.downloadDirectory ?? "",
     sleepTimerDuration: payload.sleepTimerDuration ?? 30,
   });
+
+  useAppStore.setState({
+    enableUpdateNotify: payload.enableUpdateNotify ?? true,
+  });
+  if (payload.rssSources) {
+    usePodcastStore.getState().setRssSources(payload.rssSources);
+  }
+  if (payload.servers) {
+    useAlistStore.getState().setServers(payload.servers);
+  }
 }

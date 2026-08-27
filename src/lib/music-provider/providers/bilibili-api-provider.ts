@@ -8,7 +8,9 @@ import { useMusicStore } from "@/store/music-store";
 import {
   getBilibiliCollectionDetail,
   getBilibiliCoverUrl,
+  getBilibiliLyric,
   getBilibiliSongUrl,
+  getBilibiliUpInfo,
   getBilibiliVideoDetail,
   searchBilibiliCollections,
   searchBilibiliVideos,
@@ -42,8 +44,12 @@ export class BilibiliApiProvider implements IMusicProvider {
     return getBilibiliCoverUrl(track.pic_id);
   }
 
-  async getLyric(_track: MusicTrack): Promise<SongLyric | null> {
-    return null;
+  async getLyric(track: MusicTrack): Promise<SongLyric | null> {
+    try {
+      return await getBilibiliLyric(track.id);
+    } catch {
+      return null;
+    }
   }
 
   async searchArtist(
@@ -68,6 +74,16 @@ export class BilibiliApiProvider implements IMusicProvider {
     total: number;
   } | null> {
     return getBilibiliCollectionDetail(id);
+  }
+
+  async getArtistDetail(id: string): Promise<{
+    mid: number;
+    name: string;
+    face: string;
+  } | null> {
+    const mid = Number(id);
+    if (!Number.isFinite(mid)) return null;
+    return getBilibiliUpInfo(mid);
   }
 
   async getSongDetail(id: string): Promise<unknown> {

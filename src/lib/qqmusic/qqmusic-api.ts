@@ -4,7 +4,6 @@ import {
   type QqSearchResponse,
   type QqVkeyResponse,
   QQ_API_URL,
-  QQ_FILE_CONFIG,
   QQ_LYRIC_URL,
   QQ_REFERER,
   buildQqPlaylistApiPath,
@@ -13,9 +12,12 @@ import {
   convertQqSongToMusicTrack,
   decodeQqHtmlEntities,
   extractVkeyUrl,
+  orderQqQualityKeys,
   parseQqPlaylistResponse,
+  qqBrToQualityKey,
 } from "@otter-music/shared";
 import { IS_NATIVE, IS_WEB_PROD, getApiUrl } from "@/lib/api/config";
+import { useQqStore } from "@/store/qq-store";
 
 const QQ_PROXY_PREFIX = "/music-api/qqmusic";
 const NETWORK_TIMEOUT = 12000;
@@ -169,6 +171,7 @@ export async function searchQqMusic(
 
   if (IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
+    const { cookie } = useQqStore.getState();
     const res = await CapacitorHttp.request({
       method: "POST",
       url: QQ_API_URL,
@@ -176,7 +179,7 @@ export async function searchQqMusic(
         "Content-Type": "application/json",
         Referer: QQ_REFERER,
         "User-Agent": QQ_USER_AGENT,
-        Cookie: "uin=",
+        Cookie: cookie || "uin=",
       },
       data: JSON.stringify({
         req_1: {
@@ -205,9 +208,13 @@ export async function searchQqMusic(
   }
 
   // dev
+  const { cookie } = useQqStore.getState();
   const res = await fetchWithTimeout(`/api/qqmusic-search/cgi-bin/musicu.fcg`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { "X-Real-Cookie": cookie } : {}),
+    },
     body: JSON.stringify({
       req_1: {
         method: "DoSearchForQQMusicDesktop",
@@ -236,17 +243,17 @@ export async function searchQqMusic(
 
 /**
  * 通过 QQ 音乐 vkey API 获取音频直链。
- * 支持质量降级：320k → 128k → m4a，不可播放时返回 null。
+ * 根据目标码率 br 选择首选质量（QQ 无 192 档，就近降级；320k 封顶），
+ * 请求内按优先级降级，不可播放时返回 null。
  * - Web 生产: 走 Worker 代理
  * - 原生: 直连 u.y.qq.com
  * - 开发: 走 Vite 代理
  */
 export async function getQqMusicUrl(
   songmid: string,
-  _br?: number
+  br = 320
 ): Promise<string | null> {
-  const qualityKeys = QQ_FILE_CONFIG.map((c) => c.key);
-  const body = buildVkeyRequestBody(songmid, qualityKeys);
+  const qualityKeys = orderQqQualityKeys(qqBrToQualityKey(br));
 
   if (IS_WEB_PROD) {
     const apiUrl = getApiUrl();
@@ -262,6 +269,13 @@ export async function getQqMusicUrl(
 
   if (IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
+    const { cookie, user } = useQqStore.getState();
+    const authenticatedUin = cookie && user?.uin ? user.uin : "0";
+    const authenticatedBody = buildVkeyRequestBody(
+      songmid,
+      qualityKeys,
+      authenticatedUin
+    );
     const res = await CapacitorHttp.request({
       method: "POST",
       url: QQ_API_URL,
@@ -269,23 +283,32 @@ export async function getQqMusicUrl(
         "Content-Type": "application/json",
         Referer: QQ_REFERER,
         "User-Agent": QQ_USER_AGENT,
+        ...(cookie ? { Cookie: cookie } : {}),
       },
-      data: JSON.stringify(body),
+      data: JSON.stringify(authenticatedBody),
     });
     if (res.status >= 400) return null;
     const data =
       typeof res.data === "string"
         ? (JSON.parse(res.data) as QqVkeyResponse)
         : (res.data as QqVkeyResponse);
-    return extractVkeyUrl(data);
+    const directUrl = extractVkeyUrl(data);
+    if (!directUrl) return null;
+    return directUrl;
   }
 
   // dev
+  const { cookie, user } = useQqStore.getState();
+  const uin = cookie && user?.uin ? user.uin : "0";
+  const authenticatedBody = buildVkeyRequestBody(songmid, qualityKeys, uin);
   try {
     const res = await fetchWithTimeout(`/api/qqmusic-url/cgi-bin/musicu.fcg`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json",
+        ...(cookie ? { "X-Real-Cookie": cookie } : {}),
+      },
+      body: JSON.stringify(authenticatedBody),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as QqVkeyResponse;

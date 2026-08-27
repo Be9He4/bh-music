@@ -26,8 +26,14 @@ export function SleepTimerDrawer({
   const setDuration = useMusicStore((s) => s.setSleepTimerDuration);
   const isActive = useMusicStore((s) => s.sleepTimerIsActive);
   const remaining = useMusicStore((s) => s.sleepTimerRemaining);
+  const stopAfterCurrentTrack = useMusicStore(
+    (s) => s.sleepTimerStopAfterCurrentTrack
+  );
   const setSleepTimerRemaining = useMusicStore((s) => s.setSleepTimerRemaining);
   const setSleepTimerIsActive = useMusicStore((s) => s.setSleepTimerIsActive);
+  const setStopAfterCurrentTrack = useMusicStore(
+    (s) => s.setSleepTimerStopAfterCurrentTrack
+  );
   const setSleepTimerEndTime = useMusicStore((s) => s.setSleepTimerEndTime);
 
   const [localDuration, setLocalDuration] = useState(duration);
@@ -47,6 +53,7 @@ export function SleepTimerDrawer({
   const handleStart = () => {
     const durationSeconds = localDuration * 60;
     setDuration(localDuration);
+    setStopAfterCurrentTrack(false);
     setSleepTimerRemaining(durationSeconds);
     setSleepTimerEndTime(Date.now() + durationSeconds * 1000);
     setSleepTimerIsActive(true);
@@ -54,9 +61,18 @@ export function SleepTimerDrawer({
   };
 
   const handleCancel = () => {
+    setStopAfterCurrentTrack(false);
     setSleepTimerIsActive(false);
     setSleepTimerRemaining(0);
     setSleepTimerEndTime(0);
+  };
+
+  const handleStopAfterCurrentTrack = () => {
+    setStopAfterCurrentTrack(true);
+    setSleepTimerIsActive(true);
+    setSleepTimerRemaining(0);
+    setSleepTimerEndTime(0);
+    onOpenChange(false);
   };
 
   return (
@@ -71,7 +87,7 @@ export function SleepTimerDrawer({
           </DrawerTitle>
         </DrawerHeader>
 
-        <div className="px-5 py-4 space-y-6">
+        <div className="px-5 py-4 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">时长</span>
             <div className="flex items-center gap-2">
@@ -100,7 +116,7 @@ export function SleepTimerDrawer({
             step={1}
             className="w-full"
           />
-          <div className="flex justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>1分钟</span>
             <span>120分钟</span>
           </div>
@@ -108,19 +124,27 @@ export function SleepTimerDrawer({
 
         <DrawerFooter className="px-5 pb-8 pt-2">
           {isActive ? (
-            <div className="space-y-2">
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={handleCancel}
-              >
-                取消定时（剩余 {formatTime(remaining)}）
-              </Button>
-            </div>
-          ) : (
-            <Button className="w-full" onClick={handleStart}>
-              开启定时关闭
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={handleCancel}
+            >
+              取消定时
+              {!stopAfterCurrentTrack && `（剩余 ${formatTime(remaining)}）`}
             </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleStopAfterCurrentTrack}
+              >
+                播完当前歌曲
+              </Button>
+              <Button className="w-full" onClick={handleStart}>
+                开启定时关闭
+              </Button>
+            </>
           )}
         </DrawerFooter>
       </DrawerContent>

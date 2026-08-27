@@ -25,6 +25,11 @@ registerRoute(
 
 registerRoute(
   ({ request }) => {
+    // 代理备用线路 URL 不参与缓存（路径为 /proxy 的请求视为瞬时中转）
+    if (new URL(request.url, self.location.origin).pathname === "/proxy") {
+      return false;
+    }
+
     const isAudioDestination = request.destination === "audio";
     const hasAudioExt = /\.(mp3|m4a|ogg|wav|flac|aac|mpe?g)(\?|$)/i.test(
       request.url
@@ -42,19 +47,15 @@ registerRoute(
     cacheName: "audio-stream-cache",
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 300,
+        maxEntries: 100,
         maxAgeSeconds: 30 * 24 * 60 * 60,
       }),
       new CacheableResponsePlugin({
-        statuses: [0, 200, 206],
+        statuses: [200],
       }),
       {
         cacheWillUpdate: async ({ response }) => {
-          if (
-            response.status === 0 ||
-            response.status === 200 ||
-            response.status === 206
-          ) {
+          if (response.status === 200) {
             return response;
           }
           return null;

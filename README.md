@@ -29,29 +29,32 @@
 - ☁️ **云端同步**：支持多端同步播放列表与设置。
 - **多音源聚合与回退**：支持多源检索与播放失败回退（本地下载/缓存/直连/代理/下一首）。
 - **智能音源自动匹配**：可自动切换到可用免费音源，并同步队列/歌单/喜欢状态。
-- **歌单广场与播客**：支持网易云歌单、我的歌单、RSS 播客订阅以及 Alist 站点配置。
+- **歌单广场与播客**：支持网易云歌单、我的歌单、RSS 播客订阅、Alist 站点配置以及 Billboard 榜单查询。
 - **歌单管理增强**：支持搜索、去重、导出、封面设置、URL 添加歌曲，支持主流音乐平台的歌单导入。
 - **下载管理**：支持选择下载音质、下载目录、是否嵌入歌词或封面。
+- **数据备份**：支持导出/导入本地 JSON 文件，以及配置 WebDAV 手动上传和恢复备份。
 - **播放生态**：支持播放列表、最近播放、个人歌单、歌词显示、音质选择、倍速调节、睡眠定时、主题切换与数据同步配置。
 - **移动端体验完整**：支持 PWA 安装、Android 打包与 Media Session 集成，网页端也能接近原生体验。
 
+> 数据同步功能：通过管理员手动分配的 `SYNC_KEY` 接入。存储基于 Cloudflare KV（上限 25 MB），单用户理论可稳定同步 5 万首歌曲
+
 ## 音源支持
 
-| 音源             | 搜索 | 播放 | 歌词 | 歌单导入 | 备注                               |
-| ---------------- | :--: | :--: | :--: | :------: | ---------------------------------- |
-| 网易云音乐🌟     |  ✅  |  ✅  |  ✅  |    ✅    | GD Studio API                      |
-| Netease          |  ✅  |  ✅  |  ✅  |    ✅    | 网易云官方，搜索建议/专辑/歌手详情 |
-| Joox🌟           |  ✅  |  ✅  |  ✅  |    ❌    | GD Studio API                      |
-| B站🌟            |  ✅  |  ✅  |  ❌  |    ❌    | 仅移动端，支持视频分P/合集         |
-| 酷我音乐         |  ✅  |  ✅  |  ✅  |    ✅    | GD Studio API                      |
-| 咪咕音乐         |  ✅  |  ✅  |  ✅  |    ✅    | 仅移动端                           |
-| QQ音乐           |  ✅  |  ✅  |  ✅  |    ✅    | QQ音乐官方                         |
-| 酷狗音乐         |  ❌  |  ❌  |  ❌  |    ✅    |                                    |
-| 小蜗音乐         |  ✅  |  ✅  |  ✅  |    ❌    | 酷我音源（洛雪），URL 走 LX API    |
-| 小秋音乐         |  ✅  |  ✅  |  ✅  |    ❌    | QQ音源（洛雪），URL 走 LX API      |
-| 本地音乐         |  ❌  |  ✅  |  ✅  |    ❌    | 仅移动端支持                       |
-| 播客（歌单广场） |  ✅  |  ✅  |  ❌  |    ❌    | RSS 播客订阅                       |
-| Alist（歌单广场）|  ✅  |  ✅  |  ❌  |    ❌    | 仅音频，如 ASMR 站                 |
+| 音源              | 搜索 | 播放 | 歌词 | 歌单导入 | 备注                                             |
+| ----------------- | :--: | :--: | :--: | :------: | ------------------------------------------------ |
+| 网易云音乐🌟      |  ✅  |  ✅  |  ✅  |    ✅    | GD Studio API                                    |
+| Netease           |  ✅  |  ✅  |  ✅  |    ✅    | 网易云官方，搜索建议/专辑/歌手详情               |
+| Joox🌟            |  ✅  |  ✅  |  ✅  |    ❌    | GD Studio API                                    |
+| B站🌟             |  ✅  |  ✅  |  ✅  |    ❌    | 仅移动端，支持视频分P/合集、账号登录（字幕歌词） |
+| 酷我音乐          |  ✅  |  ✅  |  ✅  |    ✅    | GD Studio API                                    |
+| 咪咕音乐          |  ✅  |  ✅  |  ✅  |    ✅    | 仅移动端                                         |
+| QQ音乐            |  ✅  |  ✅  |  ✅  |    ✅    | QQ音乐官方；支持 Cookie 登录                     |
+| 酷狗音乐          |  ❌  |  ❌  |  ❌  |    ✅    |                                                  |
+| 小蜗音乐          |  ✅  |  ✅  |  ✅  |    ❌    | 酷我音源（洛雪），URL 走 LX API                  |
+| 小秋音乐          |  ✅  |  ✅  |  ✅  |    ❌    | QQ音源（洛雪），URL 走 LX API                    |
+| 本地音乐          |  ❌  |  ✅  |  ✅  |    ❌    | 仅移动端支持                                     |
+| 播客（歌单广场）  |  ✅  |  ✅  |  ❌  |    ❌    | RSS 播客订阅                                     |
+| Alist（歌单广场） |  ✅  |  ✅  |  ❌  |    ❌    | 仅音频，如 ASMR 站                               |
 
 > [!NOTE]
 > **兼容性说明**
@@ -88,22 +91,53 @@ npm run test
 环境要求：Node.js (建议 v20+)、Android Studio 及 Android SDK、Java JDK 17
 
 ```bash
-# 1. 安装依赖
-npm install
+# 生成资源
+npm run resources
 
-# 2. 构建前端静态资源
-npm run build
+# 首次添加 Android 平台
+npm run cap:add:android
 
-# 3. 同步资源到 Android 工程
-npx cap sync android
+# 同步 Android 工程
+npm run cap:sync:android
 
-# 4. 在 Android Studio 中打开并运行，或者直接执行打包命令
+# 构建 Debug APK
 npm run build:android:debug
 ```
 
 Debug APK 输出路径：
 
 - `android/app/build/outputs/apk/debug/app-debug.apk`
+
+## 项目结构
+
+```text
+src/
+├── components/                 # 页面与业务组件
+├── hooks/                      # 音频加载相关 Hook
+├── lib/                        # 核心能力（重点）
+│   ├── music-api.ts            # 统一音乐能力入口（搜索/URL/歌词/封面）
+│   ├── audio-match.ts          # 自动换源与匹配结果回写
+│   ├── api/                    # 服务端配置、同步、更新、播客接口
+│   ├── alist/                  # Alist 网盘 API 客户端
+│   ├── bilibili/               # B站 API 客户端与播放适配
+│   ├── kugou/                  # 酷狗 API 客户端
+│   ├── kuwo/                   # 酷我 API 客户端
+│   ├── migu/                   # 咪咕 API 客户端
+│   ├── netease/                # 网易云 API 适配层
+│   ├── qqmusic/                # QQ音乐 API 客户端
+│   ├── music-provider/         # Provider 抽象与实现
+│   ├── sync.ts                 # 数据同步核心逻辑
+│   ├── storage-*.ts            # 存储适配与统一存储管理
+│   ├── clipboard.ts            # 跨平台剪贴板
+│   ├── crypto-storage.ts       # 加密存储
+│   └── utils/                  # 缓存、下载、检索、歌名匹配等工具
+├── plugins/                    # Capacitor 插件封装
+├── routes/                     # 路由定义
+├── store/                      # Zustand 全局状态
+└── types/                      # 类型定义
+functions/                 # Cloudflare Workers 后端
+shared/                     # 跨端共享类型
+```
 
 ## 📦 部署指南 (Cloudflare Pages)
 

@@ -78,9 +78,21 @@ describe("data-backup", () => {
       expect(r.valid).toBe(false);
     });
 
-    it("rejects wrong type tag", () => {
-      const r = validateBackupData(
+    it("accepts bh and otter type tags (compat)", () => {
+      // 同步上游后兼容 otter-music-backup 标识的备份
+      const bh = validateBackupData(
+        JSON.stringify({ version: 1, type: "bh-music-backup", data: { playlists: [] } })
+      );
+      expect(bh.valid).toBe(true);
+      const otter = validateBackupData(
         JSON.stringify({ version: 1, type: "otter-music-backup", data: { playlists: [] } })
+      );
+      expect(otter.valid).toBe(true);
+    });
+
+    it("rejects unknown type tag", () => {
+      const r = validateBackupData(
+        JSON.stringify({ version: 1, type: "unknown-backup", data: { playlists: [] } })
       );
       expect(r.valid).toBe(false);
     });

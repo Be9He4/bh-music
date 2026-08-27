@@ -18,6 +18,7 @@ import type { MusicState } from "./types";
 
 export type { MusicState } from "./types";
 export type { FullScreenBackgroundMode } from "./ui-slice";
+export type { LyricAlign } from "./ui-slice";
 
 export const useMusicStore = create<MusicState>()(
   persist(
@@ -69,6 +70,7 @@ export const useMusicStore = create<MusicState>()(
         lastPlaylistCategory: state.lastPlaylistCategory,
         lastMineTab: state.lastMineTab,
         lastFeaturedTab: state.lastFeaturedTab,
+        lastBillboardGroup: state.lastBillboardGroup,
         enableAutoMatch: state.enableAutoMatch,
         autoMatchFavorites: state.autoMatchFavorites,
         autoMatchPlaylists: state.autoMatchPlaylists,
@@ -77,6 +79,9 @@ export const useMusicStore = create<MusicState>()(
         bilibiliAutoMatchSuffix: state.bilibiliAutoMatchSuffix,
         fullScreenBackgroundMode: state.fullScreenBackgroundMode,
         showSourceBadge: state.showSourceBadge,
+        lyricAlign: state.lyricAlign,
+        lyricFontSize: state.lyricFontSize,
+        lyricOffset: state.lyricOffset,
         downloadQuality: state.downloadQuality,
         embedCover: state.embedCover,
         embedLyric: state.embedLyric,

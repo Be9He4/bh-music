@@ -351,7 +351,7 @@ export function LocalMusicPage({
                 : `删除选中的 ${deleteTargets.length} 首歌曲`}
             </DialogTitle>
             <DialogDescription>
-              默认只从当前列表移除，重新扫描后可能再次出现。
+              默认从当前列表移除，重新扫描后会再次出现。
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 py-2">
@@ -362,7 +362,7 @@ export function LocalMusicPage({
                 setDeleteLocalFile(checked === true)
               }
             />
-            <span className="text-sm">同时删除本地文件</span>
+            <span className="text-sm">删除本地文件</span>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={resetDeleteState}>

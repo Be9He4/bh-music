@@ -140,4 +140,24 @@ describe("UrlCacheStore", () => {
       expect(revokeBlobUrl).not.toHaveBeenCalled();
     });
   });
+
+  describe("clear", () => {
+    it("should remove all URL mappings", () => {
+      useUrlCacheStore.getState().set("track-1", "https://example.com/1.mp3");
+      useUrlCacheStore.getState().set("track-2", "https://example.com/2.mp3");
+
+      useUrlCacheStore.getState().clear();
+
+      expect(useUrlCacheStore.getState().urlMap).toEqual({});
+    });
+
+    it("should revoke all blob URLs", () => {
+      const blobUrl = "blob:https://example.com/audio";
+      useUrlCacheStore.getState().set("track-1", blobUrl);
+
+      useUrlCacheStore.getState().clear();
+
+      expect(revokeBlobUrl).toHaveBeenCalledWith(blobUrl);
+    });
+  });
 });

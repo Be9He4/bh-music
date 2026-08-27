@@ -9,6 +9,9 @@ export enum storeKey {
   DownloadStore = "oh_download_store",
   AppStore = "oh_app_store",
   NeteaseStore = "oh_netease_store",
+  QqStore = "oh_qq_store",
+  BilibiliStore = "oh_bilibili_store",
   OfflineStore = "oh_offline_store",
   UrlCacheStore = "oh_url_cache_store",
+  WebdavStore = "oh_webdav_store",
 }

@@ -10,6 +10,8 @@ import { useMediaSessionIntegration } from "@/hooks/useMediaSessionIntegration";
 import { useAudioEventHandlers } from "@/hooks/useAudioEventHandlers";
 import { useAudioTrackLoader } from "@/hooks/useAudioTrackLoader";
 import { useSleepTimer } from "@/hooks/useSleepTimer";
+import { useAudioPreloader } from "@/hooks/useAudioPreloader";
+import { useAudioRouteSafety } from "@/hooks/useAudioRouteSafety";
 
 export function GlobalMusicPlayer() {
   const audioRef = useAudioElement();
@@ -29,7 +31,9 @@ export function GlobalMusicPlayer() {
   useAudioTrackLoader(audioRef, isSwitchingTrackRef, hasRecordedRef);
   useAudioPlaybackControl(audioRef, isSwitchingTrackRef);
   useAudioEventHandlers(audioRef, isSwitchingTrackRef, hasRecordedRef);
+  useAudioRouteSafety(audioRef);
   useMediaSessionIntegration(audioRef, coverUrl);
+  useAudioPreloader(audioRef);
 
   return (
     <audio ref={audioRef} className="sr-only" preload="auto" playsInline />

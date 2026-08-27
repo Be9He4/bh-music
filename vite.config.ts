@@ -276,6 +276,73 @@ export default defineConfig({
         );
       },
     },
+    {
+      name: "plugin-webdav-proxy",
+      configureServer(server) {
+        server.middlewares.use(
+          "/api/webdav",
+          async (req: IncomingMessage, res: ServerResponse) => {
+            try {
+              const requestUrl = new URL(
+                req.url || "",
+                "http://localhost"
+              ).searchParams.get("url");
+              if (!requestUrl) {
+                res.writeHead(400, { "Content-Type": "text/plain" });
+                res.end("missing url parameter");
+                return;
+              }
+
+              const target = new URL(requestUrl);
+              if (target.protocol !== "http:" && target.protocol !== "https:") {
+                res.writeHead(400, { "Content-Type": "text/plain" });
+                res.end("invalid url protocol");
+                return;
+              }
+
+              const chunks: Buffer[] = [];
+              for await (const chunk of req) {
+                chunks.push(
+                  Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+                );
+              }
+
+              const headers: Record<string, string> = {};
+              for (const name of ["authorization", "content-type", "depth"]) {
+                const value = req.headers[name];
+                if (typeof value === "string") headers[name] = value;
+              }
+
+              const fetchRes = await fetch(target, {
+                method: req.method,
+                headers,
+                body: chunks.length ? Buffer.concat(chunks) : undefined,
+              });
+              const responseBody = Buffer.from(await fetchRes.arrayBuffer());
+              res.statusCode = fetchRes.status;
+              fetchRes.headers.forEach((value, key) => {
+                // Node fetch may decompress the body; these upstream headers
+                // would describe a different payload and break browser reads.
+                if (
+                  key !== "content-encoding" &&
+                  key !== "content-length" &&
+                  key !== "transfer-encoding" &&
+                  key !== "connection" &&
+                  key !== "www-authenticate"
+                ) {
+                  res.setHeader(key, value);
+                }
+              });
+              res.setHeader("Access-Control-Allow-Origin", "*");
+              res.end(responseBody);
+            } catch {
+              res.writeHead(502, { "Content-Type": "text/plain" });
+              res.end("webdav proxy request failed");
+            }
+          }
+        );
+      },
+    },
   ],
   resolve: {
     alias: {
@@ -355,14 +422,18 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/api\/qqmusic-search/, ""),
         configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
             proxyReq.setHeader("Referer", "https://y.qq.com/");
             proxyReq.setHeader("Origin", "https://y.qq.com");
-            proxyReq.setHeader("Cookie", "uin=");
+            proxyReq.setHeader(
+              "Cookie",
+              req.headers["x-real-cookie"] || "uin="
+            );
             proxyReq.setHeader(
               "User-Agent",
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             );
+            proxyReq.removeHeader("x-real-cookie");
           });
         },
       },
@@ -409,13 +480,18 @@ export default defineConfig({
           Origin: "https://y.qq.com",
         },
         configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
             proxyReq.setHeader("Referer", "https://y.qq.com/");
             proxyReq.setHeader("Origin", "https://y.qq.com");
+            proxyReq.setHeader(
+              "Cookie",
+              req.headers["x-real-cookie"] || "uin="
+            );
             proxyReq.setHeader(
               "User-Agent",
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             );
+            proxyReq.removeHeader("x-real-cookie");
           });
         },
       },

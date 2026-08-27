@@ -35,6 +35,7 @@ function PlaylistItem({
         playlist={playlist}
         className="w-12 h-12 rounded-lg shadow-sm transition-all group-hover:shadow-md bg-muted/50 shrink-0"
         iconClassName="h-5 w-5 text-muted-foreground/70"
+        previewable={false}
       />
       <div className="ml-4 flex-1 overflow-hidden flex flex-col justify-center gap-0.5">
         <p className="text-base font-medium truncate leading-tight">

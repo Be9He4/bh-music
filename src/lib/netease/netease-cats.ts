@@ -154,5 +154,14 @@ export const RECOMMEND_CATS: CatItem[] = [
   F("民谣"),
   F("轻音乐"),
 
+  { id: "Billboard", name: "Billboard" },
   F("播客"),
 ];
+
+/** 不走网易云 browse 分页适配器的分类（含「我的」+ 3 个特殊子歌单） */
+export const NON_BROWSE_CATEGORIES: ReadonlySet<string> = new Set([
+  "mine",
+  "播客",
+  "Alist",
+  "Billboard",
+]);

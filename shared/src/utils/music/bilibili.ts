@@ -4,16 +4,22 @@ import type {
   SearchPageResult,
 } from "../../types/music";
 import type {
+  BilibiliArcSearchResponse,
+  BilibiliArcSearchVideoRaw,
   BilibiliDurlResponse,
   BilibiliPlayUrlResponse,
   BilibiliSearchResponse,
   BilibiliSearchVideoRaw,
+  BilibiliPlayerResponse,
   BilibiliSeasonArchiveRaw,
+  BilibiliSeasonSeriesListResponse,
   BilibiliSeasonsArchivesListResponse,
   BilibiliSeriesArchiveRaw,
   BilibiliSeriesArchivesResponse,
   BilibiliSeriesMetaRaw,
   BilibiliSeriesResponse,
+  BilibiliSubtitleBodyItem,
+  BilibiliSubtitleItem,
   BilibiliViewResponse,
 } from "../../types/music-platforms";
 import { normalizeResourceUrl } from "../url";
@@ -183,6 +189,35 @@ export function buildBilibiliUserCardPath(mid: number): string {
 }
 
 /**
+ * 构建 B 站 nav 接口路径（获取 WBI 签名密钥）。
+ */
+export function buildBilibiliNavPath(): string {
+  return `/x/web-interface/nav`;
+}
+
+/**
+ * 构建 B 站用户空间视频列表接口路径（需要 WBI 签名）。
+ */
+export function buildBilibiliArcSearchPath(
+  mid: number,
+  page = 1,
+  size = 30
+): string {
+  return `/x/space/wbi/arc/search?mid=${mid}&pn=${page}&ps=${size}&order=pubdate&platform=web`;
+}
+
+/**
+ * 构建 B 站用户合集列表接口路径（seasons_series_list）。
+ */
+export function buildBilibiliSeasonSeriesListPath(
+  mid: number,
+  pageNum = 1,
+  pageSize = 100
+): string {
+  return `/x/polymer/web-space/seasons_series_list?mid=${mid}&page_num=${pageNum}&page_size=${pageSize}`;
+}
+
+/**
  * 解析 B 站用户详情响应。
  */
 export function parseBilibiliUserInfo(
@@ -196,6 +231,83 @@ export function parseBilibiliUserInfo(
     name: data.name,
     face: data.face,
   };
+}
+
+/**
+ * 将 B 站用户空间视频转换为通用 MusicTrack。
+ */
+export function convertBilibiliArcSearchVideoToMusicTrack(
+  video: BilibiliArcSearchVideoRaw,
+  upName: string
+): MusicTrack {
+  const bvid = video.bvid || "";
+  const coverUrl = normalizeResourceUrl(video.pic || "");
+
+  return {
+    id: `bilibili_${bvid}`,
+    name: normalizeBilibiliText(video.title),
+    artist: [upName || normalizeBilibiliText(video.author || "")],
+    album: "",
+    pic_id: coverUrl,
+    url_id: `bilibili_${bvid}`,
+    lyric_id: `bilibili_${bvid}`,
+    source: "bilibili",
+    artist_ids:
+      video.mid === undefined || video.mid === null
+        ? undefined
+        : [String(video.mid)],
+  };
+}
+
+/**
+ * 解析 B 站用户空间视频列表响应并转换为分页结果。
+ */
+export function parseBilibiliArcSearchResponse(
+  response: BilibiliArcSearchResponse,
+  upName: string,
+  page: number,
+  size: number
+): SearchPageResult<MusicTrack> {
+  if (response.code !== 0) return { items: [], hasMore: false };
+
+  const videos = response.data?.list?.vlist || [];
+  const total = response.data?.page?.count || 0;
+
+  return {
+    items: videos.map((v) =>
+      convertBilibiliArcSearchVideoToMusicTrack(v, upName)
+    ),
+    hasMore: total > 0 ? page * size < total : videos.length >= size,
+  };
+}
+
+export interface BilibiliUpSeasonSummary {
+  id: string;
+  name: string;
+  cover: string;
+  count: number;
+}
+
+/**
+ * 解析 B 站用户合集列表响应，转为专辑条目。
+ * 响应结构为 data.items_lists.seasons_list[]，合集信息在 meta 中。
+ * 仅取 seasons（合集），专辑 ID 为 bilibili_S_{seasonId}_{mid}。
+ */
+export function parseBilibiliUpSeasonSeriesList(
+  response: BilibiliSeasonSeriesListResponse,
+  mid: number
+): BilibiliUpSeasonSummary[] {
+  if (response.code !== 0) return [];
+  const seasons = response.data?.items_lists?.seasons_list || [];
+  return seasons
+    .map((s) => s.meta)
+    .filter((m): m is NonNullable<typeof m> => Boolean(m?.season_id))
+    .map((m) => ({
+      id: buildBilibiliSeriesAlbumId(m.season_id as number, mid),
+      name: m.name || "合集",
+      cover: normalizeResourceUrl(m.cover || ""),
+      count: m.total || 0,
+    }));
 }
 
 /**
@@ -234,7 +346,7 @@ export function convertBilibiliSearchVideoToMusicTrack(
     album: "",
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
-    lyric_id: "",
+    lyric_id: `bilibili_${bvid}`,
     source: "bilibili",
     artist_ids:
       video.mid === undefined || video.mid === null
@@ -492,7 +604,7 @@ export function convertSeriesArchiveToMusicTrack(
     album_id: albumId,
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
-    lyric_id: "",
+    lyric_id: `bilibili_${bvid}`,
     source: "bilibili",
     artist_ids:
       archive.owner?.mid !== undefined
@@ -556,9 +668,153 @@ export function parseBilibiliSeasonsArchivesList(
   };
 }
 
+// ─────────────────────────────────────
+// 字幕 (player/v2) 与 LRC 转换
+// ─────────────────────────────────────
+
+/**
+ * 构建 B 站播放器信息接口路径（含字幕信息）。
+ * 使用 /x/player/wbi/v2：B 站播放器现行字幕接口，返回稳定；
+ * 旧接口 /x/player/v2 的字幕数据随机/不稳定（时有时无或串台）。
+ */
+export function buildBilibiliPlayerPath(bvid: string, cid: number): string {
+  return `/x/player/wbi/v2?bvid=${encodeURIComponent(bvid)}&cid=${cid}`;
+}
+
+const AI_SUBTITLE_LAN_PREFIX = "ai-";
+
+/**
+ * 归一化字幕语言标识：AI 字幕去掉 "ai-" 前缀，locale 取语言代码，
+ * 使 "ai-zh"、"zh-CN" 归并为同一语言组 "zh"。
+ */
+export function bilibiliSubtitleLang(item: BilibiliSubtitleItem): string {
+  const lan = (item.lan || "").replace(AI_SUBTITLE_LAN_PREFIX, "");
+  return lan.split("-")[0].toLowerCase();
+}
+
+/**
+ * 判断字幕是否为 B 站 AI 自动生成。
+ */
+export function isBilibiliAiSubtitle(item: BilibiliSubtitleItem): boolean {
+  return Boolean(
+    item.ai_status ||
+    item.ai_type ||
+    item.lan?.startsWith(AI_SUBTITLE_LAN_PREFIX)
+  );
+}
+
+export interface BilibiliSubtitleSelection {
+  primary: BilibiliSubtitleItem | null;
+  translation: BilibiliSubtitleItem | null;
+}
+
+/**
+ * 从字幕轨道列表中选择主歌词与翻译字幕。
+ * 策略：
+ * - 两级优先：人工（UP主上传）字幕整体优先于 AI 字幕；AI 仅在无人工候选时兜底。
+ * - 同一语言内人工字幕优先于 AI 字幕。
+ * - 主歌词优先中文，否则取首个可用语言；翻译优先其他语言（英文优先）。
+ * - 返回的 item 带 `originalLan` / `isAi` 标记，便于上层区分 AI 字幕。
+ */
+export function selectBilibiliSubtitleItems(
+  subtitles: BilibiliSubtitleItem[]
+): BilibiliSubtitleSelection {
+  const usable = subtitles
+    .filter((s) => s.subtitle_url && s.lan)
+    .map((s) => ({
+      ...s,
+      originalLan: s.lan,
+      isAi: isBilibiliAiSubtitle(s),
+    }));
+  if (usable.length === 0) return { primary: null, translation: null };
+
+  const normLang = (s: BilibiliSubtitleItem): string => bilibiliSubtitleLang(s);
+
+  const humanPool = usable.filter((s) => !s.isAi);
+  const aiPool = usable.filter((s) => s.isAi);
+
+  const pickInPool = (
+    pool: BilibiliSubtitleItem[],
+    lang: string
+  ): BilibiliSubtitleItem | null => {
+    const list = pool.filter((s) => normLang(s) === lang);
+    if (list.length === 0) return null;
+    return list.find((s) => !s.isAi) ?? list[0];
+  };
+
+  const firstLangOf = (pool: BilibiliSubtitleItem[]): string => {
+    if (pool.some((s) => normLang(s) === "zh")) return "zh";
+    if (pool.some((s) => normLang(s) === "en")) return "en";
+    return pool[0] ? normLang(pool[0]) : "";
+  };
+
+  // 主歌词：人工字幕优先，其次 AI 兜底
+  const primary: BilibiliSubtitleItem | null =
+    pickInPool(humanPool, "zh") ??
+    pickInPool(humanPool, firstLangOf(humanPool)) ??
+    pickInPool(aiPool, "zh") ??
+    pickInPool(aiPool, firstLangOf(aiPool));
+
+  if (!primary) return { primary: null, translation: null };
+
+  const primaryLang = normLang(primary);
+  const otherLang = (s: BilibiliSubtitleItem): boolean =>
+    normLang(s) !== primaryLang;
+
+  // 翻译：优先其他语言的人工字幕，其次 AI
+  const translation: BilibiliSubtitleItem | null =
+    humanPool.find((s) => otherLang(s) && normLang(s) === "en") ??
+    humanPool.find((s) => otherLang(s)) ??
+    aiPool.find((s) => otherLang(s) && normLang(s) === "en") ??
+    aiPool.find((s) => otherLang(s)) ??
+    null;
+
+  return { primary, translation };
+}
+
+/**
+ * 从 player/wbi/v2 响应的字幕列表中选择主歌词与翻译字幕。
+ */
+export function selectBilibiliSubtitles(
+  response: BilibiliPlayerResponse | null
+): BilibiliSubtitleSelection {
+  return selectBilibiliSubtitleItems(response?.data?.subtitle?.subtitles || []);
+}
+
+/**
+ * 将 B 站字幕 body 转换为 LRC 字符串。
+ * 多行 content 合并为空格，时间格式为 [mm:ss.xx]。
+ */
+export function convertBilibiliSubtitleToLrc(
+  body: BilibiliSubtitleBodyItem[]
+): string {
+  return body
+    .map((item) => {
+      const from = item.from;
+      if (typeof from !== "number" || !item.content) return "";
+      const mins = Math.floor(from / 60);
+      const secs = Math.floor(from % 60);
+      const ms = Math.round((from - Math.floor(from)) * 100);
+      const text = item.content.replace(/\s+/g, " ").trim();
+      if (!text) return "";
+      return `[${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(ms).padStart(2, "0")}]${text}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * 归一化字幕 URL：相对协议补全为 https，空值返回空串。
+ */
+export function normalizeBilibiliSubtitleUrl(url: string | undefined): string {
+  if (!url) return "";
+  if (url.startsWith("//")) return `https:${url}`;
+  return url;
+}
+
 /**
  * 将 B 站合集 (seasons_archives) 内视频转换为 MusicTrack。
- * @param archive - 合集内的视频原始数据
+ * @param archive - 合集内视频的原始数据
  * @param upName - UP主名称
  */
 export function convertSeasonArchiveToMusicTrack(
@@ -577,7 +833,7 @@ export function convertSeasonArchiveToMusicTrack(
     album_id: albumId ?? buildBilibiliMultiPAlbumId(bvid),
     pic_id: coverUrl,
     url_id: `bilibili_${bvid}`,
-    lyric_id: "",
+    lyric_id: `bilibili_${bvid}`,
     source: "bilibili",
   };
 }

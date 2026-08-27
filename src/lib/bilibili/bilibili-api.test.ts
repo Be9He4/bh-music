@@ -423,3 +423,330 @@ describe("getBilibiliCollectionDetail", () => {
     ).resolves.toBeNull();
   });
 });
+
+describe("getBilibiliLyric", () => {
+  function playerResponse(subtitles: any[] = []) {
+    return {
+      data: {
+        subtitle: {
+          subtitles,
+        },
+      },
+    };
+  }
+
+  function viewResponse(overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      data: {
+        aid: 252450658,
+        pages: [{ cid: 62131, duration: 1800 }],
+        ...overrides,
+      },
+    });
+  }
+
+  it("loads lyric subtitle from player/wbi/v2 via POST proxy (web)", async () => {
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
+
+    mockConfig.fetchWithTimeout.mockReset();
+    mockConfig.fetchWithTimeout
+      .mockResolvedValueOnce(new Response(viewResponse(), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(
+            playerResponse([
+              {
+                lan: "zh-CN",
+                lan_doc: "中文",
+                subtitle_url: "https://i0.hdslb.com/zh.json",
+              },
+            ])
+          ),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            body: [
+              { from: 0, to: 2, content: "第一句" },
+              { from: 2.5, to: 4, content: "第二句" },
+            ],
+          }),
+          { status: 200 }
+        )
+      );
+
+    const { getBilibiliLyric } = await import("./bilibili-api");
+    const result = await getBilibiliLyric("bilibili_BV1xx411c7mD");
+
+    expect(result?.lyric).toContain("[00:00.00]第一句");
+    expect(result?.lyric).toContain("[00:02.50]第二句");
+    expect(result?.tlyric).toBeUndefined();
+    const calls = mockConfig.fetchWithTimeout.mock.calls.map((c: any[]) =>
+      String(c[0])
+    );
+    // 直接走 player 代理（POST），不再请求已废弃的 subtitle/web/view
+    expect(
+      calls.some((u: string) => u.includes("/music-api/bilibili/player"))
+    ).toBe(true);
+    expect(
+      calls.some((u: string) => u.includes("/x/v2/subtitle/web/view"))
+    ).toBe(false);
+    // 仅抓取主歌词字幕，不请求翻译字幕
+    expect(
+      calls.filter((u: string) => u.includes("/music-api/bilibili/subtitle"))
+    ).toHaveLength(1);
+  });
+
+  it("uses explicit cid from track id and returns null when player has no subtitle", async () => {
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
+
+    mockConfig.fetchWithTimeout.mockReset();
+    mockConfig.fetchWithTimeout
+      .mockResolvedValueOnce(new Response(viewResponse(), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(playerResponse([])), { status: 200 })
+      );
+
+    const { getBilibiliLyric } = await import("./bilibili-api");
+    const result = await getBilibiliLyric("bilibili_BV1xx411c7mD_62131");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when subtitle body exceeds current page duration (anti cross-talk)", async () => {
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = false;
+    mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
+
+    mockConfig.fetchWithTimeout.mockReset();
+    mockConfig.fetchWithTimeout
+      .mockResolvedValueOnce(
+        new Response(viewResponse({ pages: [{ cid: 62131, duration: 60 }] }), {
+          status: 200,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify(
+            playerResponse([
+              {
+                lan: "zh-CN",
+                lan_doc: "中文",
+                subtitle_url: "https://i0.hdslb.com/zh.json",
+              },
+            ])
+          ),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            body: [{ from: 0, to: 600, content: "超出时长" }],
+          }),
+          { status: 200 }
+        )
+      );
+
+    const { getBilibiliLyric } = await import("./bilibili-api");
+    const result = await getBilibiliLyric("bilibili_BV1xx411c7mD");
+    expect(result).toBeNull();
+  });
+
+  it("returns null for non-bilibili track id", async () => {
+    const { getBilibiliLyric } = await import("./bilibili-api");
+    await expect(getBilibiliLyric("netease_123")).resolves.toBeNull();
+  });
+
+  it("falls back to page0 when track id cid not in pages", async () => {
+    mockConfig.IS_NATIVE = false;
+    mockConfig.IS_WEB_PROD = true;
+    mockConfig.getApiUrl.mockReturnValue("https://otter-music.pages.dev");
+
+    mockConfig.fetchWithTimeout.mockReset();
+    mockConfig.fetchWithTimeout
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { aid: 252450658, pages: [{ cid: 999 }] } }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(playerResponse([])), { status: 200 })
+      );
+
+    const { getBilibiliLyric } = await import("./bilibili-api");
+    const result = await getBilibiliLyric("bilibili_BV1xx411c7mD_62131");
+    expect(result).toBeNull();
+    // 回退后 player 应使用 page0 的 cid=999（在请求体里）
+    const playerOpts = mockConfig.fetchWithTimeout.mock.calls[1][1] as {
+      body?: string;
+    };
+    expect(playerOpts.body).toContain("999");
+  });
+});
+
+describe("fetchBilibiliJson cookie injection", () => {
+  it("attaches stored bilibili cookie to native requests", async () => {
+    mockConfig.IS_NATIVE = true;
+    const { useBilibiliStore } = await import("@/store/bilibili-store");
+    useBilibiliStore.setState({
+      cookie: "SESSDATA=abc; DedeUserID=1",
+      user: null,
+    });
+    mockCapacitor.CapacitorHttp.request.mockResolvedValue({
+      status: 200,
+      data: { code: 0, data: {} },
+    });
+
+    const { getBilibiliVideoDetail } = await import("./bilibili-api");
+    await getBilibiliVideoDetail("bilibili_BV1xx411c7mD");
+
+    const headers =
+      mockCapacitor.CapacitorHttp.request.mock.calls[0][0].headers;
+    expect(headers.Cookie).toContain("SESSDATA=abc");
+
+    useBilibiliStore.setState({ cookie: "", user: null });
+  });
+});
+
+describe("UP space (native)", () => {
+  const NAV_RESPONSE = {
+    status: 200,
+    data: {
+      code: 0,
+      data: {
+        wbi_img: {
+          img_url:
+            "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png",
+          sub_url:
+            "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png",
+        },
+      },
+    },
+  };
+  const ACC_RESPONSE = {
+    status: 200,
+    data: { code: 0, data: { mid: 999, name: "音乐UP", face: "//face.jpg" } },
+  };
+  const ARC_RESPONSE = {
+    status: 200,
+    data: {
+      code: 0,
+      data: {
+        list: {
+          vlist: [
+            {
+              bvid: "BV1xx411c7mD",
+              title: "歌",
+              pic: "//p.jpg",
+              author: "UP",
+              mid: 999,
+            },
+          ],
+        },
+        page: { count: 42 },
+      },
+    },
+  };
+  const SEASONS_RESPONSE = {
+    status: 200,
+    data: {
+      code: 0,
+      data: {
+        items_lists: {
+          seasons_list: [
+            {
+              meta: {
+                season_id: 3050068,
+                name: "合集",
+                cover: "//c.jpg",
+                total: 30,
+                mid: 999,
+              },
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  it("getBilibiliUpInfo returns profile with WBI-signed request", async () => {
+    mockConfig.IS_NATIVE = true;
+    mockCapacitor.CapacitorHttp.request
+      .mockResolvedValueOnce(NAV_RESPONSE)
+      .mockResolvedValueOnce(ACC_RESPONSE);
+
+    const { getBilibiliUpInfo } = await import("./bilibili-api");
+    const profile = await getBilibiliUpInfo(999);
+
+    expect(profile).toEqual({ mid: 999, name: "音乐UP", face: "//face.jpg" });
+    const urls = mockCapacitor.CapacitorHttp.request.mock.calls.map(
+      (c: any) => c[0].url
+    );
+    expect(urls[1]).toContain("/x/space/wbi/acc/info");
+    expect(urls[1]).toContain("w_rid=");
+  });
+
+  it("searchBilibiliUpVideos returns parsed tracks", async () => {
+    mockConfig.IS_NATIVE = true;
+    mockCapacitor.CapacitorHttp.request
+      .mockResolvedValueOnce(NAV_RESPONSE)
+      .mockResolvedValueOnce(ARC_RESPONSE);
+
+    const { searchBilibiliUpVideos } = await import("./bilibili-api");
+    const result = await searchBilibiliUpVideos(999, 1, 30, "音乐UP");
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].artist).toEqual(["音乐UP"]);
+    expect(result.hasMore).toBe(true);
+    const urls = mockCapacitor.CapacitorHttp.request.mock.calls.map(
+      (c: any) => c[0].url
+    );
+    expect(urls[1]).toContain("/x/space/wbi/arc/search");
+    expect(urls[1]).toContain("w_rid=");
+  });
+
+  it("returns empty on non-native", async () => {
+    mockConfig.IS_NATIVE = false;
+
+    const { searchBilibiliUpVideos, getBilibiliUpCollections } =
+      await import("./bilibili-api");
+    await expect(searchBilibiliUpVideos(999, 1)).resolves.toEqual({
+      items: [],
+      hasMore: false,
+      total: 0,
+    });
+    await expect(getBilibiliUpCollections(999)).resolves.toEqual([]);
+  });
+
+  it("getBilibiliUpCollections parses seasons", async () => {
+    mockConfig.IS_NATIVE = true;
+    mockCapacitor.CapacitorHttp.request.mockResolvedValueOnce(SEASONS_RESPONSE);
+
+    const { getBilibiliUpCollections } = await import("./bilibili-api");
+    const entries = await getBilibiliUpCollections(999);
+
+    expect(entries).toEqual([
+      {
+        id: "bilibili_S_3050068_999",
+        name: "合集",
+        cover: "https://c.jpg",
+        count: 30,
+      },
+    ]);
+    const urls = mockCapacitor.CapacitorHttp.request.mock.calls.map(
+      (c: any) => c[0].url
+    );
+    expect(urls[0]).toContain("/x/polymer/web-space/seasons_series_list");
+    expect(urls[0]).toContain("page_num=1");
+    expect(urls[0]).toContain("page_size=20");
+    expect(urls[0]).not.toContain("wts=");
+    expect(urls[0]).not.toContain("w_rid=");
+  });
+});

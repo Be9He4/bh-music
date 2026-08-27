@@ -5,7 +5,7 @@ import {
   GenericDetailPage,
   type GenericDetailData,
 } from "@/components/GenericDetailPage";
-import { ListMusic } from "lucide-react";
+import { ListMusic, Import } from "lucide-react";
 import {
   getBilibiliCollectionDetail,
   getBilibiliMultiPDetail,
@@ -18,6 +18,8 @@ import {
 import { MusicTrack } from "@/types/music";
 import { getUpNameCache } from "@/lib/bilibili/up-name-cache";
 import { useDetailPage } from "@/hooks/useDetailPage";
+import { useImportPlaylist } from "@/hooks/useImportPlaylist";
+import { Button } from "@/components/ui/button";
 
 interface BilibiliCollectionDetailProps {
   id: string | null;
@@ -46,6 +48,7 @@ export function BilibiliCollectionDetail({
   const totalRef = useRef(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const importPlaylist = useImportPlaylist();
 
   const albumId = id || "";
   const isSeries = albumId ? !!parseBilibiliAlbumId(albumId) : false;
@@ -133,6 +136,20 @@ export function BilibiliCollectionDetail({
       onRetry={retry}
       detail={genericDetail}
       scrollRef={scrollRef}
+      action={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-foreground"
+          disabled={activeTracks.length === 0}
+          onClick={() =>
+            detail &&
+            importPlaylist(detail.title, detail.coverUrl, activeTracks)
+          }
+        >
+          <Import className="w-5 h-5" />
+        </Button>
+      }
       tracks={activeTracks}
       onPlayTrack={(track) => onPlay(track, activeTracks)}
       searchQuery={searchQuery}

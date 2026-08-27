@@ -8,8 +8,8 @@ android {
         applicationId "com.bh.music"
         minSdk 24
         targetSdk 36
-        versionCode 52
-        versionName "2.5.1"
+        versionCode 58
+        versionName "2.7.2"
     }
 
     buildTypes {

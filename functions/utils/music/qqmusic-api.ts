@@ -4,12 +4,12 @@ import {
   type QqVkeyResponse,
   type SearchPageResult,
   QQ_API_URL,
-  QQ_FILE_CONFIG,
   QQ_REFERER,
   buildVkeyRequestBody,
   convertQqSearchSongToMusicTrack,
   decodeQqHtmlEntities,
   extractVkeyUrl,
+  orderQqQualityKeys,
   parseQqPlaylistResponse,
 } from "@otter-music/shared";
 import forge from "node-forge";
@@ -138,14 +138,13 @@ export async function fetchQqMusicLyric(songmid: string) {
 
 /**
  * 通过 QQ 音乐 vkey API 获取音频直链。
- * 支持质量降级：320k → 128k → m4a，不可播放时返回空 url。
+ * 根据首选质量键排序请求，请求内按优先级降级，不可播放时返回空 url。
  */
 export async function fetchQqMusicUrl(
   songmid: string,
-  _quality: string
+  quality = "320k"
 ): Promise<{ url?: string }> {
-  const qualityKeys = QQ_FILE_CONFIG.map((c) => c.key);
-  const body = buildVkeyRequestBody(songmid, qualityKeys);
+  const body = buildVkeyRequestBody(songmid, orderQqQualityKeys(quality));
 
   const res = await fetch(QQ_API_URL, {
     method: "POST",

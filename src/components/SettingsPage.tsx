@@ -7,6 +7,8 @@ import { QualitySelect } from "./settings/QualitySelect";
 import { AggregatedSourceSelect } from "./settings/AggregatedSourceSelect";
 import { SyncConfig } from "./settings/SyncConfig";
 import { NeteaseLogin } from "./settings/NeteaseLogin";
+import { QqMusicLogin } from "./settings/QqMusicLogin";
+import { BilibiliLogin } from "./settings/BilibiliLogin";
 import { ApiUrlConfig } from "./settings/ApiUrlConfig";
 import {
   useMusicStore,
@@ -44,6 +46,8 @@ import { PlaybackSpeedSetting } from "./settings/PlaybackSpeedSetting";
 import { AutoMatchSuffixSetting } from "./settings/AutoMatchSuffixSetting";
 import { AutoMatchSetting } from "./settings/AutoMatchSetting";
 import { DataBackup } from "./settings/DataBackup";
+import { WebDavBackup } from "./settings/WebDavBackup";
+import { LyricStyleSetting } from "./settings/LyricStyleSetting";
 import { useState } from "react";
 
 interface SettingsPageProps {
@@ -167,10 +171,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               </Select>
             }
           />
+          <LyricStyleSetting />
         </SettingsSection>
 
         <SettingsSection title="账号数据">
           <NeteaseLogin />
+          <QqMusicLogin />
+          <BilibiliLogin />
           <SyncConfig />
           <SettingItem
             icon={Database}
@@ -219,6 +226,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           />
           <AutoMatchSetting />
           <StreamCacheSetting />
+          <WebDavBackup />
         </SettingsSection>
 
         <SettingsSection title="关于系统">

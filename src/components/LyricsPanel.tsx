@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { musicApi } from "@/lib/music-api";
 import { MusicTrack } from "@/types/music";
 import { Play } from "lucide-react";
-import { useMusicStore } from "@/store/music-store";
+import { useMusicStore, type LyricAlign } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 
 interface LyricsPanelProps {
@@ -22,7 +22,6 @@ interface LyricLine {
 }
 
 const TIME_EXP = /\[(\d{2}):(\d{2})\.(\d{2,3})]/g;
-const LYRIC_OFFSET = -0.5;
 const MATCH_TOLERANCE = 0.5;
 const AUTO_SCROLL_DELAY = 2000;
 const PADDING_LINES = 2;
@@ -48,6 +47,7 @@ function parseSimpleLrc(lrc: string): { time: number; text: string }[] {
             Number(m[1]) * 60 +
             Number(m[2]) +
             Number(m[3].padEnd(3, "0")) / 1000;
+
           lines.push({ time, text });
         }
       }
@@ -59,6 +59,7 @@ function parseSimpleLrc(lrc: string): { time: number; text: string }[] {
 
 function parseLrc(lrc: string, tLrc?: string): LyricLine[] {
   const lLines = parseSimpleLrc(lrc);
+
   if (!tLrc) {
     return lLines;
   }
@@ -106,29 +107,50 @@ function parseLrc(lrc: string, tLrc?: string): LyricLine[] {
 const LyricLineView = memo(function LyricLineView({
   line,
   isActive,
+  align,
+  fontSize,
 }: {
   line: LyricLine;
   isActive: boolean;
+  align: LyricAlign;
+  fontSize: number;
 }) {
+  const translationSize = Math.max(12, Math.round(fontSize * (15 / 18)));
+
   return (
     <div
       className={cn(
-        "px-8 w-full max-w-xl transition-all duration-500 ease-out text-center cursor-pointer",
-        "origin-center will-change-transform",
+        "w-full max-w-3xl px-6 sm:px-8",
+        "select-none",
+        "transition-all duration-300 ease-out",
+        "origin-center",
+        align === "center" && "text-center",
+        align === "left" && "text-left",
+        align === "right" && "text-right",
         isActive
-          ? "text-white scale-110 drop-shadow-md opacity-100"
-          : "text-white/40 scale-100 hover:text-white/60 opacity-100"
+          ? "text-white opacity-100"
+          : "text-white/40 opacity-100 hover:text-white/60"
       )}
     >
-      <p className="text-lg font-medium leading-8 min-h-8 tracking-wide wrap-break-word">
+      <p
+        className="font-medium leading-relaxed tracking-wide break-words"
+        style={{
+          fontSize: `${fontSize}px`,
+        }}
+      >
         {line.text}
       </p>
+
       {line.ttext && (
         <p
           className={cn(
-            "mt-1.5 font-medium text-[15px] wrap-break-word transition-colors duration-500",
-            isActive ? "text-white/80" : "text-white/30"
+            "mt-1 font-medium leading-relaxed break-words",
+            "transition-colors duration-300",
+            isActive ? "text-white/70" : "text-white/25"
           )}
+          style={{
+            fontSize: `${translationSize}px`,
+          }}
         >
           {line.ttext}
         </p>
@@ -139,16 +161,26 @@ const LyricLineView = memo(function LyricLineView({
 
 export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [centerLineIndex, setCenterLineIndex] = useState(-1);
 
-  const { currentTime, seek, seekTimestamp } = useMusicStore(
+  const {
+    currentTime,
+    seek,
+    seekTimestamp,
+    lyricAlign,
+    lyricFontSize,
+    lyricOffset,
+  } = useMusicStore(
     useShallow((state) => ({
       currentTime: state.currentAudioTime,
       seek: state.seek,
       seekTimestamp: state.seekTimestamp,
+      lyricAlign: state.lyricAlign,
+      lyricFontSize: state.lyricFontSize,
+      lyricOffset: state.lyricOffset,
     }))
   );
 
@@ -160,9 +192,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     lyrics.length > 0
       ? Math.max(
           0,
-          lyrics.findLastIndex(
-            (line: LyricLine) => currentTime >= line.time + LYRIC_OFFSET
-          )
+          lyrics.findLastIndex((line) => currentTime >= line.time + lyricOffset)
         )
       : 0;
 
@@ -174,8 +204,10 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
   const handleSeek = useCallback(
     (time: number) => {
       seek(time);
+
       setIsUserScrolling(false);
       setCenterLineIndex(-1);
+
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
         scrollTimeoutRef.current = null;
@@ -188,15 +220,18 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     if (isAutoScrollingRef.current) return;
 
     setIsUserScrolling(true);
+
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
+
     scrollTimeoutRef.current = setTimeout(() => {
       setIsUserScrolling(false);
       setCenterLineIndex(-1);
     }, AUTO_SCROLL_DELAY);
 
     const container = viewportRef.current;
+
     if (!container || lyrics.length === 0) return;
 
     const containerRect = container.getBoundingClientRect();
@@ -207,9 +242,11 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
     lineRefs.current.forEach((el, i) => {
       if (!el) return;
+
       const rect = el.getBoundingClientRect();
       const elCenter = rect.top + rect.height / 2;
       const dist = Math.abs(elCenter - containerCenter);
+
       if (dist < closestDist) {
         closestDist = dist;
         closestIdx = i;
@@ -221,9 +258,13 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
   useEffect(() => {
     const container = viewportRef.current;
+
     if (!container) return;
 
-    container.addEventListener("scroll", handleScroll, { passive: true });
+    container.addEventListener("scroll", handleScroll, {
+      passive: true,
+    });
+
     return () => {
       container.removeEventListener("scroll", handleScroll);
     };
@@ -238,27 +279,39 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
         setError("暂无歌词");
         setLyrics([]);
       });
+
       return;
     }
 
     let cancelled = false;
 
+    queueMicrotask(() => {
+      setLoading(true);
+      setError("");
+    });
+
     musicApi
       .getLyric(lyricId, source)
       .then((res) => {
         if (cancelled) return;
+
         if (!res) {
           setError("暂无歌词");
+          setLyrics([]);
           return;
         }
+
         setLyrics(parseLrc(res.lyric, res.tlyric));
       })
       .catch(() => {
         if (cancelled) return;
+
         setError("歌词加载失败");
+        setLyrics([]);
       })
       .finally(() => {
         if (cancelled) return;
+
         setLoading(false);
       });
 
@@ -279,6 +332,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
       el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
 
     isAutoScrollingRef.current = true;
+
     container.scrollTo({
       top: offset,
       behavior: "smooth",
@@ -286,22 +340,24 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
     const onScrollEnd = () => {
       isAutoScrollingRef.current = false;
-      container.removeEventListener("scrollend", onScrollEnd);
     };
-    container.addEventListener("scrollend", onScrollEnd, { once: true });
+
+    container.addEventListener("scrollend", onScrollEnd, {
+      once: true,
+    });
+
     return () => {
       isAutoScrollingRef.current = false;
       container.removeEventListener("scrollend", onScrollEnd);
     };
   }, [activeIndex, isUserScrolling]);
 
-  // 监听 seek 操作，重置用户滚动状态，使歌词立即跳转到对应位置
-  // 使用 flushSync 避免级联渲染警告，确保状态同步更新
   useEffect(() => {
     flushSync(() => {
       setIsUserScrolling(false);
       setCenterLineIndex(-1);
     });
+
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = null;
@@ -318,7 +374,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
   if (!track) {
     return (
-      <div className="h-full flex items-center justify-center text-sm text-white/40 tracking-widest">
+      <div className="h-full flex items-center justify-center text-sm text-white/40">
         选择歌曲查看歌词
       </div>
     );
@@ -326,7 +382,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center text-sm text-white/40 tracking-widest">
+      <div className="h-full flex items-center justify-center text-sm text-white/40">
         加载歌词中...
       </div>
     );
@@ -334,36 +390,57 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center text-sm text-white/40 tracking-widest">
+      <div className="h-full flex items-center justify-center text-sm text-white/40">
         {error}
       </div>
     );
   }
 
   const LyricsList = (
-    <div className="py-[45%] space-y-6 flex flex-col items-center w-full">
+    <div
+      className={cn(
+        "w-full flex flex-col",
+        "py-[45%]",
+        "gap-5",
+        lyricAlign === "center" && "items-center",
+        lyricAlign === "left" && "items-start",
+        lyricAlign === "right" && "items-end"
+      )}
+    >
       {lyrics.length === 0 ? (
         <div className="h-full flex items-center justify-center">
-          <p className="text-white/50 text-center tracking-widest">暂无歌词</p>
+          <p className="text-white/40 text-center">暂无歌词</p>
         </div>
       ) : (
         <>
           {Array.from({ length: PADDING_LINES }).map((_, i) => (
-            <div key={`pad-top-${i}`} className="h-6" />
+            <div key={`pad-top-${i}`} className="h-6 shrink-0" />
           ))}
+
           {lyrics.map((line, i) => (
             <div
-              key={i}
+              key={`${line.time}-${i}`}
               ref={(el) => {
                 lineRefs.current[i] = el;
               }}
-              className="w-full flex justify-center"
+              className={cn(
+                "w-full flex",
+                lyricAlign === "center" && "justify-center",
+                lyricAlign === "left" && "justify-start",
+                lyricAlign === "right" && "justify-end"
+              )}
             >
-              <LyricLineView line={line} isActive={i === activeIndex} />
+              <LyricLineView
+                line={line}
+                isActive={i === activeIndex}
+                align={lyricAlign}
+                fontSize={lyricFontSize}
+              />
             </div>
           ))}
+
           {Array.from({ length: PADDING_LINES }).map((_, i) => (
-            <div key={`pad-bottom-${i}`} className="h-6" />
+            <div key={`pad-bottom-${i}`} className="h-6 shrink-0" />
           ))}
         </>
       )}
@@ -372,40 +449,84 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
   const centerLine = centerLineIndex >= 0 ? lyrics[centerLineIndex] : null;
 
+  // 基准线时间标签：居左模式下右对齐，使数字紧贴播放按钮形成控件组
+  const baselineTime = centerLine ? (
+    <span
+      className={cn(
+        "min-w-9 text-xs tabular-nums text-white/60",
+        lyricAlign === "left" && "text-right"
+      )}
+    >
+      {formatTime(centerLine.time)}
+    </span>
+  ) : null;
+
+  const baselinePlay = centerLine ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleSeek(centerLine.time);
+      }}
+      className={cn(
+        "pointer-events-auto",
+        "flex h-8 w-8 items-center justify-center",
+        "rounded-full",
+        "bg-white/10 backdrop-blur-sm",
+        "text-white",
+        "transition-all",
+        "hover:bg-white/20",
+        "active:scale-95"
+      )}
+      aria-label="播放此处歌词"
+    >
+      <Play size={14} className="ml-0.5 fill-current" />
+    </button>
+  ) : null;
+
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
-      {/* 使用 CSS Mask 实现上下渐隐效果，让边缘更柔和 */}
+    <div className="relative h-full flex flex-col overflow-hidden">
       <ScrollArea
-        className="h-full w-full **:data-[slot=scroll-area-scrollbar]:w-1.5 **:data-[slot=scroll-area-thumb]:bg-white/10 **:data-[slot=scroll-area-thumb]:hover:bg-white/30 **:ata-slot=scroll-area-thumb]]:transition-colors"
+        className={cn(
+          "h-full w-full",
+          "**:data-[slot=scroll-area-scrollbar]:w-1.5",
+          "**:data-[slot=scroll-area-thumb]:bg-white/10",
+          "**:data-[slot=scroll-area-thumb]:hover:bg-white/30"
+        )}
         viewportRef={viewportRef}
         style={{
           maskImage:
-            "linear-gradient(to bottom, transparent 0%, black 15%, black 90%, transparent 100%)",
+            "linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
           WebkitMaskImage:
-            "linear-gradient(to bottom, transparent 0%, black 15%, black 90%, transparent 100%)",
+            "linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
         }}
       >
         {LyricsList}
       </ScrollArea>
 
-      {/* 调整时间轴 UI 的通透感 */}
       {isUserScrolling && centerLine && (
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center px-3 pointer-events-none z-10">
-          <span className="text-xs text-white/70 font-medium min-w-[40px] drop-shadow-md">
-            {formatTime(centerLine.time)}
-          </span>
-          <div className="flex-1 h-px bg-white/30 mx-3 shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSeek(centerLine.time);
-            }}
-            className="pointer-events-auto w-8 h-8 flex bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full items-center justify-center transition-all active:scale-95 shadow-sm"
-          >
-            <div className="w-3.5 h-3.5 shrink-0 flex-[0_0_14px] min-w-3.5 min-h-3.5 ml-0.5">
-              <Play size={14} className="h-full w-full text-white fill-white" />
-            </div>
-          </button>
+        <div className="absolute inset-x-0 top-1/2 z-10 -translate-y-1/2 px-4 pointer-events-none">
+          <div className="flex items-center gap-3">
+            {lyricAlign === "right" && (
+              <>
+                {baselinePlay}
+                {baselineTime}
+              </>
+            )}
+
+            {lyricAlign === "center" && baselineTime}
+
+            <div className="h-px flex-1 bg-white/20" />
+
+            {lyricAlign === "center" && baselinePlay}
+
+            {lyricAlign === "left" && (
+              <>
+                {baselineTime}
+                {baselinePlay}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -209,7 +209,7 @@ export function MinePage({ onSelectPlaylist }: MinePageProps) {
             >
               <PlaylistCover
                 playlist={playlist}
-                className="h-14 w-14 rounded-lg shrink-0 object-cover"
+                className="h-13 w-13 rounded-lg shrink-0 object-cover"
               />
               <div className="flex-1 min-w-0">
                 {editingPlaylistId === playlist.id ? (

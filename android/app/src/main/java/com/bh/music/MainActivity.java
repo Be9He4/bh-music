@@ -3,6 +3,7 @@ package com.bh.music;
 import static androidx.core.view.WindowCompat.enableEdgeToEdge;
 
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
@@ -10,9 +11,15 @@ import com.getcapacitor.PluginHandle;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        enableEdgeToEdge(getWindow());
+        // Android 15 enforces edge-to-edge; older versions should let the
+        // system keep WebView content above the navigation bar.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            enableEdgeToEdge(getWindow());
+        }
         registerPlugin(LocalMusicPlugin.class);
         registerPlugin(BilibiliProxyPlugin.class);
+        registerPlugin(AudioRoutePlugin.class);
+        registerPlugin(WebViewLoginPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

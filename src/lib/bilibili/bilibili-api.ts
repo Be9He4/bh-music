@@ -1,45 +1,68 @@
 import * as config from "@/lib/api/config";
 import {
+  buildBilibiliArcSearchPath,
   buildBilibiliDurlPlayUrlPath,
   buildBilibiliHeaders,
+  buildBilibiliNavPath,
+  buildBilibiliPlayerPath,
   buildBilibiliPlayUrlPath,
+  buildBilibiliSeasonSeriesListPath,
   buildBilibiliSeasonsArchivesListPath,
   buildBilibiliSearchPath,
   buildBilibiliSeriesArchivesPath,
   buildBilibiliSeriesDetailPath,
+  buildBilibiliUserCardPath,
   buildBilibiliViewPath,
   buildBilibiliMultiPAlbumId,
   buildBilibiliSeriesAlbumId,
+  convertBilibiliSubtitleToLrc,
   convertSeasonArchiveToMusicTrack,
   convertSeriesArchiveToMusicTrack,
   describePlayurlResponse,
+  extractWbiKeys,
+  normalizeBilibiliSubtitleUrl,
   parseBilibiliAlbumId,
+  parseBilibiliArcSearchResponse,
   parseBilibiliMultiPAlbumId,
   parseBilibiliSeasonsArchivesList,
   parseBilibiliSearchResponse,
   parseBilibiliSeriesArchives,
   parseBilibiliSeriesDetail,
   parseBilibiliTrackId,
+  parseBilibiliUpSeasonSeriesList,
+  parseBilibiliUserInfo,
   selectBilibiliAudioUrl,
   selectBilibiliCid,
   selectBilibiliDurlUrl,
+  selectBilibiliSubtitles,
+  signWbiParams,
+  type BilibiliArcSearchResponse,
   type BilibiliDurlResponse,
+  type BilibiliNavResponse,
+  type BilibiliPlayerResponse,
   type BilibiliPlayUrlResponse,
+  type BilibiliSeasonSeriesListResponse,
   type BilibiliSeasonsArchivesListResponse,
   type BilibiliSearchResponse,
   type BilibiliSearchVideoRaw,
   type BilibiliSeriesArchivesResponse,
   type BilibiliSeriesMetaRaw,
   type BilibiliSeriesResponse,
+  type BilibiliSubtitleBodyItem,
+  type BilibiliSubtitleResponse,
+  type BilibiliUpSeasonSummary,
+  type BilibiliUserCardResponse,
   type BilibiliViewResponse,
   type MusicTrack,
   type SearchPageResult,
+  type SongLyric,
 } from "@otter-music/shared";
 
 import { registerBlobUrl } from "@/lib/utils/blob-registry";
 import { base64ToBlob } from "@/lib/utils/base64";
 import { logger } from "../logger";
 import { setUpNameCache, getUpNameCache } from "@/lib/bilibili/up-name-cache";
+import { useBilibiliStore } from "@/store/bilibili-store";
 import { cachedFetch } from "@/lib/utils/cache";
 
 const BILIBILI_API_BASE = "https://api.bilibili.com";
@@ -158,10 +181,13 @@ async function fetchBilibiliJson<T>(
 ): Promise<T | null> {
   if (config.IS_NATIVE) {
     const { CapacitorHttp } = await import("@capacitor/core");
+    const headers = buildBilibiliHeaders(referer);
+    const cookie = useBilibiliStore.getState().cookie;
+    if (cookie) headers.Cookie = cookie;
     const res = await CapacitorHttp.request({
       method: "GET",
       url: `${BILIBILI_API_BASE}${path}`,
-      headers: buildBilibiliHeaders(referer),
+      headers,
       connectTimeout: NATIVE_CONNECT_TIMEOUT,
       readTimeout: NATIVE_READ_TIMEOUT,
     });
@@ -251,9 +277,15 @@ async function getBilibiliSongUrlWeb(
     let cid = cidOverride;
 
     if (!cid) {
-      const view = await fetchBilibiliJson<BilibiliViewResponse>(
-        buildBilibiliViewPath(bvid),
-        referer
+      // 与歌词共用同一 view 缓存（24h），保证音频与字幕解析到同一 cid，避免串台
+      const view = await cachedFetch<BilibiliViewResponse>(
+        `bilibili_view_${bvid}`,
+        () =>
+          fetchBilibiliJson<BilibiliViewResponse>(
+            buildBilibiliViewPath(bvid),
+            referer
+          ),
+        24 * 60 * 60 * 1000
       );
       if (!view) return null;
       cid = selectBilibiliCid(view) ?? undefined;
@@ -290,9 +322,15 @@ async function getBilibiliSongUrlNative(
     let cid = cidOverride;
 
     if (!cid) {
-      const view = await fetchBilibiliJson<BilibiliViewResponse>(
-        buildBilibiliViewPath(bvid),
-        referer
+      // 与歌词共用同一 view 缓存（24h），保证音频与字幕解析到同一 cid，避免串台
+      const view = await cachedFetch<BilibiliViewResponse>(
+        `bilibili_view_${bvid}`,
+        () =>
+          fetchBilibiliJson<BilibiliViewResponse>(
+            buildBilibiliViewPath(bvid),
+            referer
+          ),
+        24 * 60 * 60 * 1000
       );
       if (!view) return null;
       cid = selectBilibiliCid(view) ?? undefined;
@@ -401,11 +439,17 @@ export async function getBilibiliCollectionDetail(
   const mid = parsed.mid ? Number(parsed.mid) : undefined;
 
   try {
-    // 如果有 mid，直接调用 seasons_archives_list
+    // 如果有 mid，直接调用 seasons_archives_list（需要 WBI 签名）
     if (mid !== undefined && !isNaN(mid)) {
       const seasonsData =
-        await fetchBilibiliJson<BilibiliSeasonsArchivesListResponse>(
-          buildBilibiliSeasonsArchivesListPath(mid, seriesId, page, pageSize)
+        await fetchBilibiliWbiJson<BilibiliSeasonsArchivesListResponse>(
+          buildBilibiliSeasonsArchivesListPath(mid, seriesId, page, pageSize),
+          {
+            mid,
+            season_id: seriesId,
+            page_num: page,
+            page_size: pageSize,
+          }
         );
       if (seasonsData) {
         const seasonsResult = parseBilibiliSeasonsArchivesList(seasonsData);
@@ -575,6 +619,189 @@ export async function getBilibiliVideoDetail(
 }
 
 // B站音频歌单 API (menu/hit)
+
+/**
+ * 计算字幕 body 中最大的时间戳（from/to 取最大值，单位秒）。
+ */
+function bilibiliSubtitleMaxTime(body: BilibiliSubtitleBodyItem[]): number {
+  let max = 0;
+  for (const item of body) {
+    if (typeof item.from === "number" && item.from > max) max = item.from;
+    if (typeof item.to === "number" && item.to > max) max = item.to;
+  }
+  return max;
+}
+
+// 字幕最大时间允许超出视频时长的容忍秒数（防串台校验用）
+const SUBTITLE_DURATION_TOLERANCE = 15;
+
+async function fetchBilibiliSubtitleLrc(
+  subtitleUrl: string,
+  bvid: string,
+  referer: string,
+  maxDuration?: number
+): Promise<string | null> {
+  const url = normalizeBilibiliSubtitleUrl(subtitleUrl);
+  if (!url) return null;
+
+  let body: BilibiliSubtitleBodyItem[] = [];
+
+  try {
+    if (config.IS_NATIVE) {
+      const { CapacitorHttp } = await import("@capacitor/core");
+      const headers = buildBilibiliHeaders(referer);
+      const cookie = useBilibiliStore.getState().cookie;
+      if (cookie) headers.Cookie = cookie;
+      const res = await CapacitorHttp.request({
+        method: "GET",
+        url,
+        headers,
+        connectTimeout: NATIVE_CONNECT_TIMEOUT,
+        readTimeout: NATIVE_READ_TIMEOUT,
+      });
+      if (res.status >= 400) return null;
+      const data =
+        typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+      body = (data as BilibiliSubtitleResponse).body || [];
+    } else {
+      const params = new URLSearchParams({ url });
+      const res = await config.fetchWithTimeout(
+        `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/subtitle?${params.toString()}`,
+        { headers: buildBilibiliHeaders(referer) },
+        NETWORK_TIMEOUT
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as BilibiliSubtitleResponse;
+      body = data.body || [];
+    }
+  } catch {
+    return null;
+  }
+
+  // 防串台校验：字幕最大时间超出当前分P时长，判定为无关字幕
+  if (typeof maxDuration === "number" && maxDuration > 0) {
+    if (
+      bilibiliSubtitleMaxTime(body) >
+      maxDuration + SUBTITLE_DURATION_TOLERANCE
+    ) {
+      return null;
+    }
+  }
+
+  return convertBilibiliSubtitleToLrc(body);
+}
+
+/**
+ * 获取 B站视频歌词。
+ * 依据 track id 解析 bvid/cid（无 cid 时通过 view API 取默认分P），
+ * 字幕轨道取自 player/wbi/v2（B 站播放器现行接口），
+ * 正文仍从 aisubtitle 的 subtitle_url 获取。
+ */
+export async function getBilibiliLyric(
+  trackId: string
+): Promise<SongLyric | null> {
+  const parsed = parseBilibiliTrackId(trackId);
+  if (!parsed) return null;
+
+  try {
+    const referer = `https://www.bilibili.com/video/${parsed.bvid}`;
+    let cid = parsed.cid;
+    let view: BilibiliViewResponse | null = null;
+
+    // view 结果按 bvid 缓存 24h，与 enrichBilibiliSearchResults 共用同一缓存键
+    const loadView = () =>
+      cachedFetch<BilibiliViewResponse>(
+        `bilibili_view_${parsed.bvid}`,
+        () =>
+          fetchBilibiliJson<BilibiliViewResponse>(
+            buildBilibiliViewPath(parsed.bvid),
+            referer
+          ),
+        24 * 60 * 60 * 1000
+      );
+
+    // 始终加载 view 以便校验 cid 所在分 P（结果已按 bvid 缓存 24h）
+    view = await loadView();
+    if (!cid) {
+      cid = view ? (selectBilibiliCid(view) ?? undefined) : undefined;
+    }
+    if (!cid) return null;
+
+    // 校验 cid 是否真实存在于分 P 列表；匹配不到则回退首页并告警，
+    // 避免 trackId 携带的 cid 指向错误分 P 导致字幕串台。
+    const pages = view?.data?.pages;
+    if (pages && pages.length) {
+      const match = pages.find((p) => p.cid === cid);
+      if (match) {
+        logger.info(
+          "[bilibili] matched page",
+          `page_no=${match.page ?? "?"} has_next=${pages.length > 1}`
+        );
+      } else {
+        logger.warn(
+          "[bilibili] cid not in pages, fallback to page0",
+          `bvid=${parsed.bvid} cid=${cid} pages=${pages
+            .map((p) => p.cid)
+            .join(",")}`
+        );
+        cid = pages[0]?.cid ?? cid;
+      }
+    }
+
+    // aid 仅用于日志，校验 aid/cid 对应关系
+    const aid = typeof view?.data?.aid === "number" ? view.data.aid : undefined;
+
+    // 字幕轨道来自 player/wbi/v2（B 站播放器现行接口；
+    // 旧 /x/player/v2 的字幕数据随机不稳定，可能返回无关字幕导致串台）
+    let player: BilibiliPlayerResponse | null;
+    if (config.IS_NATIVE) {
+      player = await fetchBilibiliJson<BilibiliPlayerResponse>(
+        buildBilibiliPlayerPath(parsed.bvid, cid),
+        referer
+      );
+    } else {
+      const res = await config.fetchWithTimeout(
+        `${config.getApiUrl()}${BILIBILI_PROXY_PREFIX}/player`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bvid: parsed.bvid, cid }),
+        },
+        NETWORK_TIMEOUT
+      );
+      if (!res.ok) return null;
+      player = (await res.json()) as BilibiliPlayerResponse;
+    }
+    const selection = selectBilibiliSubtitles(player);
+    if (selection.primary) {
+      logger.info(
+        "[bilibili] lyric subtitle from player/wbi/v2:",
+        `oid=${cid} pid=${aid ?? "unknown"}`,
+        `lan=${selection.primary.lan} ai_status=${selection.primary.ai_status}`
+      );
+    }
+
+    if (!selection.primary?.subtitle_url) return null;
+
+    // 防串台：字幕时间轴不应超出当前分 P 时长，超长判定为错误字幕
+    const pageDuration = view?.data?.pages?.find(
+      (p) => p.cid === cid
+    )?.duration;
+
+    const lyric = await fetchBilibiliSubtitleLrc(
+      selection.primary.subtitle_url,
+      parsed.bvid,
+      referer,
+      pageDuration
+    );
+    if (!lyric) return null;
+
+    return { lyric };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 获取 B站多分P 视频的详情，返回各分P作为独立曲目列表。
  */
@@ -609,7 +836,7 @@ export async function getBilibiliMultiPDetail(albumId: string): Promise<{
         source: "bilibili",
         pic_id: data.pic ?? "",
         url_id: `bilibili_BV${bvid.replace(/^BV/, "")}_${cid}`,
-        lyric_id: "",
+        lyric_id: `bilibili_BV${bvid.replace(/^BV/, "")}_${cid}`,
       };
     });
 
@@ -621,4 +848,108 @@ export async function getBilibiliMultiPDetail(albumId: string): Promise<{
   } catch {
     return null;
   }
+}
+
+// ─────────────────────────────────────
+// UP 主页 (用户空间)
+// ─────────────────────────────────────
+
+let bilibiliWbiKeysCache: {
+  imgKey: string;
+  subKey: string;
+  expires: number;
+} | null = null;
+
+/**
+ * 从 nav 接口获取 WBI 签名密钥并缓存（约 12 小时）。
+ */
+async function getBilibiliWbiKeys(): Promise<{
+  imgKey: string;
+  subKey: string;
+} | null> {
+  const now = Date.now();
+  if (bilibiliWbiKeysCache && now < bilibiliWbiKeysCache.expires) {
+    return bilibiliWbiKeysCache;
+  }
+  const nav = await fetchBilibiliJson<BilibiliNavResponse>(
+    buildBilibiliNavPath()
+  );
+  const keys = nav ? extractWbiKeys(nav) : null;
+  if (keys) {
+    bilibiliWbiKeysCache = {
+      ...keys,
+      expires: now + 12 * 60 * 60 * 1000,
+    };
+  }
+  return keys;
+}
+
+/**
+ * 带 WBI 签名的 B 站请求（仅原生端）。
+ * path 中若含 query 会被剥离，业务参数统一由 params 提供并参与签名，
+ * 避免参数重复导致 w_rid 校验失败。
+ */
+async function fetchBilibiliWbiJson<T>(
+  path: string,
+  params: Record<string, string | number>,
+  referer?: string
+): Promise<T | null> {
+  if (!config.IS_NATIVE) return null;
+  const keys = await getBilibiliWbiKeys();
+  if (!keys) return null;
+  const endpoint = path.split("?")[0];
+  const query = await signWbiParams(params, keys.imgKey, keys.subKey);
+  return fetchBilibiliJson<T>(`${endpoint}?${query}`, referer);
+}
+
+/**
+ * 获取 UP 主页信息（仅原生端）。
+ */
+export async function getBilibiliUpInfo(
+  mid: number
+): Promise<{ mid: number; name: string; face: string } | null> {
+  const data = await fetchBilibiliWbiJson<BilibiliUserCardResponse>(
+    buildBilibiliUserCardPath(mid),
+    { mid }
+  );
+  return data ? parseBilibiliUserInfo(data) : null;
+}
+
+/**
+ * 获取 UP 上传视频列表（分页，仅原生端）。
+ */
+export async function searchBilibiliUpVideos(
+  mid: number,
+  page: number,
+  size = 30,
+  upName = ""
+): Promise<{ items: MusicTrack[]; hasMore: boolean; total: number }> {
+  const data = await fetchBilibiliWbiJson<BilibiliArcSearchResponse>(
+    buildBilibiliArcSearchPath(mid, page, size),
+    { mid, pn: page, ps: size, order: "pubdate", platform: "web" }
+  );
+  if (!data) return { items: [], hasMore: false, total: 0 };
+  const parsed = parseBilibiliArcSearchResponse(data, upName, page, size);
+  return { ...parsed, total: data.data?.page?.count || parsed.items.length };
+}
+
+/**
+ * 获取 UP 的合集列表（专辑入口，仅原生端）。
+ * seasons_series_list 不需要 WBI 签名。
+ */
+export async function getBilibiliUpCollections(
+  mid: number
+): Promise<BilibiliUpSeasonSummary[]> {
+  if (!config.IS_NATIVE) return [];
+  const data = await fetchBilibiliJson<BilibiliSeasonSeriesListResponse>(
+    buildBilibiliSeasonSeriesListPath(mid, 1, 20)
+  );
+  if (!data) return [];
+  if (data.code !== 0) {
+    logger.warn(
+      `[bilibili] seasons_series_list failed: code=${data.code} message=${data.message}`
+    );
+    return [];
+  }
+  return parseBilibiliUpSeasonSeriesList(data, mid);
 }

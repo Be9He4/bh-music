@@ -1,0 +1,113 @@
+name: Release Mobile (Android Only)
+
+on:
+  push:
+    tags:
+      - "v*" # 监听以 v 开头的 tag，例如 v2.1.5
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 防止同一个 Tag 多次触发导致任务冲突
+concurrency:
+  group: release-android-${{ github.ref_name || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  JAVA_VERSION: 21
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-android:
+    # 手动触发或基于 v 开头的 tag 触发
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.14
+
+      - name: Build app
+        run: |
+          npm ci
+          npm run build
+          npm run resources
+          npx cap sync android
+
+      - name: Build release APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --parallel --build-cache --no-daemon
+
+      - name: Sign APK
+        id: sign_app
+        uses: r0adkll/sign-android-release@v1
+        env:
+          BUILD_TOOLS_VERSION: 34.0.0
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    # 仅在 Tag 触发时发布 Release (手动触发通常只为了测试构建)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: build-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: dist/android
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          NOTES="public/release/${TAG}.md"
+          if [[ -f "$NOTES" ]]; then
+            cp "$NOTES" release_body.md
+          else
+            cat > release_body.md <<EOF
+          # Otter Music ${TAG}
+          Android 自动化构建发布。
+          ### 更新内容
+          - 构建版本: ${TAG}
+          - 发布日期: $(date +'%Y-%m-%d')
+          EOF
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body_path: release_body.md
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-preview') }}
+          files: dist/android/*.apk
+          fail_on_unmatched_files: true

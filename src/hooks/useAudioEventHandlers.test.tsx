@@ -4,6 +4,7 @@ import { act } from "react";
 import { useAudioEventHandlers } from "./useAudioEventHandlers";
 import { useMusicStore } from "@/store/music-store";
 import { useOfflineStore } from "@/store/offline-store";
+import type { MusicTrack } from "@/types/music";
 
 vi.mock("@/lib/storage-adapter", () => ({
   idbStorage: {
@@ -136,6 +137,49 @@ describe("useAudioEventHandlers pause confirm", () => {
     vi.advanceTimersByTime(250);
 
     expect(useMusicStore.getState().isPlaying).toBe(true);
+    cleanup();
+  });
+
+  it("stops after the current track instead of advancing the queue", () => {
+    const { audio, cleanup } = setup();
+
+    useMusicStore.setState({
+      queue: [
+        {
+          id: "track-1",
+          name: "Track 1",
+          artist: ["Artist"],
+          album: "Album",
+          source: "kuwo",
+          url_id: "1",
+          pic_id: "",
+          lyric_id: "",
+        },
+        {
+          id: "track-2",
+          name: "Track 2",
+          artist: ["Artist"],
+          album: "Album",
+          source: "kuwo",
+          url_id: "2",
+          pic_id: "",
+          lyric_id: "",
+        },
+      ] satisfies MusicTrack[],
+      currentIndex: 0,
+      sleepTimerIsActive: true,
+      sleepTimerStopAfterCurrentTrack: true,
+      sleepTimerRemaining: 0,
+      sleepTimerEndTime: 0,
+    });
+
+    audio.dispatchEvent(new Event("ended"));
+
+    const state = useMusicStore.getState();
+    expect(state.isPlaying).toBe(false);
+    expect(state.currentIndex).toBe(0);
+    expect(state.sleepTimerIsActive).toBe(false);
+    expect(state.sleepTimerStopAfterCurrentTrack).toBe(false);
     cleanup();
   });
 });

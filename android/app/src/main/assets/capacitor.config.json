@@ -1,5 +1,10 @@
 {
   "appId": "com.bh.music",
   "appName": "BH Music",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css"
+    }
+  }
 }

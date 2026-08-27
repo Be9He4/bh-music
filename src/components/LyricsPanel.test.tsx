@@ -2,13 +2,23 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { LyricsPanel } from "./LyricsPanel";
+import { musicApi } from "@/lib/music-api";
 import type { MusicTrack } from "@/types/music";
+
+vi.mock("@/lib/music-api", () => ({
+  musicApi: {
+    getLyric: vi.fn(),
+  },
+}));
 
 vi.mock("@/store/music-store", () => ({
   useMusicStore: vi.fn(() => ({
     currentAudioTime: 0,
     seek: vi.fn(),
     seekTimestamp: 0,
+    lyricAlign: "center",
+    lyricFontSize: 18,
+    lyricOffset: -0.5,
   })),
 }));
 
@@ -19,8 +29,13 @@ const bilibiliTrack: MusicTrack = {
   album: "",
   pic_id: "https://example.com/pic.jpg",
   url_id: "bilibili_BV1xx411c7mD",
-  lyric_id: "",
+  lyric_id: "bilibili_BV1xx411c7mD",
   source: "bilibili",
+};
+
+const bilibiliTrackNoLyric: MusicTrack = {
+  ...bilibiliTrack,
+  lyric_id: "",
 };
 
 const neteaseTrack: MusicTrack = {
@@ -72,7 +87,7 @@ describe("LyricsPanel", () => {
   });
 
   it("B 站音源 lyric_id 为空时显示暂无歌词", async () => {
-    renderPanel(bilibiliTrack);
+    renderPanel(bilibiliTrackNoLyric);
 
     await act(async () => {
       await Promise.resolve();
@@ -83,7 +98,12 @@ describe("LyricsPanel", () => {
     cleanup();
   });
 
-  it("B 站音源不会显示加载中", async () => {
+  it("B 站音源 lyric_id 非空时渲染歌词", async () => {
+    vi.mocked(musicApi.getLyric).mockResolvedValue({
+      lyric: "[00:00.00]第一句歌词",
+      tlyric: "",
+    });
+
     renderPanel(bilibiliTrack);
 
     await act(async () => {
@@ -91,7 +111,26 @@ describe("LyricsPanel", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
+    expect(musicApi.getLyric).toHaveBeenCalledWith(
+      "bilibili_BV1xx411c7mD",
+      "bilibili"
+    );
+    expect(container?.textContent).toContain("第一句歌词");
     expect(container?.textContent).not.toContain("加载歌词中...");
+    cleanup();
+  });
+
+  it("B 站音源歌词加载失败时提示暂无歌词", async () => {
+    vi.mocked(musicApi.getLyric).mockResolvedValue(null);
+
+    renderPanel(bilibiliTrack);
+
+    await act(async () => {
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(container?.textContent).toContain("暂无歌词");
     cleanup();
   });
 

@@ -183,6 +183,7 @@ export interface BilibiliViewResponse {
   code?: number;
   message?: string;
   data?: {
+    aid?: number;
     cid?: number;
     title?: string;
     pic?: string;
@@ -241,6 +242,43 @@ export interface BilibiliDurlResponse {
       size?: number;
     }>;
   };
+}
+
+// ============================================================
+// B站字幕 (Subtitle / Player v2)
+// ============================================================
+
+export interface BilibiliSubtitleItem {
+  lan?: string;
+  lan_doc?: string;
+  subtitle_url?: string;
+  ai_status?: number;
+  ai_type?: number;
+  /** 归一化前的原始语言标识，如 `ai-zh`，用于区分 AI 字幕 */
+  originalLan?: string;
+  /** 是否为 B 站 AI 自动生成字幕 */
+  isAi?: boolean;
+}
+
+export interface BilibiliPlayerResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    subtitle?: {
+      subtitles?: BilibiliSubtitleItem[];
+    };
+  };
+}
+
+export interface BilibiliSubtitleBodyItem {
+  from?: number;
+  to?: number;
+  content?: string;
+  location?: number;
+}
+
+export interface BilibiliSubtitleResponse {
+  body?: BilibiliSubtitleBodyItem[];
 }
 
 // ============================================================
@@ -392,6 +430,65 @@ export interface BilibiliUserCardResponse {
     mid: number;
     name: string;
     face: string;
+  };
+}
+
+// ============================================================
+// B站 nav / 用户空间 (Bilibili Nav & UP Space)
+// ============================================================
+
+export interface BilibiliNavResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    wbi_img?: {
+      img_url?: string;
+      sub_url?: string;
+    };
+  };
+}
+
+export interface BilibiliArcSearchVideoRaw {
+  bvid?: string;
+  title?: string;
+  pic?: string;
+  author?: string;
+  mid?: number | string;
+}
+
+export interface BilibiliArcSearchResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    list?: {
+      vlist?: BilibiliArcSearchVideoRaw[];
+    };
+    page?: {
+      count?: number;
+      pn?: number;
+      ps?: number;
+    };
+  };
+}
+
+export interface BilibiliUpSeasonItem {
+  meta?: {
+    season_id?: number;
+    name?: string;
+    cover?: string;
+    total?: number;
+    mid?: number;
+  };
+}
+
+export interface BilibiliSeasonSeriesListResponse {
+  code?: number;
+  message?: string;
+  data?: {
+    items_lists?: {
+      seasons_list?: BilibiliUpSeasonItem[];
+      series_list?: BilibiliUpSeasonItem[];
+    };
   };
 }
 

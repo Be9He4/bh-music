@@ -10,10 +10,14 @@ import {
 } from "@/lib/cache-stats";
 import { toastUtils } from "@/lib/utils/toast";
 import { useOfflineStore } from "@/store/offline-store";
+import { useUrlCacheStore } from "@/store/url-cache-store";
 
 export function StreamCacheSetting() {
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState({ entryCount: 0, approxSize: 0 });
+  const urlCacheCount = useUrlCacheStore(
+    (state) => Object.keys(state.urlMap).length
+  );
 
   useEffect(() => {
     if (expanded) {
@@ -57,7 +61,7 @@ export function StreamCacheSetting() {
             variant="outline"
             size="sm"
             className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
-            disabled={stats.entryCount === 0}
+            disabled={stats.entryCount === 0 && urlCacheCount === 0}
             onClick={async (e) => {
               e.stopPropagation();
               if (
@@ -65,6 +69,7 @@ export function StreamCacheSetting() {
               ) {
                 await clearAudioCache();
                 useOfflineStore.getState().clear();
+                useUrlCacheStore.getState().clear();
                 setStats({ entryCount: 0, approxSize: 0 });
                 toastUtils.info("音频缓存已清空");
               }

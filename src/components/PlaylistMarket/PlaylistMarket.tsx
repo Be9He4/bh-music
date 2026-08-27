@@ -1,10 +1,18 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  type ComponentType,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   SPECIAL_CATS,
   RECOMMEND_CATS,
   ALIST_CAT,
+  NON_BROWSE_CATEGORIES,
 } from "@/lib/netease/netease-cats";
 import {
   getPlaylists,
@@ -13,7 +21,7 @@ import {
 } from "@/lib/netease/netease-api";
 import type { MarketPlaylist } from "@/lib/netease/netease-types";
 import { cachedFetch } from "@/lib/utils/cache";
-import { Loader2, LayoutGrid, Plus, X } from "lucide-react";
+import { Loader2, LayoutGrid, X } from "lucide-react";
 import { PlaylistCategorySelector } from "./PlaylistCategorySelector";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -23,12 +31,10 @@ import { usePagination } from "@/hooks/use-pagination";
 import { useMarketSession } from "@/store/session/market-session";
 import { MineSection } from "./MineSection";
 import { PlaylistGrid } from "./PlaylistGrid";
-import { usePodcastStore } from "@/store/podcast-store";
-import { PodcastCard } from "../Podcast/PodcastCard";
-import { PodcastAdd } from "../Podcast/PodcastAdd";
-import { AlistServerCard, AlistServerAdd } from "./Alist";
+import { PodcastSection } from "./PodcastSection";
+import { AlistSection } from "./AlistSection";
+import { BillboardSection } from "./BillboardSection";
 import { useAlistStore } from "@/store/alist-store";
-import type { AlistServer } from "@/types/alist";
 import { logger } from "@/lib/logger";
 
 const PAGE_SIZE = 30;
@@ -37,6 +43,14 @@ const SUB_TAB_HEIGHT = "h-8";
 const getSnapshotKey = (category: string, tab: string) =>
   `market-snapshot:${category}:${category === "featured" ? tab : "default"}`;
 
+/** 特殊分类 → 独立 Section 组件；未命中则走下方网易云歌单浏览分支 */
+const MARKET_SECTIONS: Record<string, ComponentType> = {
+  mine: MineSection,
+  播客: PodcastSection,
+  Alist: AlistSection,
+  Billboard: BillboardSection,
+};
+
 export function PlaylistMarket() {
   const navigate = useNavigate();
   const rawLastCategory = useMusicStore((s) => s.lastPlaylistCategory);
@@ -44,15 +58,12 @@ export function PlaylistMarket() {
   const activeCategory =
     rawLastCategory === "alist" ? "Alist" : rawLastCategory;
   const setActiveCategory = useMusicStore((s) => s.setLastPlaylistCategory);
-  const rssSources = usePodcastStore((s) => s.rssSources);
   const featuredTab = useMusicStore(
     (s) => s.lastFeaturedTab || SPECIAL_CATS[0].id
   );
   const setFeaturedTab = useMusicStore((s) => s.setLastFeaturedTab);
-  const [isAddPodcastOpen, setIsAddPodcastOpen] = useState(false);
-  const [isAddAlistOpen, setIsAddAlistOpen] = useState(false);
-  const [editingAlistServer, setEditingAlistServer] =
-    useState<AlistServer | null>(null);
+  // 仅用于 Billboard 子 tab 的滚动位置 key
+  const billboardGroup = useMusicStore((s) => s.lastBillboardGroup);
   const alistServers = useAlistStore((s) => s.servers);
   const [searchInputValue, setSearchInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
@@ -70,9 +81,7 @@ export function PlaylistMarket() {
   );
 
   const isBrowseEnabled =
-    activeCategory !== "mine" &&
-    activeCategory !== "播客" &&
-    activeCategory !== "Alist" &&
+    !NON_BROWSE_CATEGORIES.has(activeCategory) &&
     !(activeCategory === "全部" && !!searchQuery);
 
   const isSearchEnabled = activeCategory === "全部" && !!searchQuery;
@@ -82,8 +91,7 @@ export function PlaylistMarket() {
       fetch: async (offset: number) => {
         const category =
           activeCategory === "featured" ? featuredTab : activeCategory;
-        if (category === "mine" || category === "播客" || category === "Alist")
-          return null;
+        if (NON_BROWSE_CATEGORIES.has(category)) return null;
         const isToplist = category === "toplist";
         const cacheKey = `market-playlist:v2:${category || "all"}:${isToplist ? 0 : offset}`;
 
@@ -192,12 +200,7 @@ export function PlaylistMarket() {
       setSearchQuery(null);
     }
 
-    if (
-      activeCategory === "mine" ||
-      activeCategory === "播客" ||
-      activeCategory === "Alist"
-    )
-      return;
+    if (NON_BROWSE_CATEGORIES.has(activeCategory)) return;
 
     const snapshot = useMarketSession.getState().listSnapshots[snapshotKey];
     if (snapshot) {
@@ -239,13 +242,11 @@ export function PlaylistMarket() {
     saveSearchCache(null);
   }, [saveSearchCache]);
 
+  // Billboard 子 tab 各自记忆滚动位置，故 scroll key 附加 billboardGroup
   const { scrollRef } = useScrollSave(
-    `scroll-${snapshotKey}`,
+    `scroll-${snapshotKey}${activeCategory === "Billboard" ? `:${billboardGroup}` : ""}`,
     !searchQuery &&
-      (browse.items.length > 0 ||
-        activeCategory === "mine" ||
-        activeCategory === "播客" ||
-        activeCategory === "Alist")
+      (browse.items.length > 0 || NON_BROWSE_CATEGORIES.has(activeCategory))
   );
 
   const displayFilters = useMemo(() => {
@@ -274,6 +275,7 @@ export function PlaylistMarket() {
 
   const isSearchActive = activeCategory === "全部" && !!searchQuery;
   const active = isSearchActive ? search : browse;
+  const ActiveSection = MARKET_SECTIONS[activeCategory];
 
   return (
     <div className="flex flex-col h-full bg-background/50 animate-in fade-in duration-500">
@@ -321,86 +323,8 @@ export function PlaylistMarket() {
       </header>
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar">
-        {activeCategory === "mine" ? (
-          <MineSection />
-        ) : activeCategory === "播客" ? (
-          <div className="p-4 pb-bottom-stack">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-3 gap-y-4">
-              <div
-                className="group flex flex-col gap-2.5 transition-all hover:translate-y-[-4px] relative cursor-pointer"
-                onClick={() => setIsAddPodcastOpen(true)}
-              >
-                <div className="relative aspect-square rounded-md overflow-hidden border-2 border-dashed border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/50 transition-colors flex items-center justify-center bg-muted/20">
-                  <div className="w-8 h-8 shrink-0 flex-[0_0_32px] min-w-8 min-h-8">
-                    <Plus
-                      size={32}
-                      className="h-full w-full text-muted-foreground/50 group-hover:text-primary transition-colors"
-                    />
-                  </div>
-                </div>
-                <div className="px-0.5 text-center">
-                  <h3 className="text-[13px] font-medium leading-snug text-muted-foreground group-hover:text-primary transition-colors">
-                    添加播客
-                  </h3>
-                </div>
-              </div>
-              {rssSources
-                .filter((s) => !s.is_deleted)
-                .map((rss) => (
-                  <PodcastCard key={rss.id} rssSource={rss} />
-                ))}
-            </div>
-            <PodcastAdd
-              open={isAddPodcastOpen}
-              onOpenChange={setIsAddPodcastOpen}
-            />
-          </div>
-        ) : activeCategory === "Alist" ? (
-          <div className="p-4 pb-bottom-stack">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-3 gap-y-4">
-              <div
-                className="group flex flex-col gap-2.5 transition-all hover:translate-y-[-4px] relative cursor-pointer"
-                onClick={() => {
-                  setEditingAlistServer(null);
-                  setIsAddAlistOpen(true);
-                }}
-              >
-                <div className="relative aspect-square rounded-md overflow-hidden border-2 border-dashed border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/50 transition-colors flex items-center justify-center bg-muted/20">
-                  <div className="w-8 h-8 shrink-0 flex-[0_0_32px] min-w-8 min-h-8">
-                    <Plus
-                      size={32}
-                      className="h-full w-full text-muted-foreground/50 group-hover:text-primary transition-colors"
-                    />
-                  </div>
-                </div>
-                <div className="px-0.5 text-center">
-                  <h3 className="text-[13px] font-medium leading-snug text-muted-foreground group-hover:text-primary transition-colors">
-                    添加站点
-                  </h3>
-                </div>
-              </div>
-              {alistServers
-                .filter((s) => !s.is_deleted)
-                .map((server) => (
-                  <AlistServerCard
-                    key={server.id}
-                    server={server}
-                    onEdit={() => {
-                      setEditingAlistServer(server);
-                      setIsAddAlistOpen(true);
-                    }}
-                  />
-                ))}
-            </div>
-            <AlistServerAdd
-              open={isAddAlistOpen}
-              onOpenChange={(open) => {
-                setIsAddAlistOpen(open);
-                if (!open) setEditingAlistServer(null);
-              }}
-              editingServer={editingAlistServer}
-            />
-          </div>
+        {ActiveSection ? (
+          <ActiveSection />
         ) : (
           <div className="p-4 pb-bottom-stack">
             {activeCategory === "全部" && (

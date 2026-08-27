@@ -15,22 +15,32 @@ import { formatTime } from "@/lib/utils/time";
 export function SleepTimerSetting() {
   const duration = useMusicStore((s) => s.sleepTimerDuration);
   const isActive = useMusicStore((s) => s.sleepTimerIsActive);
+  const stopAfterCurrentTrack = useMusicStore(
+    (s) => s.sleepTimerStopAfterCurrentTrack
+  );
   const remaining = useMusicStore((s) => s.sleepTimerRemaining);
   const setSleepTimerRemaining = useMusicStore((s) => s.setSleepTimerRemaining);
   const setSleepTimerIsActive = useMusicStore((s) => s.setSleepTimerIsActive);
+  const setStopAfterCurrentTrack = useMusicStore(
+    (s) => s.setSleepTimerStopAfterCurrentTrack
+  );
   const setSleepTimerEndTime = useMusicStore((s) => s.setSleepTimerEndTime);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const handleCancel = () => {
+    setStopAfterCurrentTrack(false);
     setSleepTimerIsActive(false);
     setSleepTimerRemaining(0);
     setSleepTimerEndTime(0);
   };
 
-  const subtitle = isActive
-    ? `剩余 ${formatTime(remaining)}`
-    : `定时 ${duration} 分钟后停止播放`;
+  let subtitle = `定时 ${duration} 分钟后停止播放`;
+  if (isActive) {
+    subtitle = stopAfterCurrentTrack
+      ? "播完当前歌曲"
+      : `剩余 ${formatTime(remaining)}`;
+  }
 
   return (
     <>

@@ -32,6 +32,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMusicStore } from "@/store/music-store";
 import { MusicProviderFactory } from "@/lib/music-provider";
+import { IS_NATIVE } from "@/lib/api/config";
 import { MusicCommentsDrawer } from "./MusicCommentsDrawer";
 import { handleAutoMatch } from "@/lib/audio-match";
 import { getAllVisibleSourcesForSwitch } from "@/hooks/use-aggregated-sources";
@@ -155,6 +156,15 @@ export function MusicTrackMobileMenu({
             id = String(detail.al.id);
           }
 
+          // B站音源：歌手取 UP 的 mid
+          if (type === "artist" && track.source === "bilibili") {
+            if (track.artist_ids?.[0]) {
+              id = track.artist_ids[0];
+            } else if (detail.owner?.mid) {
+              id = String(detail.owner.mid);
+            }
+          }
+
           // B站音源：从详情中提取合集/分P 信息
           if (type === "album" && track.source === "bilibili") {
             // 优先使用已有的 album_id
@@ -184,11 +194,20 @@ export function MusicTrackMobileMenu({
       id !== "0"
     ) {
       if (type === "artist" && provider.getArtistDetail) {
-        navigate(`/netease-artist/${id}`);
-        onOpenChange(false);
-        setShowArtistSelection(false);
-        onNavigate?.();
-        return;
+        // B站音源：仅原生端支持 UP 主页，Web 端走搜索回退
+        if (track.source === "bilibili" && !IS_NATIVE) {
+          // fallthrough to search
+        } else {
+          const targetPath =
+            track.source === "bilibili"
+              ? `/bilibili-artist/${id}`
+              : `/netease-artist/${id}`;
+          navigate(targetPath);
+          onOpenChange(false);
+          setShowArtistSelection(false);
+          onNavigate?.();
+          return;
+        }
       }
       if (type === "album" && provider.getAlbumDetail) {
         const targetPath =

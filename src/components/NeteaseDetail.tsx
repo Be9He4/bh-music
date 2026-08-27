@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useMusicStore } from "@/store/music-store";
-import { useShallow } from "zustand/react/shallow";
 import { useNeteaseStore } from "@/store/netease-store";
 import { SongDetail } from "@/lib/netease/netease-raw-types";
 import { ArtistAlbumSheet } from "@/components/ArtistAlbumSheet";
@@ -43,6 +42,7 @@ import { useArtistAlbumSheet } from "@/hooks/useArtistAlbumSheet";
 import { useMarketSession } from "@/store/session/market-session";
 import { logger } from "@/lib/logger";
 import { useDetailPage } from "@/hooks/useDetailPage";
+import { useImportPlaylist } from "@/hooks/useImportPlaylist";
 import { useExitLayer } from "@/hooks/useExitLayer";
 
 interface NeteaseDetailProps {
@@ -83,12 +83,7 @@ export function NeteaseDetail({
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { createPlaylist, setPlaylistTracks } = useMusicStore(
-    useShallow((state) => ({
-      createPlaylist: state.createPlaylist,
-      setPlaylistTracks: state.setPlaylistTracks,
-    }))
-  );
+  const importPlaylist = useImportPlaylist();
   const isShuffle = useMusicStore((state) => state.isShuffle);
   const { cookie } = useNeteaseStore();
   const { toggleAlbumInSession } = useMarketSession();
@@ -195,14 +190,7 @@ export function NeteaseDetail({
 
   const handleImportPlaylist = () => {
     if (!detail || !tracks.length) return;
-    const toastId = toast.loading(`正在导入 ${tracks.length} 首歌曲...`);
-    try {
-      const newPlaylistId = createPlaylist(detail.name, detail.coverImgUrl);
-      setPlaylistTracks(newPlaylistId, tracks);
-      toast.success(`成功导入 ${tracks.length} 首歌曲`, { id: toastId });
-    } catch {
-      toast.error("导入失败", { id: toastId });
-    }
+    importPlaylist(detail.name, detail.coverImgUrl, tracks);
   };
 
   const handleToggleAlbumSub = async () => {

@@ -522,6 +522,8 @@ export async function search(
       data: {
         result: {
           songs?: NeteaseSong[];
+          albums?: RawSearchAlbum[];
+          artists?: RawSearchArtist[];
           songCount?: number;
           hasMore?: boolean;
         };
@@ -549,10 +551,69 @@ export async function search(
   });
   return {
     data: data as {
-      result: { songs?: NeteaseSong[]; songCount?: number; hasMore?: boolean };
+      result: {
+        songs?: NeteaseSong[];
+        albums?: RawSearchAlbum[];
+        artists?: RawSearchArtist[];
+        songCount?: number;
+        hasMore?: boolean;
+      };
       code: number;
     },
   };
+}
+
+/** 网易云搜索：专辑（type=10）结果条目 */
+export type NeteaseSearchAlbumItem = {
+  id: number;
+  name: string;
+  artistName: string;
+};
+
+/** 网易云搜索：歌手（type=100）结果条目 */
+export type NeteaseSearchArtistItem = {
+  id: number;
+  name: string;
+};
+
+/** 原始搜索结果的专辑 / 歌手行（来自 /api/search/pc） */
+type RawSearchAlbum = {
+  id: number;
+  name: string;
+  artist?: { name?: string };
+};
+type RawSearchArtist = { id: number; name: string };
+
+export const mapSearchAlbums = (
+  albums: RawSearchAlbum[] = []
+): NeteaseSearchAlbumItem[] =>
+  albums
+    .filter((a) => typeof a?.id === "number" && a.id > 0 && !!a?.name)
+    .map((a) => ({ id: a.id, name: a.name, artistName: a.artist?.name ?? "" }));
+
+export const mapSearchArtists = (
+  artists: RawSearchArtist[] = []
+): NeteaseSearchArtistItem[] =>
+  artists
+    .filter((a) => typeof a?.id === "number" && a.id > 0 && !!a?.name)
+    .map((a) => ({ id: a.id, name: a.name }));
+
+/** 按关键词搜索专辑（严格匹配用，返回精简条目） */
+export async function searchAlbums(
+  keyword: string,
+  cookie: string = ""
+): Promise<NeteaseSearchAlbumItem[]> {
+  const res = await search(keyword, 10, 1, 20, cookie);
+  return mapSearchAlbums(res.data?.result?.albums);
+}
+
+/** 按关键词搜索歌手（严格匹配用，返回精简条目） */
+export async function searchArtists(
+  keyword: string,
+  cookie: string = ""
+): Promise<NeteaseSearchArtistItem[]> {
+  const res = await search(keyword, 100, 1, 20, cookie);
+  return mapSearchArtists(res.data?.result?.artists);
 }
 
 export async function searchPlaylists(

@@ -15,11 +15,17 @@ export function useSleepTimer(
   const sleepTimerDuration = useMusicStore((s) => s.sleepTimerDuration);
   const sleepTimerRemaining = useMusicStore((s) => s.sleepTimerRemaining);
   const sleepTimerIsActive = useMusicStore((s) => s.sleepTimerIsActive);
+  const sleepTimerStopAfterCurrentTrack = useMusicStore(
+    (s) => s.sleepTimerStopAfterCurrentTrack
+  );
   const sleepTimerEndTime = useMusicStore((s) => s.sleepTimerEndTime);
 
   const setIsPlaying = useMusicStore((s) => s.setIsPlaying);
   const setSleepTimerRemaining = useMusicStore((s) => s.setSleepTimerRemaining);
   const setSleepTimerIsActive = useMusicStore((s) => s.setSleepTimerIsActive);
+  const setSleepTimerStopAfterCurrentTrack = useMusicStore(
+    (s) => s.setSleepTimerStopAfterCurrentTrack
+  );
   const setSleepTimerEndTime = useMusicStore((s) => s.setSleepTimerEndTime);
   const setSleepTimerDuration = useMusicStore((s) => s.setSleepTimerDuration);
 
@@ -81,6 +87,7 @@ export function useSleepTimer(
     isFadingRef.current = false;
 
     setSleepTimerIsActive(false);
+    setSleepTimerStopAfterCurrentTrack(false);
     setSleepTimerRemaining(0);
     setSleepTimerEndTime(0);
 
@@ -89,6 +96,7 @@ export function useSleepTimer(
     audioRef,
     clearFade,
     setSleepTimerIsActive,
+    setSleepTimerStopAfterCurrentTrack,
     setSleepTimerRemaining,
     setSleepTimerEndTime,
   ]);
@@ -120,6 +128,11 @@ export function useSleepTimer(
       return;
     }
 
+    if (sleepTimerStopAfterCurrentTrack) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
     timerRef.current = setInterval(() => {
       const { isPlaying, sleepTimerEndTime } = stateRef.current;
       const remaining = Math.max(
@@ -147,6 +160,7 @@ export function useSleepTimer(
     };
   }, [
     sleepTimerIsActive,
+    sleepTimerStopAfterCurrentTrack,
     fadeOutAndStop,
     setSleepTimerRemaining,
     setSleepTimerIsActive,

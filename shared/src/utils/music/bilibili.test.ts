@@ -1,25 +1,36 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBilibiliArcSearchPath,
   buildBilibiliDurlPlayUrlPath,
+  buildBilibiliNavPath,
+  buildBilibiliPlayerPath,
   buildBilibiliPlayUrlPath,
+  buildBilibiliSeasonSeriesListPath,
   buildBilibiliSeasonsArchivesListPath,
   buildBilibiliSearchPath,
   buildBilibiliSeriesArchivesPath,
   buildBilibiliSeriesDetailPath,
   buildBilibiliViewPath,
+  convertBilibiliArcSearchVideoToMusicTrack,
   convertBilibiliSearchVideoToMusicTrack,
+  convertBilibiliSubtitleToLrc,
   convertSeasonArchiveToMusicTrack,
   convertSeriesArchiveToMusicTrack,
   convertSeriesToMusicTrack,
   describePlayurlResponse,
+  isBilibiliAiSubtitle,
+  normalizeBilibiliSubtitleUrl,
   parseBilibiliAlbumId,
+  parseBilibiliArcSearchResponse,
   parseBilibiliSeasonsArchivesList,
   parseBilibiliSearchResponse,
   parseBilibiliSeriesArchives,
   parseBilibiliSeriesDetail,
   parseBilibiliTrackId,
+  parseBilibiliUpSeasonSeriesList,
   selectBilibiliAudioUrl,
   selectBilibiliDurlUrl,
+  selectBilibiliSubtitles,
 } from "./bilibili";
 
 describe("bilibili music utilities", () => {
@@ -54,7 +65,7 @@ describe("bilibili music utilities", () => {
       album: "",
       pic_id: "https://i0.hdslb.com/bfs/archive/cover.jpg",
       url_id: "bilibili_BV1xx411c7mD",
-      lyric_id: "",
+      lyric_id: "bilibili_BV1xx411c7mD",
       source: "bilibili",
       artist_ids: ["123"],
     });
@@ -642,6 +653,224 @@ describe("bilibili music utilities", () => {
       );
 
       expect(track.album_id).toBe("bilibili_S_42_999");
+    });
+  });
+
+  describe("subtitle utilities", () => {
+    it("builds the player/wbi/v2 path", () => {
+      expect(buildBilibiliPlayerPath("BV1xx411c7mD", 62131)).toBe(
+        "/x/player/wbi/v2?bvid=BV1xx411c7mD&cid=62131"
+      );
+    });
+
+    it("classifies AI subtitles", () => {
+      expect(isBilibiliAiSubtitle({ lan: "ai-zh" })).toBe(true);
+      expect(isBilibiliAiSubtitle({ lan: "zh-CN" })).toBe(false);
+      expect(isBilibiliAiSubtitle({ lan: "zh-CN", ai_status: 1 })).toBe(true);
+    });
+
+    it("normalizes subtitle urls", () => {
+      expect(normalizeBilibiliSubtitleUrl("//x.hdslb.com/a.json")).toBe(
+        "https://x.hdslb.com/a.json"
+      );
+      expect(normalizeBilibiliSubtitleUrl("https://x.hdslb.com/a.json")).toBe(
+        "https://x.hdslb.com/a.json"
+      );
+      expect(normalizeBilibiliSubtitleUrl(undefined)).toBe("");
+    });
+
+    it("selects chinese normal subtitle as primary and english as translation", () => {
+      const response = {
+        data: {
+          subtitle: {
+            subtitles: [
+              {
+                lan: "ai-zh",
+                lan_doc: "AI中文",
+                subtitle_url: "//a/ai-zh.json",
+              },
+              { lan: "en-US", lan_doc: "英文", subtitle_url: "//a/en.json" },
+              { lan: "zh-CN", lan_doc: "中文", subtitle_url: "//a/zh.json" },
+            ],
+          },
+        },
+      };
+      const sel = selectBilibiliSubtitles(response);
+      expect(sel.primary?.lan).toBe("zh-CN");
+      expect(sel.translation?.lan).toBe("en-US");
+    });
+
+    it("falls back to ai subtitle when no normal subtitle", () => {
+      const response = {
+        data: {
+          subtitle: {
+            subtitles: [{ lan: "ai-zh", subtitle_url: "//a/ai-zh.json" }],
+          },
+        },
+      };
+      const sel = selectBilibiliSubtitles(response);
+      expect(sel.primary?.lan).toBe("ai-zh");
+      expect(sel.translation).toBeNull();
+    });
+
+    it("returns null selection when no subtitles", () => {
+      const sel = selectBilibiliSubtitles({
+        data: { subtitle: { subtitles: [] } },
+      });
+      expect(sel.primary).toBeNull();
+      expect(sel.translation).toBeNull();
+    });
+
+    it("marks human vs AI subtitles with originalLan and isAi", () => {
+      const response = {
+        data: {
+          subtitle: {
+            subtitles: [
+              {
+                lan: "ai-zh",
+                lan_doc: "AI中文",
+                subtitle_url: "//a/ai-zh.json",
+              },
+              { lan: "zh-CN", lan_doc: "中文", subtitle_url: "//a/zh.json" },
+            ],
+          },
+        },
+      };
+      const sel = selectBilibiliSubtitles(response);
+      expect(sel.primary?.lan).toBe("zh-CN");
+      expect(sel.primary?.originalLan).toBe("zh-CN");
+      expect(sel.primary?.isAi).toBe(false);
+    });
+
+    it("flags AI subtitle with isAi and keeps originalLan when falling back", () => {
+      const response = {
+        data: {
+          subtitle: {
+            subtitles: [{ lan: "ai-zh", subtitle_url: "//a/ai-zh.json" }],
+          },
+        },
+      };
+      const sel = selectBilibiliSubtitles(response);
+      expect(sel.primary?.lan).toBe("ai-zh");
+      expect(sel.primary?.originalLan).toBe("ai-zh");
+      expect(sel.primary?.isAi).toBe(true);
+    });
+
+    it("converts subtitle body to lrc", () => {
+      const lrc = convertBilibiliSubtitleToLrc([
+        { from: 0, to: 2, content: "hello world" },
+        { from: 2.5, to: 5, content: "line1\nline2" },
+      ]);
+      expect(lrc).toContain("[00:00.00]hello world");
+      expect(lrc).toContain("[00:02.50]line1 line2");
+    });
+  });
+
+  describe("UP space (user space)", () => {
+    it("builds nav path", () => {
+      expect(buildBilibiliNavPath()).toBe("/x/web-interface/nav");
+    });
+
+    it("builds arc/search path", () => {
+      expect(buildBilibiliArcSearchPath(999, 2, 30)).toBe(
+        "/x/space/wbi/arc/search?mid=999&pn=2&ps=30&order=pubdate&platform=web"
+      );
+    });
+
+    it("builds seasons_series_list path", () => {
+      expect(buildBilibiliSeasonSeriesListPath(999, 1, 100)).toBe(
+        "/x/polymer/web-space/seasons_series_list?mid=999&page_num=1&page_size=100"
+      );
+    });
+
+    it("converts arc/search video to MusicTrack", () => {
+      const track = convertBilibiliArcSearchVideoToMusicTrack(
+        {
+          bvid: "BV1xx411c7mD",
+          title: "<em>周杰伦</em> 晴天",
+          pic: "https://i0.hdslb.com/bfs/archive/abc.jpg",
+          author: "音乐UP",
+          mid: 999,
+        },
+        "音乐UP"
+      );
+      expect(track).toMatchObject({
+        id: "bilibili_BV1xx411c7mD",
+        name: "周杰伦 晴天",
+        artist: ["音乐UP"],
+        pic_id: "https://i0.hdslb.com/bfs/archive/abc.jpg",
+        artist_ids: ["999"],
+      });
+    });
+
+    it("parses arc/search response with pagination", () => {
+      const result = parseBilibiliArcSearchResponse(
+        {
+          code: 0,
+          data: {
+            list: {
+              vlist: [
+                { bvid: "BV1xx411c7mD", title: "歌1", mid: 999 },
+                { bvid: "BV1xx411c7mE", title: "歌2", mid: 999 },
+              ],
+            },
+            page: { count: 42 },
+          },
+        },
+        "音乐UP",
+        1,
+        30
+      );
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].artist).toEqual(["音乐UP"]);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it("parses arc/search response error code as empty", () => {
+      const result = parseBilibiliArcSearchResponse(
+        { code: -403, message: "risk control" },
+        "音乐UP",
+        1,
+        30
+      );
+      expect(result.items).toEqual([]);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("parses seasons_series_list into album entries", () => {
+      const entries = parseBilibiliUpSeasonSeriesList(
+        {
+          code: 0,
+          data: {
+            items_lists: {
+              seasons_list: [
+                {
+                  meta: {
+                    season_id: 3050068,
+                    name: "周杰伦歌曲合集",
+                    cover: "https://i0.hdslb.com/cover.jpg",
+                    total: 30,
+                    mid: 999,
+                  },
+                },
+              ],
+            },
+          },
+        },
+        999
+      );
+      expect(entries).toEqual([
+        {
+          id: "bilibili_S_3050068_999",
+          name: "周杰伦歌曲合集",
+          cover: "https://i0.hdslb.com/cover.jpg",
+          count: 30,
+        },
+      ]);
+    });
+
+    it("returns empty seasons entries on error code", () => {
+      expect(parseBilibiliUpSeasonSeriesList({ code: -101 }, 999)).toEqual([]);
     });
   });
 });
