@@ -27,6 +27,13 @@ vi.mock("@capacitor/core", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/api/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/config")>()),
+  get IS_NATIVE() {
+    return capacitorMocks.isNativePlatform();
+  },
+}));
+
 vi.mock("@/plugins/audio-route", () => ({
   AudioRoute: audioRouteMocks,
 }));

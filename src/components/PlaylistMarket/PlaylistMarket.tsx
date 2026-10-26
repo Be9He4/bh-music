@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   SPECIAL_CATS,
-  RECOMMEND_CATS,
-  ALIST_CAT,
+  resolveBarCategories,
   NON_BROWSE_CATEGORIES,
 } from "@/lib/netease/netease-cats";
 import {
@@ -34,7 +33,7 @@ import { PlaylistGrid } from "./PlaylistGrid";
 import { PodcastSection } from "./PodcastSection";
 import { AlistSection } from "./AlistSection";
 import { BillboardSection } from "./BillboardSection";
-import { useAlistStore } from "@/store/alist-store";
+import { AwardsSection } from "./AwardsSection";
 import { logger } from "@/lib/logger";
 
 const PAGE_SIZE = 30;
@@ -64,7 +63,7 @@ export function PlaylistMarket() {
   const setFeaturedTab = useMusicStore((s) => s.setLastFeaturedTab);
   // 仅用于 Billboard 子 tab 的滚动位置 key
   const billboardGroup = useMusicStore((s) => s.lastBillboardGroup);
-  const alistServers = useAlistStore((s) => s.servers);
+  const playlistCategoryOrder = useMusicStore((s) => s.playlistCategoryOrder);
   const [searchInputValue, setSearchInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -242,7 +241,7 @@ export function PlaylistMarket() {
     saveSearchCache(null);
   }, [saveSearchCache]);
 
-  // Billboard 子 tab 各自记忆滚动位置，故 scroll key 附加 billboardGroup
+  // Billboard 子 tab 记忆滚动位置，故 scroll key 附加子 tab 标识
   const { scrollRef } = useScrollSave(
     `scroll-${snapshotKey}${activeCategory === "Billboard" ? `:${billboardGroup}` : ""}`,
     !searchQuery &&
@@ -250,14 +249,11 @@ export function PlaylistMarket() {
   );
 
   const displayFilters = useMemo(() => {
-    const hasAlistServer = alistServers.some((s) => !s.is_deleted);
-    const base = hasAlistServer
-      ? [...RECOMMEND_CATS, ALIST_CAT]
-      : [...RECOMMEND_CATS];
-    if (!activeCategory || base.some((f) => f.id === activeCategory))
-      return base;
-    return [...base, { id: activeCategory, name: activeCategory }];
-  }, [activeCategory, alistServers]);
+    const base = resolveBarCategories(playlistCategoryOrder);
+    const all = [...base.fixed, ...base.residents];
+    if (!activeCategory || all.some((f) => f.id === activeCategory)) return all;
+    return [...all, { id: activeCategory, name: activeCategory }];
+  }, [activeCategory, playlistCategoryOrder]);
 
   // Scroll active category into view
   useEffect(() => {
@@ -397,36 +393,42 @@ export function PlaylistMarket() {
               </div>
             )}
 
-            {active.loading ? (
-              <div className="h-60 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-xs tracking-widest uppercase opacity-50">
-                  加载中...
-                </span>
-              </div>
+            {activeCategory === "featured" && featuredTab === "Awards" ? (
+              <AwardsSection />
             ) : (
-              <PlaylistGrid
-                list={active.items}
-                onClick={(id) => navigate(`/netease-playlist/${id}`)}
-              />
-            )}
+              <>
+                {active.loading ? (
+                  <div className="h-60 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="text-xs tracking-widest uppercase opacity-50">
+                      加载中...
+                    </span>
+                  </div>
+                ) : (
+                  <PlaylistGrid
+                    list={active.items}
+                    onClick={(id) => navigate(`/netease-playlist/${id}`)}
+                  />
+                )}
 
-            <div
-              ref={active.observerTargetRef}
-              className="h-12 w-full mt-6 flex items-center justify-center opacity-80"
-            >
-              {active.fetching && !active.loading && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>加载中...</span>
+                <div
+                  ref={active.observerTargetRef}
+                  className="h-12 w-full mt-6 flex items-center justify-center opacity-80"
+                >
+                  {active.fetching && !active.loading && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>加载中...</span>
+                    </div>
+                  )}
+                  {!active.hasMore && active.items.length > 0 && (
+                    <span className="text-xs text-muted-foreground/50 tracking-wide uppercase">
+                      没有更多了-_-
+                    </span>
+                  )}
                 </div>
-              )}
-              {!active.hasMore && active.items.length > 0 && (
-                <span className="text-xs text-muted-foreground/50 tracking-wide uppercase">
-                  没有更多了-_-
-                </span>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
       </main>

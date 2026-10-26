@@ -14,6 +14,7 @@ import {
   SearchIntent,
 } from "@/types/music";
 import { BaseMusicProvider } from "../base-provider";
+import { logger } from "@/lib/logger";
 
 export class NeteaseProvider extends BaseMusicProvider {
   source = "netease" as const;
@@ -47,7 +48,7 @@ export class NeteaseProvider extends BaseMusicProvider {
       const url = song?.al?.picUrl;
       return url ? `${url}?param=${size}y${size}` : null;
     } catch (e) {
-      console.error("NeteaseProvider getPic failed:", e);
+      logger.error("NeteaseProvider", "NeteaseProvider getPic failed:", e);
       return null;
     }
   }
@@ -61,7 +62,7 @@ export class NeteaseProvider extends BaseMusicProvider {
         tlyric: res.data.tlyric?.lyric || "",
       };
     } catch (e) {
-      console.error("NeteaseProvider getLyric failed:", e);
+      logger.error("NeteaseProvider", "NeteaseProvider getLyric failed:", e);
       return null;
     }
   }

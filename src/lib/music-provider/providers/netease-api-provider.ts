@@ -16,6 +16,7 @@ import {
   getMusicComments,
 } from "@/lib/netease/netease-api";
 import { forceHttps } from "@otter-music/shared";
+import { logger } from "@/lib/logger";
 
 export class NeteaseApiProvider implements IMusicProvider {
   source = "_netease";
@@ -45,7 +46,7 @@ export class NeteaseApiProvider implements IMusicProvider {
       const res = await getSongUrl(track.id, br * 1000);
       return forceHttps(res.data?.data?.[0]?.url) || null;
     } catch (e) {
-      console.error("NeteaseProvider getUrl failed:", e);
+      logger.error("NeteaseProvider", "NeteaseProvider getUrl failed:", e);
       return null;
     }
   }
@@ -56,7 +57,7 @@ export class NeteaseApiProvider implements IMusicProvider {
       const url = song?.al?.picUrl;
       return url ? `${url}?param=${size}y${size}` : null;
     } catch (e) {
-      console.error("NeteaseProvider getPic failed:", e);
+      logger.error("NeteaseProvider", "NeteaseProvider getPic failed:", e);
       return null;
     }
   }
@@ -70,7 +71,7 @@ export class NeteaseApiProvider implements IMusicProvider {
         tlyric: res.data.tlyric?.lyric || "",
       };
     } catch (e) {
-      console.error("NeteaseProvider getLyric failed:", e);
+      logger.error("NeteaseProvider", "NeteaseProvider getLyric failed:", e);
       return null;
     }
   }

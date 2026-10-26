@@ -1,6 +1,7 @@
 import { musicApi } from "@/lib/music-api";
 import type { MusicTrack } from "@/types/music";
 import { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 
 export function useMusicCover(
   track: MusicTrack | null | undefined,
@@ -31,7 +32,7 @@ export function useMusicCover(
           setState({ url, picId: pic_id, source });
         }
       } catch (e) {
-        console.error("Failed to fetch cover:", e);
+        logger.error("useMusicCover", "Failed to fetch cover:", e);
         if (active) {
           setState({ url: null, picId: pic_id, source });
         }

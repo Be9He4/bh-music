@@ -10,14 +10,10 @@ import { NeteaseLogin } from "./settings/NeteaseLogin";
 import { QqMusicLogin } from "./settings/QqMusicLogin";
 import { BilibiliLogin } from "./settings/BilibiliLogin";
 import { ApiUrlConfig } from "./settings/ApiUrlConfig";
-import {
-  useMusicStore,
-  type FullScreenBackgroundMode,
-} from "@/store/music-store";
+import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import { Slider } from "./ui/slider";
 import {
-  Image,
   Palette,
   Volume2,
   Wand2,
@@ -26,16 +22,10 @@ import {
   Database,
   Shield,
   Bell,
+  Music4,
 } from "lucide-react";
 import { Switch } from "./ui/switch";
 import { useAppStore } from "@/store/app-store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { DownloadSetting } from "./settings/DownloadSetting";
 import { SettingItem } from "./settings/SettingItem";
 import { UpdateCheck } from "./settings/UpdateCheck";
@@ -45,10 +35,14 @@ import { SleepTimerSetting } from "./settings/SleepTimerSetting";
 import { PlaybackSpeedSetting } from "./settings/PlaybackSpeedSetting";
 import { AutoMatchSuffixSetting } from "./settings/AutoMatchSuffixSetting";
 import { AutoMatchSetting } from "./settings/AutoMatchSetting";
+import { FullScreenPlayerSetting } from "./settings/FullScreenPlayerSetting";
 import { DataBackup } from "./settings/DataBackup";
 import { WebDavBackup } from "./settings/WebDavBackup";
 import { LyricStyleSetting } from "./settings/LyricStyleSetting";
+import { CarLyricSetting } from "./settings/CarLyricSetting";
+import { DesktopLyricSetting } from "./settings/DesktopLyricSetting";
 import { useState } from "react";
+import { IS_NATIVE } from "@/lib/api/config";
 
 interface SettingsPageProps {
   onBack?: () => void;
@@ -62,11 +56,13 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-6">
-      <h3 className="text-sm font-medium text-muted-foreground mb-2 px-1">
+    <div className="mb-5">
+      <h3 className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
         {title}
       </h3>
-      <div className="space-y-3">{children}</div>
+      <div className="rounded-xl bg-card/50 border border-border/50 divide-y divide-border/50 overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }
@@ -74,7 +70,12 @@ function SettingsSection({
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const navigate = useNavigate();
   const [dataBackupOpen, setDataBackupOpen] = useState(false);
-  const { enableUpdateNotify, setEnableUpdateNotify } = useAppStore();
+  const {
+    enableUpdateNotify,
+    setEnableUpdateNotify,
+    allowSimultaneousPlayback,
+    setAllowSimultaneousPlayback,
+  } = useAppStore();
   const {
     volume,
     setVolume,
@@ -85,8 +86,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     setBilibiliKeepOriginalMeta,
     showSourceBadge,
     setShowSourceBadge,
-    fullScreenBackgroundMode,
-    setFullScreenBackgroundMode,
   } = useMusicStore(
     useShallow((state) => ({
       volume: state.volume,
@@ -98,8 +97,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       setBilibiliKeepOriginalMeta: state.setBilibiliKeepOriginalMeta,
       showSourceBadge: state.showSourceBadge,
       setShowSourceBadge: state.setShowSourceBadge,
-      fullScreenBackgroundMode: state.fullScreenBackgroundMode,
-      setFullScreenBackgroundMode: state.setFullScreenBackgroundMode,
     }))
   );
 
@@ -128,6 +125,18 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             }
           />
           <QualitySelect />
+          {IS_NATIVE && (
+            <SettingItem
+              icon={Music4}
+              title="与其他应用同时播放"
+              action={
+                <Switch
+                  checked={allowSimultaneousPlayback}
+                  onCheckedChange={setAllowSimultaneousPlayback}
+                />
+              }
+            />
+          )}
           <SleepTimerSetting />
           <PlaybackSpeedSetting />
           <DownloadSetting />
@@ -150,28 +159,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               />
             }
           />
-          <SettingItem
-            icon={Image}
-            title="全屏背景"
-            action={
-              <Select
-                value={fullScreenBackgroundMode}
-                onValueChange={(value) =>
-                  setFullScreenBackgroundMode(value as FullScreenBackgroundMode)
-                }
-              >
-                <SelectTrigger className="h-7 px-2 bg-transparent border-muted hover:bg-muted/20 w-36">
-                  <SelectValue placeholder="背景" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="theme">动态主题色</SelectItem>
-                  <SelectItem value="cover">模糊封面</SelectItem>
-                  <SelectItem value="texture">深色质感</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-          />
+          <FullScreenPlayerSetting />
           <LyricStyleSetting />
+          <CarLyricSetting />
+          <DesktopLyricSetting />
         </SettingsSection>
 
         <SettingsSection title="账号数据">

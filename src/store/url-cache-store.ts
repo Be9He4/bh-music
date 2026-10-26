@@ -26,14 +26,32 @@ export function buildUrlCacheKey(
   return `${source}:${id}:${quality}`;
 }
 
+/** 远端播放 URL 的缓存时长：签名直链时效不一，仅作会话内加速，过期即重新解析 */
+const URL_CACHE_TTL = 15 * 60 * 1000;
+
+/** 本地/blob 资源不会失效，不参与 TTL */
+const NON_EXPIRING_URL_PREFIXES = ["blob:", "capacitor:", "file:", "content:"];
+
+interface UrlCacheEntry {
+  url: string;
+  cachedAt: number;
+}
+
+const isNonExpiringUrl = (url: string) =>
+  NON_EXPIRING_URL_PREFIXES.some((p) => url.startsWith(p));
+
+/** 兼容读取：旧版本持久化的是纯字符串条目 */
+const entryUrl = (entry: UrlCacheEntry | string | undefined) =>
+  typeof entry === "string" ? entry : entry?.url;
+
 /**
  * 已解析音频 URL 的持久化缓存状态
  */
 interface UrlCacheState {
   /** URL 映射表，key 格式为 `${source}:${id}:${quality}` */
-  urlMap: Record<string, string>;
+  urlMap: Record<string, UrlCacheEntry>;
 
-  /** 获取指定 key 的缓存 URL */
+  /** 获取指定 key 的缓存 URL（超过 TTL 或旧格式条目视为过期并清除） */
   get: (key: string) => string | undefined;
 
   /** 缓存并持久化 URL；若覆盖旧 blob URL 则先释放 */
@@ -51,23 +69,46 @@ export const useUrlCacheStore = create<UrlCacheState>()(
     (set, storeGet) => ({
       urlMap: {},
 
-      get: (key) => storeGet().urlMap[key],
+      get: (key) => {
+        const entry = storeGet().urlMap[key] as
+          | UrlCacheEntry
+          | string
+          | undefined;
+        if (!entry) return undefined;
+        const url = entryUrl(entry);
+        if (!url) return undefined;
+
+        // 旧版本条目无时间戳视为过期；本地/blob 资源永不失效
+        const expired =
+          typeof entry === "string" ||
+          (!isNonExpiringUrl(url) &&
+            Date.now() - entry.cachedAt > URL_CACHE_TTL);
+        if (!expired) return url;
+
+        storeGet().delete(key);
+        return undefined;
+      },
 
       set: (key, value) => {
         set((state) => {
-          const old = state.urlMap[key];
-          if (old && old !== value && old.startsWith("blob:")) {
-            revokeBlobUrl(old);
+          const oldUrl = entryUrl(state.urlMap[key]);
+          if (oldUrl && oldUrl !== value && oldUrl.startsWith("blob:")) {
+            revokeBlobUrl(oldUrl);
           }
-          return { urlMap: { ...state.urlMap, [key]: value } };
+          return {
+            urlMap: {
+              ...state.urlMap,
+              [key]: { url: value, cachedAt: Date.now() },
+            },
+          };
         });
       },
 
       delete: (key) => {
         set((state) => {
-          const old = state.urlMap[key];
-          if (old?.startsWith("blob:")) {
-            revokeBlobUrl(old);
+          const oldUrl = entryUrl(state.urlMap[key]);
+          if (oldUrl?.startsWith("blob:")) {
+            revokeBlobUrl(oldUrl);
           }
           const { [key]: _, ...rest } = state.urlMap;
           return { urlMap: rest };
@@ -76,8 +117,9 @@ export const useUrlCacheStore = create<UrlCacheState>()(
 
       clear: () => {
         set((state) => {
-          for (const url of Object.values(state.urlMap)) {
-            if (url.startsWith("blob:")) revokeBlobUrl(url);
+          for (const entry of Object.values(state.urlMap)) {
+            const url = entryUrl(entry);
+            if (url?.startsWith("blob:")) revokeBlobUrl(url);
           }
           return { urlMap: {} };
         });
@@ -87,6 +129,17 @@ export const useUrlCacheStore = create<UrlCacheState>()(
       name: storeKey.UrlCacheStore,
       storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({ urlMap: state.urlMap }),
+      // blob URL 仅当前页面会话有效，重启后必失效；
+      // 但 blob 条目被标记为永不过期，必须在恢复时清除避免一直命中死链
+      onRehydrateStorage: () => () => purgeDeadBlobEntries(),
     }
   )
 );
+
+/** 清除持久化恢复回来的 blob 条目（跨会话已失效），供 rehydrate 与单测使用 */
+export function purgeDeadBlobEntries() {
+  const { urlMap, delete: del } = useUrlCacheStore.getState();
+  for (const key of Object.keys(urlMap)) {
+    if (entryUrl(urlMap[key])?.startsWith("blob:")) del(key);
+  }
+}

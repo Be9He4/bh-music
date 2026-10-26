@@ -1,6 +1,6 @@
 import { LucideIcon, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 
 interface SettingItemProps {
   icon: LucideIcon;
@@ -27,20 +27,30 @@ export function SettingItem({
   onClick,
   children,
 }: SettingItemProps) {
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  // 展开时确保整个条目（含底部滑块）完整进入可视区，
+  // 避免后续触碰滑块时浏览器自动滚动导致内容跳动、顶部被裁
+  useEffect(() => {
+    if (isExpanded) {
+      itemRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }
+  }, [isExpanded]);
+
   return (
     <div
+      ref={itemRef}
+      onClick={onClick}
       className={cn(
-        "p-4 rounded-xl bg-card/50 border border-border/50 transition-colors",
+        "px-4 py-3 transition-colors",
+        onClick && "cursor-pointer hover:bg-muted/20",
         className
       )}
     >
-      <div
-        className={cn(
-          "flex items-center justify-between min-h-7",
-          onClick && "cursor-pointer hover:bg-muted/20"
-        )}
-        onClick={onClick}
-      >
+      <div className="flex items-center justify-between min-h-7">
         <div className="flex items-center gap-3 flex-1 overflow-hidden">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 flex-[0_0_36px] min-w-9 min-h-9">
             <div className="h-4 w-4 shrink-0 flex-[0_0_16px] min-w-4 min-h-4">

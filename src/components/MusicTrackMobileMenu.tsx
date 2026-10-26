@@ -48,6 +48,7 @@ import {
   buildBilibiliMultiPAlbumId,
   parseBilibiliTrackId,
 } from "@otter-music/shared";
+import { logger } from "@/lib/logger";
 
 interface MusicTrackMobileMenuProps {
   track: MusicTrack;
@@ -184,7 +185,7 @@ export function MusicTrackMobileMenu({
           }
         }
       } catch (e) {
-        console.error("Failed to get song detail", e);
+        logger.error("MusicTrackMobileMenu", "Failed to get song detail", e);
       }
     }
 

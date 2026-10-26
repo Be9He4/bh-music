@@ -1,8 +1,9 @@
-import type { MusicTrack } from "../../types/music";
+import type { MusicTrack, SearchPageResult } from "../../types/music";
 import type {
   QqPlaylistResponse,
   QqSongRaw,
   QqSearchSongRaw,
+  QqSosoSearchResponse,
   QqVkeyResponse,
 } from "../../types/music-platforms";
 
@@ -103,6 +104,62 @@ export function convertQqSongToMusicTrack(song: QqSongRaw): MusicTrack {
 // ─────────────────────────────────────
 // 搜索
 // ─────────────────────────────────────
+
+/** QQ 音乐搜索接口域名 (soso 端点, 匿名可用) */
+export const QQ_SEARCH_BASE_URL = "https://c.y.qq.com";
+
+/**
+ * 构建 QQ 音乐搜索 API 请求路径 (不含域名)。
+ * 注意: 不能携带 new_json=1 参数, 上游在该参数下会静默返回空列表。
+ */
+export function buildQqSearchApiPath(
+  query: string,
+  page: number,
+  count: number
+): string {
+  const params = new URLSearchParams({
+    ct: "24",
+    qqmusic_ver: "1298",
+    remoteplace: "txt.yqq.top",
+    t: "0",
+    aggr: "1",
+    cr: "1",
+    catZhida: "1",
+    lossless: "0",
+    flag_qc: "0",
+    p: String(page),
+    n: String(count),
+    w: query,
+    g_tk: "5381",
+    loginUin: "0",
+    hostUin: "0",
+    format: "json",
+    inCharset: "utf8",
+    outCharset: "utf-8",
+    notice: "0",
+    platform: "yqq.json",
+    needNewCode: "0",
+  });
+  return `/soso/fcgi-bin/client_search_cp?${params.toString()}`;
+}
+
+/**
+ * 解析 soso 搜索响应并转换为统一搜索分页结果。
+ * code 非 0 或结构缺失时返回空结果。
+ */
+export function parseQqSosoSearchResponse(
+  data: QqSosoSearchResponse,
+  page: number,
+  count: number
+): SearchPageResult<MusicTrack> {
+  if (data.code !== 0) return { items: [], hasMore: false };
+  const list = data.data?.song?.list || [];
+  const total = data.data?.song?.totalnum || 0;
+  return {
+    items: list.map(convertQqSearchSongToMusicTrack),
+    hasMore: page * count < total,
+  };
+}
 
 /**
  * 将 QQ 音乐搜索结果中的歌曲对象转换为 MusicTrack。

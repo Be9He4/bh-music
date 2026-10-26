@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { Capacitor } from "@capacitor/core";
 import { Download, RotateCcw } from "lucide-react";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
@@ -14,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { IS_NATIVE } from "@/lib/api/config";
+import { logger } from "@/lib/logger";
 
 const QUALITY_LABELS: Record<string, string> = {
   "128": "标准",
@@ -21,8 +22,6 @@ const QUALITY_LABELS: Record<string, string> = {
   "320": "极高",
   "999": "无损",
 };
-
-const IS_NATIVE = Capacitor.isNativePlatform();
 
 function buildSummary(
   quality: string,
@@ -76,7 +75,7 @@ export function DownloadSetting() {
         setDownloadDirectory(result.path);
       }
     } catch (err) {
-      console.warn("pickDownloadDirectory failed:", err);
+      logger.warn("DownloadSetting", "pickDownloadDirectory failed:", err);
     } finally {
       setPicking(false);
     }

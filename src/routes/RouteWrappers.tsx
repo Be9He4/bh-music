@@ -74,6 +74,11 @@ const BillboardChart = lazy(() =>
     default: m.BillboardChart,
   }))
 );
+const AwardsChart = lazy(() =>
+  import("@/components/AwardsChart").then((m) => ({
+    default: m.AwardsChart,
+  }))
+);
 
 // ==========================================
 // 2. 核心优化 Hooks & HOC
@@ -300,7 +305,9 @@ export const PodcastDetailRoute = withSuspense(() => {
   const { currentTrackId, isPlaying } = usePlaybackState();
 
   return (
+    // key 绑定播客 id：切换播客时重新挂载，重置分页、搜索等内部状态
     <PodcastDetailPage
+      key={id ?? "none"}
       id={id || null}
       onBack={() => navigate(-1)}
       onPlay={(track, list) => handlePlay(track, list, "podcast")}
@@ -375,4 +382,14 @@ export const BillboardChartRoute = withSuspense(() => {
       isPlaying={isPlaying}
     />
   );
+});
+
+export const AwardsChartRoute = withSuspense(() => {
+  const { awardId } = useParams<{ awardId: string }>();
+  const [searchParams] = useSearchParams();
+  const yearParam = Number(searchParams.get("year"));
+  const year =
+    Number.isInteger(yearParam) && yearParam > 0 ? yearParam : undefined;
+
+  return <AwardsChart awardId={awardId ?? ""} year={year} />;
 });

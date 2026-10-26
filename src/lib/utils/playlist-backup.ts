@@ -1,9 +1,9 @@
 import { MusicTrack } from "@/types/music";
-import { Capacitor } from "@capacitor/core";
 import { Filesystem, Encoding } from "@capacitor/filesystem";
 import { AppPaths, STORAGE_CONFIG } from "@/lib/storage-manager";
 import { toastUtils } from "@/lib/utils/toast";
 import { logger } from "@/lib/logger";
+import { IS_NATIVE } from "@/lib/api/config";
 interface PlaylistBackup {
   name: string;
   tracks: MusicTrack[];
@@ -26,10 +26,10 @@ export async function exportPlaylist(name: string, tracks: MusicTrack[]) {
   };
 
   const jsonContent = JSON.stringify(backupData, null, 2);
-  const fileName = `${name.replace(/[\\/:*?"<>|]/g, '_')}.json`;
+  const fileName = `${name.replace(/[\\/:*?"<>|]/g, "_")}.json`;
   const exportPath = `${AppPaths.Playlists}/${fileName}`;
 
-  if (Capacitor.isNativePlatform()) {
+  if (IS_NATIVE) {
     try {
       // 移动端：写入 ExternalStorage/Download 目录
       await Filesystem.writeFile({
@@ -78,10 +78,12 @@ export async function exportPlaylist(name: string, tracks: MusicTrack[]) {
 /**
  * 导入歌单
  */
-export async function importPlaylist(file: File): Promise<{ name: string, tracks: MusicTrack[] }> {
+export async function importPlaylist(
+  file: File
+): Promise<{ name: string; tracks: MusicTrack[] }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
@@ -90,7 +92,7 @@ export async function importPlaylist(file: File): Promise<{ name: string, tracks
         }
 
         const data = JSON.parse(content);
-        
+
         // 校验数据格式
         let tracks: unknown[] = [];
         let name = file.name.replace(/\.json$/i, "");
@@ -98,16 +100,16 @@ export async function importPlaylist(file: File): Promise<{ name: string, tracks
         if (Array.isArray(data)) {
           // 兼容纯数组格式
           tracks = data;
-        } else if (data && typeof data === 'object') {
+        } else if (data && typeof data === "object") {
           // 标准备份格式
           if (Array.isArray(data.tracks)) {
             tracks = data.tracks;
             if (data.name) name = data.name;
           } else {
-             // 尝试判断是否是单个 track
-             if (data.id && data.name && data.source) {
-                tracks = [data];
-             }
+            // 尝试判断是否是单个 track
+            if (data.id && data.name && data.source) {
+              tracks = [data];
+            }
           }
         }
 
@@ -117,19 +119,21 @@ export async function importPlaylist(file: File): Promise<{ name: string, tracks
 
         // 简单的结构校验
         const isValidTrack = (t: unknown): t is MusicTrack => {
-          if (typeof t !== 'object' || t === null) return false;
+          if (typeof t !== "object" || t === null) return false;
           const track = t as Record<string, unknown>;
-          return typeof track.id === 'string' && typeof track.name === 'string';
+          return typeof track.id === "string" && typeof track.name === "string";
         };
         if (!tracks.every(isValidTrack)) {
-           // 过滤掉无效数据
-           const originalCount = tracks.length;
-           const validTracks = tracks.filter(isValidTrack);
-           if (validTracks.length === 0) {
-             throw new Error("歌曲数据格式不正确");
-           }
-           tracks = validTracks;
-           toastUtils.error(`已过滤 ${originalCount - validTracks.length} 条无效数据`);
+          // 过滤掉无效数据
+          const originalCount = tracks.length;
+          const validTracks = tracks.filter(isValidTrack);
+          if (validTracks.length === 0) {
+            throw new Error("歌曲数据格式不正确");
+          }
+          tracks = validTracks;
+          toastUtils.error(
+            `已过滤 ${originalCount - validTracks.length} 条无效数据`
+          );
         }
 
         resolve({ name, tracks: tracks as MusicTrack[] });

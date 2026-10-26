@@ -1,6 +1,7 @@
-import { mutate } from 'swr';
+import { mutate } from "swr";
+import { logger } from "@/lib/logger";
 
-const CACHE_NAME = 'otter-cache-v1';
+const CACHE_NAME = "otter-cache-v1";
 const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000;
 const STORAGE_PRESSURE_RATIO = 0.8;
 
@@ -16,15 +17,15 @@ async function saveToDisk<T>(key: string, data: T, ttl: number) {
 
     const res = new Response(JSON.stringify(data), {
       headers: {
-        'Content-Type': 'application/json',
-        'x-expiry': String(ts + ttl),
-        'x-created-at': String(ts)
-      }
+        "Content-Type": "application/json",
+        "x-expiry": String(ts + ttl),
+        "x-created-at": String(ts),
+      },
     });
 
     await cache.put(req(key), res);
   } catch (e) {
-    console.warn('[Cache] Save failed', e);
+    logger.warn("cache", "[Cache] Save failed", e);
   }
 }
 
@@ -37,7 +38,7 @@ async function getFromDisk<T>(key: string): Promise<T | null> {
 
     if (!res) return null;
 
-    const isExpired = Number(res.headers.get('x-expiry') || 0) <= now();
+    const isExpired = Number(res.headers.get("x-expiry") || 0) <= now();
     if (isExpired) {
       void cache.delete(request);
       return null;
@@ -73,14 +74,14 @@ export async function cleanupCache() {
       const res = await cache.match(request);
       if (!res) continue;
 
-      if (Number(res.headers.get('x-expiry') || 0) <= nowTime) {
+      if (Number(res.headers.get("x-expiry") || 0) <= nowTime) {
         expiredDeletes.push(cache.delete(request));
         continue;
       }
 
       items.push({
         request,
-        createdAt: Number(res.headers.get('x-created-at') || 0)
+        createdAt: Number(res.headers.get("x-created-at") || 0),
       });
     }
 
@@ -93,21 +94,24 @@ export async function cleanupCache() {
       items.sort((a, b) => a.createdAt - b.createdAt);
       const deleteCount = Math.ceil(items.length * 0.3); // 删最旧的 30%
       const toDelete = items.slice(0, deleteCount);
-      await Promise.all(toDelete.map(item => cache.delete(item.request)));
+      await Promise.all(toDelete.map((item) => cache.delete(item.request)));
     }
   } catch (e) {
-    console.warn('[Cache] Prune failed', e);
+    logger.warn("cache", "[Cache] Prune failed", e);
   }
 }
 
-/** 核心请求函数 */
+/** 核心请求函数；forceRefresh 时跳过磁盘缓存重新请求，结果照常写回覆盖 */
 export async function cachedFetch<T>(
   key: string,
   fetcher: () => Promise<T | null>,
-  ttl: number = DEFAULT_TTL
+  ttl: number = DEFAULT_TTL,
+  forceRefresh = false
 ): Promise<T | null> {
-  const disk = await getFromDisk<T>(key);
-  if (disk !== null) return disk;
+  if (!forceRefresh) {
+    const disk = await getFromDisk<T>(key);
+    if (disk !== null) return disk;
+  }
 
   const result = await mutate(
     key,

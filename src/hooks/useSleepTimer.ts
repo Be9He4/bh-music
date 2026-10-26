@@ -60,11 +60,12 @@ export function useSleepTimer(
         if (progress >= 1) {
           clearFade();
           // 核心修复：明确降到 0 -> 同步暂停 -> 恢复系统音量
+          // 先同步 store 再暂停，避免被"外部抢占恢复"逻辑误判
           audio.volume = 0;
+          setIsPlaying(false);
           audio.pause();
           audio.volume = stateRef.current.volume;
 
-          setIsPlaying(false);
           setSleepTimerIsActive(false);
           isFadingRef.current = false;
         } else {

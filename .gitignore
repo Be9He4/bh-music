@@ -48,3 +48,4 @@ tsconfig.tsbuildinfo
 .claude/
 openspec/
 CLAUDE_PROJECT_MEMORY.md
+.workbuddy/

@@ -5,13 +5,13 @@ import { useSourceQualityStore } from "@/store/source-quality-store";
 import { useDownloadStore } from "@/store/download-store";
 import { useOfflineStore } from "@/store/offline-store";
 import { useUrlCacheStore, buildUrlCacheKey } from "@/store/url-cache-store";
-import { Capacitor } from "@capacitor/core";
 import { buildDownloadKey } from "@/lib/utils/download";
 import type { MusicSource } from "@/types/music";
 import toast from "react-hot-toast";
 import { handleAutoMatch } from "@/lib/audio-match";
 import { logger } from "@/lib/logger";
 import { resolveTrackUrl } from "@/lib/audio-resolver";
+import { IS_NATIVE } from "@/lib/api/config";
 
 const AUDIO_READY_TIMEOUT = 8000;
 type FallbackStage = "none" | "proxy" | "final";
@@ -23,7 +23,7 @@ function isTrackPlayable(
   if (!track) return false;
   if (track.source === "local" || navigator.onLine) return true;
 
-  if (Capacitor.isNativePlatform()) {
+  if (IS_NATIVE) {
     const downloadKey = buildDownloadKey(track.source, track.id);
     return useDownloadStore.getState().hasRecord(downloadKey);
   }
@@ -130,11 +130,16 @@ export function useAudioTrackLoader(
       const audio = audioRef.current!;
       const prev = prevTrackRef.current;
 
-      const isRecovery = prev.recoveryKey !== urlRecoveryKey;
+      // prev.recoveryKey 为 undefined说明是本 effect 首次运行，非错误恢复
+      const isRecovery =
+        prev.recoveryKey !== undefined && prev.recoveryKey !== urlRecoveryKey;
       const isSameTrack = prev.id === trackId && prev.source === source;
       const qualityChanged = isSameTrack && prev.quality !== quality;
+      // 单一品质音源没有多档码率流可换（本地文件、B站、播客、Hi歌曲、Jamendo），
+      // 音质切换静默跳过：重载只会带来多余请求与 loading 闪烁，音频流其实不变
       const skipQualityReload =
-        qualityChanged && ["local", "bilibili", "podcast"].includes(source);
+        qualityChanged &&
+        ["local", "bilibili", "podcast", "higequ", "jamendo"].includes(source);
 
       // 无需重新加载的场景
       if (
@@ -184,9 +189,12 @@ export function useAudioTrackLoader(
         // 代理备用线路容灾时，直接使用已缓存的远程 URL
         if (remoteUrlRef.current) return { url: remoteUrlRef.current };
 
+        // 播放错误恢复时强制绕过 URL 缓存重新请求，
+        // 否则会命中缓存里的过期签名直链，导致恢复后二次失败
         const result = await resolveTrackUrl(
           currentTrack,
-          parseInt(quality, 10)
+          parseInt(quality, 10),
+          { forceRefresh: isRecovery }
         );
         // 同步到 remoteUrlRef 以支持代理备用线路容灾
         if (result.url && !result.dlKey) {
@@ -257,6 +265,11 @@ export function useAudioTrackLoader(
           throw err;
         }
       } catch (err: unknown) {
+        // 清理失效缓存（置于 requestId 守卫前：audio error 触发的恢复流程
+        // 会使本请求失效，但失效缓存仍需删除，避免恢复/重试再次命中死链）
+        useOfflineStore.getState().removeRecord(trackId);
+        useUrlCacheStore.getState().delete(trackKey);
+
         if (requestId !== requestIdRef.current) return;
 
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -280,12 +293,6 @@ export function useAudioTrackLoader(
         }
 
         useSourceQualityStore.getState().recordFail(source);
-
-        // 离线时清理过期信息
-        if (!navigator.onLine) {
-          useOfflineStore.getState().removeRecord(trackId);
-          useUrlCacheStore.getState().delete(trackKey);
-        }
 
         fallbackStageRef.current.stage = "final";
         audio.src = "";

@@ -1,13 +1,14 @@
-import { Capacitor } from "@capacitor/core";
 import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import { SettingItem } from "./SettingItem";
 import { LocalMusicPlugin } from "@/plugins/local-music";
 import { FolderOpen, RotateCcw } from "lucide-react";
 import { useState, useCallback } from "react";
+import { IS_NATIVE } from "@/lib/api/config";
+import { logger } from "@/lib/logger";
 
 export function DownloadDirectorySelect() {
-  if (!Capacitor.isNativePlatform()) return null;
+  if (!IS_NATIVE) return null;
 
   return <DownloadDirectorySelectInner />;
 }
@@ -29,7 +30,11 @@ function DownloadDirectorySelectInner() {
         setDownloadDirectory(result.path);
       }
     } catch (err) {
-      console.warn("pickDownloadDirectory failed:", err);
+      logger.warn(
+        "DownloadDirectorySelect",
+        "pickDownloadDirectory failed:",
+        err
+      );
     } finally {
       setPicking(false);
     }

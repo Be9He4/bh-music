@@ -46,6 +46,28 @@ const bilibiliTrack: MusicTrack = {
   source: "bilibili",
 };
 
+const higequTrack: MusicTrack = {
+  id: "higequ_228908",
+  name: "晴天",
+  artist: ["周杰伦"],
+  album: "叶惠美",
+  pic_id: "higequ_228908",
+  url_id: "228908",
+  lyric_id: "higequ_228908",
+  source: "higequ",
+};
+
+const jamendoTrack: MusicTrack = {
+  id: "jamendo_1474237",
+  name: "Test Song",
+  artist: ["Artist"],
+  album: "Album",
+  pic_id: "https://example.com/jamendo-cover.jpg",
+  url_id: "1474237",
+  lyric_id: "jamendo_1474237",
+  source: "jamendo",
+};
+
 const alistTrack: MusicTrack = {
   id: "alist:missing-server:/music/test.mp3",
   name: "test",
@@ -101,6 +123,47 @@ describe("MusicProviderFactory", () => {
       "https://y.gtimg.cn/music/photo_new/T002R800x800M000abc.jpg"
     );
     await expect(provider.getLyric(qqTrack)).resolves.toBeNull();
+  });
+
+  it("creates a provider for Hi歌曲 tracks", async () => {
+    const provider = MusicProviderFactory.getProvider("higequ");
+    expect(provider.source).toBe("higequ");
+
+    // 非法 rid 直接返回 null（不触发播放页抓取），避免测试依赖真实网络
+    await expect(
+      provider.getUrl({ ...higequTrack, id: "invalid", url_id: "" })
+    ).resolves.toBeNull();
+    await expect(
+      provider.getPic({ ...higequTrack, pic_id: "invalid" })
+    ).resolves.toBeNull();
+    await expect(
+      provider.getLyric({ ...higequTrack, lyric_id: "invalid" })
+    ).resolves.toBeNull();
+  });
+
+  it("creates a provider for Jamendo tracks", async () => {
+    const provider = MusicProviderFactory.getProvider("jamendo");
+    expect(provider.source).toBe("jamendo");
+
+    // 空搜索词直接返回空页，不发请求
+    await expect(provider.search("  ", 1, 20)).resolves.toEqual({
+      items: [],
+      hasMore: false,
+    });
+    // 音频直链由 ID 模板拼出（无需请求接口）
+    await expect(provider.getUrl(jamendoTrack)).resolves.toBe(
+      "https://prod-1.storage.jamendo.com/?trackid=1474237&format=mp32"
+    );
+    // 封面在搜索结果中已是直链，直接透传
+    await expect(provider.getPic(jamendoTrack)).resolves.toBe(
+      jamendoTrack.pic_id
+    );
+    // 非法 ID 返回 null
+    await expect(
+      provider.getUrl({ ...jamendoTrack, id: "invalid", url_id: "invalid" })
+    ).resolves.toBeNull();
+    // Jamendo 无歌词能力
+    await expect(provider.getLyric(jamendoTrack)).resolves.toBeNull();
   });
 
   it("creates a provider for Alist tracks", async () => {
