@@ -8,7 +8,6 @@ import {
   Trash2,
   Upload,
   Download,
-  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -20,13 +19,6 @@ import {
 } from "../ui/drawer";
 import { Input } from "../ui/input";
 import { SettingItem } from "./SettingItem";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
 import { useWebdavStore } from "@/store/webdav-store";
 import { toastUtils } from "@/lib/utils/toast";
 import {
@@ -105,6 +97,7 @@ export function WebDavBackup() {
 
   const handleUpload = async () => {
     if (!currentConfig) return;
+    if (!confirm("将用当前收藏与歌单覆盖云端备份，确定上传吗？")) return;
     setUploading(true);
     try {
       const json = serializeStoreData();
@@ -172,7 +165,7 @@ export function WebDavBackup() {
             </DrawerDescription>
           </DrawerHeader>
 
-          <div className="px-4 space-y-3">
+          <div className="px-4 pb-4 space-y-3">
             <Input
               placeholder="服务器地址，如 https://dav.example.com/backup"
               value={inputUrl}
@@ -201,56 +194,49 @@ export function WebDavBackup() {
               </Button>
 
               <Button
+                onClick={handleDownload}
+                variant="outline"
+                className="flex-1"
+                disabled={!currentConfig || uploading || downloading}
+              >
+                <Download className="h-4 w-4" />
+                {downloading ? "下载中..." : "下载备份"}
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
                 onClick={handleSave}
                 variant="outline"
                 className="flex-1"
-                disabled={!currentConfig}
+                disabled={!currentConfig || uploading || downloading || testing}
               >
                 <Save className="h-4 w-4" />
                 保存配置
               </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    title="更多操作"
-                    disabled={uploading || downloading || testing}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    disabled={!currentConfig || testing}
-                    onSelect={() => void handleTest()}
-                  >
-                    <Wifi />
-                    {testing ? "测试中..." : "测试连接"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!currentConfig || uploading || downloading}
-                    onSelect={() => void handleDownload()}
-                  >
-                    <Download />
-                    {downloading ? "下载中..." : "下载备份"}
-                  </DropdownMenuItem>
-                  {url && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={handleClear}
-                      >
-                        <Trash2 />
-                        清除配置
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                onClick={() => void handleTest()}
+                variant="outline"
+                className="flex-1"
+                disabled={!currentConfig || uploading || downloading || testing}
+              >
+                <Wifi className="h-4 w-4" />
+                {testing ? "测试中..." : "测试连接"}
+              </Button>
             </div>
+
+            {url && (
+              <Button
+                onClick={handleClear}
+                variant="outline"
+                className="w-full text-destructive"
+                disabled={uploading || downloading || testing}
+              >
+                <Trash2 className="h-4 w-4" />
+                清除配置
+              </Button>
+            )}
           </div>
         </DrawerContent>
       </Drawer>

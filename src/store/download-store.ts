@@ -4,6 +4,7 @@ import {
   loadDownloadRecordsFromDisk,
 } from "@/lib/utils/download";
 import type { MusicSource } from "@/types/music";
+import { logger } from "@/lib/logger";
 
 export interface DownloadRecord {
   uri: string;
@@ -63,7 +64,7 @@ export const useDownloadStore = create<DownloadStoreState>((set, get) => ({
         saveDownloadRecordsToDisk(diskRecords).catch(() => {});
       }
     } catch (error) {
-      console.error("恢复下载记录失败:", error);
+      logger.error("download-store", "恢复下载记录失败:", error);
     }
   },
 
@@ -92,7 +93,7 @@ export const useDownloadStore = create<DownloadStoreState>((set, get) => ({
     try {
       await saveDownloadRecordsToDisk(latestRecords);
     } catch (error) {
-      console.error("保存下载记录失败:", error);
+      logger.error("download-store", "保存下载记录失败:", error);
     }
   },
 
@@ -105,7 +106,7 @@ export const useDownloadStore = create<DownloadStoreState>((set, get) => ({
     try {
       await saveDownloadRecordsToDisk(records);
     } catch (error) {
-      console.error("删除下载记录失败:", error);
+      logger.error("download-store", "删除下载记录失败:", error);
     }
   },
 
@@ -115,7 +116,7 @@ export const useDownloadStore = create<DownloadStoreState>((set, get) => ({
     try {
       await saveDownloadRecordsToDisk({});
     } catch (error) {
-      console.error("清空下载记录失败:", error);
+      logger.error("download-store", "清空下载记录失败:", error);
     }
   },
 }));

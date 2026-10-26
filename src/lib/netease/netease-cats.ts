@@ -129,12 +129,14 @@ export const NETEASE_CATS: CatGroup[] = [
       F("90后"),
       F("00后"),
       ALIST_CAT,
+      F("Billboard"),
     ],
   },
 ];
 
 export const SPECIAL_CATS: CatItem[] = [
   F("官方"),
+  { id: "Awards", name: "奖项" },
   F("榜单"),
   { id: "toplist", name: "排行榜" },
 ];
@@ -158,10 +160,40 @@ export const RECOMMEND_CATS: CatItem[] = [
   F("播客"),
 ];
 
-/** 不走网易云 browse 分页适配器的分类（含「我的」+ 3 个特殊子歌单） */
+/** 不走网易云 browse 分页适配器的分类（含「我的」、独立 Section 与精选下的特殊子 Tab） */
 export const NON_BROWSE_CATEGORIES: ReadonlySet<string> = new Set([
   "mine",
   "播客",
   "Alist",
   "Billboard",
+  "Awards",
 ]);
+
+/* =========================================================
+ * 常驻栏（歌单广场顶部分类栏）解析
+ * ========================================================= */
+
+/** 常驻栏固定分类：不可排序、不可删除，始终置前 */
+export const FIXED_CATS: CatItem[] = RECOMMEND_CATS.slice(0, 3);
+
+/** 可添加为常驻的全部分类目录（各分组分类平铺，含 Alist / Billboard） */
+export const ADDABLE_CATS: CatItem[] = NETEASE_CATS.flatMap((g) => g.filters);
+
+/**
+ * 解析常驻栏分类为「固定项 + 常驻项」。
+ * @param savedOrder 用户自定义的常驻分类 id 序列；null 表示未自定义（使用默认序列）
+ */
+export function resolveBarCategories(savedOrder: string[] | null): {
+  fixed: CatItem[];
+  residents: CatItem[];
+} {
+  const catalog = new Map(ADDABLE_CATS.map((c) => [c.id, c]));
+
+  if (!savedOrder) {
+    return { fixed: FIXED_CATS, residents: RECOMMEND_CATS.slice(3) };
+  }
+  return {
+    fixed: FIXED_CATS,
+    residents: savedOrder.flatMap((id) => catalog.get(id) ?? []),
+  };
+}

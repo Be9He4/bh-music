@@ -88,6 +88,13 @@ vi.mock("@capacitor/core", () => ({
   })),
 }));
 
+vi.mock("@/lib/api/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/config")>()),
+  get IS_NATIVE() {
+    return capacitorMocks.isNativePlatform();
+  },
+}));
+
 vi.mock("@capacitor/app", () => ({
   App: {
     addListener: capacitorMocks.addListener,

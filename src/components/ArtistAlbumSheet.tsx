@@ -13,6 +13,7 @@ import { createArtistAlbumSheetState } from "@/lib/navigation/netease-detail-nav
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface ArtistAlbumSheetProps {
   artistId: string | null;
@@ -56,7 +57,7 @@ export function ArtistAlbumSheet({
         return;
       }
     } catch (e) {
-      console.error("Parse cache failed", e);
+      logger.error("ArtistAlbumSheet", "Parse cache failed", e);
     }
     // 无缓存或解析失败，重置状态
     setAlbums([]);
@@ -70,7 +71,7 @@ export function ArtistAlbumSheet({
 
     try {
       const { scrollTop } = JSON.parse(
-        sessionStorage.getItem(cacheKey) || "{}",
+        sessionStorage.getItem(cacheKey) || "{}"
       );
       if (scrollTop) {
         // 延迟 50ms 等待 Drawer 布局就绪，使用 instant 瞬间归位
@@ -80,7 +81,7 @@ export function ArtistAlbumSheet({
         return () => clearTimeout(timer);
       }
     } catch (error) {
-      console.error("Parse scrollTop failed", error);
+      logger.error("ArtistAlbumSheet", "Parse scrollTop failed", error);
     }
   }, [isOpen, albums.length, cacheKey]);
 
@@ -99,12 +100,12 @@ export function ArtistAlbumSheet({
               ? [...prev, ...res.hotAlbums]
               : res.hotAlbums;
             const uniqueData = Array.from(
-              new Map(newData.map((item) => [item.id, item])).values(),
+              new Map(newData.map((item) => [item.id, item])).values()
             );
 
             // 更新数据时同步更新缓存
             const existingCache = JSON.parse(
-              sessionStorage.getItem(cacheKey) || "{}",
+              sessionStorage.getItem(cacheKey) || "{}"
             );
             sessionStorage.setItem(
               cacheKey,
@@ -113,7 +114,7 @@ export function ArtistAlbumSheet({
                 albums: uniqueData,
                 offset: currentOffset + PAGE_LIMIT,
                 hasMore: res.more,
-              }),
+              })
             );
 
             return uniqueData;
@@ -122,12 +123,12 @@ export function ArtistAlbumSheet({
           setOffset(currentOffset + PAGE_LIMIT);
         }
       } catch (error) {
-        console.error("Fetch albums failed:", error);
+        logger.error("ArtistAlbumSheet", "Fetch albums failed:", error);
       } finally {
         isLoadMore ? setLoadingMore(false) : setLoading(false);
       }
     },
-    [artistId, offset, cacheKey],
+    [artistId, offset, cacheKey]
   );
 
   // 4. 打开时如果没数据则加载
@@ -149,10 +150,10 @@ export function ArtistAlbumSheet({
         const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "{}");
         sessionStorage.setItem(
           cacheKey,
-          JSON.stringify({ ...cached, scrollTop }),
+          JSON.stringify({ ...cached, scrollTop })
         );
       } catch (error) {
-        console.error("Save scrollTop failed", error);
+        logger.error("ArtistAlbumSheet", "Save scrollTop failed", error);
       }
     }, 200);
 
@@ -204,7 +205,7 @@ export function ArtistAlbumSheet({
                   onClick={() => handleAlbumClick(album.id as number)}
                   className={cn(
                     "group flex flex-col gap-2 text-left outline-none animate-in fade-in slide-in-from-bottom-4 fill-mode-both",
-                    "hover:translate-y-[-4px] transition-all",
+                    "hover:translate-y-[-4px] transition-all"
                   )}
                   style={{ animationDelay: `${(index % PAGE_LIMIT) * 30}ms` }}
                 >

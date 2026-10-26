@@ -5,7 +5,7 @@ import { useOfflineStore } from "@/store/offline-store";
 import { useLocalMusicStore } from "@/store/local-music-store";
 import { useDownloadStore } from "@/store/download-store";
 import { convertToMusicTrack } from "@/lib/utils/download";
-import { Capacitor } from "@capacitor/core";
+import { IS_NATIVE } from "@/lib/api/config";
 
 /**
  * 聚合离线可播放曲目：下载 > 流媒体缓存 > 本地文件
@@ -82,7 +82,7 @@ export function useOfflinePlaylist(): MusicTrack[] {
     }
 
     // 3. 本地音乐文件（最低优先级）
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       for (const file of localFiles) {
         const track = convertToMusicTrack(file);
         if (seen.has(track.id)) continue;

@@ -1,7 +1,8 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
+import { labToSrgb, srgbToLab, type SodaColors } from "@/lib/utils/soda-color";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LyricsPanel } from "./LyricsPanel";
@@ -21,6 +22,7 @@ import {
   Pause,
   SquareArrowOutUpRight,
   ClockFading,
+  Maximize2,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useMounted } from "@/hooks/use-mounted";
@@ -42,7 +44,8 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import toast from "react-hot-toast";
 import { useCoverColors } from "@/hooks/useCoverColors";
-import { pickBestColor, createBackgroundColor } from "@/lib/utils/color";
+import { useLandscapeMode } from "@/hooks/useLandscapeMode";
+import { LandscapePlayer } from "@/components/LandscapePlayer";
 
 interface ModeIconProps {
   isRepeat: boolean;
@@ -57,28 +60,26 @@ function ModeIcon({ isRepeat, isShuffle }: ModeIconProps) {
 
 const BackgroundLayer = memo(
   ({
-    hslColor,
+    colors,
     coverUrl,
     mode,
   }: {
-    hslColor: [number, number, number] | null;
+    colors: SodaColors | null;
     coverUrl: string | null;
     mode: FullScreenBackgroundMode;
   }) => {
-    const showThemeColor = mode === "theme" && hslColor;
+    const showThemeColor = mode === "theme" && !!colors;
     const showCoverMask = mode === "cover" && coverUrl;
     const dynamicStyle = useMemo(() => {
-      if (!showThemeColor) return undefined;
-      const [h, s, l] = hslColor;
+      if (!showThemeColor || !colors) return undefined;
+      const [tr, tg, tb] = colors.top;
+      const [br, bg, bb] = colors.bottom;
       return {
-        "--bg-h": h,
-        "--bg-s": `${s}%`,
-        "--bg-l": `${l}%`,
         background: `linear-gradient(to bottom,
-        hsl(var(--bg-h), var(--bg-s), var(--bg-l)),
-        hsl(var(--bg-h), var(--bg-s), calc(var(--bg-l) - 8%)))`,
+        rgb(${tr}, ${tg}, ${tb}),
+        rgb(${br}, ${bg}, ${bb}))`,
       } as React.CSSProperties;
-    }, [hslColor, showThemeColor]);
+    }, [colors, showThemeColor]);
 
     return (
       <div className="absolute inset-0 z-[-1] overflow-hidden bg-zinc-950">
@@ -145,6 +146,12 @@ export function FullScreenPlayer({
   onClose,
 }: FullScreenPlayerProps) {
   const isMounted = useMounted();
+  /** 横屏沉浸模式：手动进入后锁定横屏，由独立的 LandscapePlayer 渲染 */
+  const {
+    isLandscapeMode,
+    enter: enterLandscapeMode,
+    exit: exitLandscapeMode,
+  } = useLandscapeMode(isFullScreen);
   const {
     showLyrics,
     setShowLyrics,
@@ -171,6 +178,8 @@ export function FullScreenPlayer({
     playTrackAsNext,
     currentAudioUrl,
     fullScreenBackgroundMode,
+    coverSize,
+    coverRadius,
     playbackSpeed,
     sleepTimerIsActive,
     sleepTimerRemaining,
@@ -194,6 +203,8 @@ export function FullScreenPlayer({
       currentAudioUrl: state.currentAudioUrl,
       quality: state.quality,
       fullScreenBackgroundMode: state.fullScreenBackgroundMode,
+      coverSize: state.coverSize,
+      coverRadius: state.coverRadius,
       playbackSpeed: state.playbackSpeed,
       sleepTimerIsActive: state.sleepTimerIsActive,
       sleepTimerRemaining: state.sleepTimerRemaining,
@@ -210,22 +221,35 @@ export function FullScreenPlayer({
 
   const currentTrack = queue[currentIndex] || null;
 
+  const [isCoverPreviewOpen, setIsCoverPreviewOpen] = useState(false);
+
+  /** 封面长按 → 打开图片预览（无封面时提示） */
+  const handleCoverLongPress = () => {
+    if (!coverUrl) {
+      toast.error("暂无封面");
+      return;
+    }
+    setIsCoverPreviewOpen(true);
+  };
+
   const {
     handleShare,
     handleToggleLike,
     isCurrentTrackFavorite,
     trackInfoPressHandlers,
-  } = usePlayerActions(currentTrack, currentAudioUrl);
+    coverPressHandlers,
+  } = usePlayerActions(currentTrack, currentAudioUrl, handleCoverLongPress);
 
-  const { swatches } = useCoverColors(
+  const { colors: backgroundColors } = useCoverColors(
     coverUrl && fullScreenBackgroundMode === "theme" ? coverUrl : null
   );
 
-  const hslColor = useMemo(() => {
-    if (!swatches) return null;
-    const dominant = pickBestColor(swatches);
-    return dominant ? createBackgroundColor(dominant) : null;
-  }, [swatches]);
+  /** 封面投影色：背景基色 Lab 亮度 -20，与背景渐变同色相，避免高饱和主色形成突兀彩色光晕 */
+  const shadowColor = useMemo(() => {
+    if (!backgroundColors) return null;
+    const lab = srgbToLab(backgroundColors.top);
+    return labToSrgb([Math.max(0, lab[0] - 20), lab[1], lab[2]]);
+  }, [backgroundColors]);
 
   const playTrack = (index: number) => setCurrentIndexAndPlay(index);
 
@@ -270,43 +294,82 @@ export function FullScreenPlayer({
     >
       {/* 背景渲染层 */}
       <BackgroundLayer
-        hslColor={hslColor}
+        colors={backgroundColors}
         coverUrl={coverUrl}
         mode={fullScreenBackgroundMode}
       />
 
-      <header className="shrink-0 flex items-center justify-between px-6 pt-[calc(1rem+var(--safe-area-top))] relative z-10">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-12 w-12 text-white/60 hover:bg-white/10 hover:text-white"
-          onClick={() => {
-            onClose();
-          }}
-        >
-          <ChevronDown className="h-6 w-6" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-xs tracking-widest text-white/50 hover:text-white hover:bg-white/10 h-8 px-3"
-          onClick={() => setQualityDrawerOpen(true)}
-        >
-          {!showLyrics && getQualityShortLabel(quality)}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-12 w-12 text-white/60 hover:bg-white/10 hover:text-white"
-          onClick={handleShare}
-        >
-          <SquareArrowOutUpRight className="h-5 w-5" />
-        </Button>
+      {/* 横屏沉浸模式：独立组件，覆盖于普通布局之上 */}
+      {isLandscapeMode && (
+        <LandscapePlayer
+          background={
+            <BackgroundLayer
+              colors={backgroundColors}
+              coverUrl={coverUrl}
+              mode={fullScreenBackgroundMode}
+            />
+          }
+          onExit={exitLandscapeMode}
+        />
+      )}
+
+      <header className="shrink-0 grid grid-cols-3 items-center px-6 pt-[calc(1rem+var(--safe-area-top))] relative z-10">
+        <div className="flex justify-start">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-12 w-12 text-white/60 hover:bg-white/10 hover:text-white"
+            onClick={() => {
+              onClose();
+            }}
+          >
+            <ChevronDown className="h-6 w-6" />
+          </Button>
+        </div>
+        <div className="flex justify-center">
+          {!showLyrics && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs tracking-widest text-white/50 hover:text-white hover:bg-white/10 h-8 px-3"
+              onClick={() => setQualityDrawerOpen(true)}
+            >
+              {getQualityShortLabel(quality)}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center justify-end">
+          {showLyrics ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-12 w-12 text-white/60 hover:bg-white/10 hover:text-white"
+              onClick={enterLandscapeMode}
+              aria-label="横屏沉浸播放"
+              title="横屏沉浸播放"
+            >
+              <Maximize2 className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-12 w-12 text-white/60 hover:bg-white/10 hover:text-white"
+              onClick={handleShare}
+              aria-label="分享"
+              title="分享"
+            >
+              <SquareArrowOutUpRight className="h-5 w-5" />
+            </Button>
+          )}
+        </div>
       </header>
 
       <div
         className="flex-1 flex flex-col items-center justify-center px-2 relative z-10 overflow-hidden cursor-pointer"
         onClick={() => {
+          // 封面预览打开期间不切换歌词，避免长按后的 click 冒泡到这里
+          if (isCoverPreviewOpen) return;
           setShowLyrics(!showLyrics);
         }}
       >
@@ -316,16 +379,18 @@ export function FullScreenPlayer({
           </div>
         ) : (
           <div
+            {...coverPressHandlers}
+            title="长按预览图片"
             className={cn(
-              "relative aspect-square w-72 max-w-[320px] overflow-hidden rounded-3xl transition-transform duration-500 ring-1 ring-white/5",
+              "relative aspect-square overflow-hidden transition-transform duration-500 ring-1 ring-white/5",
               isPlaying ? "scale-100" : "scale-[0.95]"
             )}
             style={{
+              width: `min(${coverSize}px, calc(100vw - 16px), 70svh)`,
+              borderRadius: coverRadius,
               boxShadow:
-                fullScreenBackgroundMode === "theme" && hslColor
-                  ? `0 30px 60px -12px hsla(${hslColor[0]}, ${
-                      hslColor[1]
-                    }%, ${Math.max(0, hslColor[2] - 20)}%, 0.4)`
+                fullScreenBackgroundMode === "theme" && shadowColor
+                  ? `0 30px 60px -12px rgba(${shadowColor.join(", ")}, 0.4)`
                   : "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
             }}
           >
@@ -334,6 +399,8 @@ export function FullScreenPlayer({
               alt={currentTrack?.name}
               className="h-full w-full object-cover dark select-none touch-none"
               iconClassName="h-16 w-16 text-white/30"
+              previewOpen={isCoverPreviewOpen}
+              onPreviewOpenChange={setIsCoverPreviewOpen}
             />
           </div>
         )}

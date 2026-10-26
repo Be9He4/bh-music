@@ -1,6 +1,7 @@
 import {
   useMusicStore,
   type FullScreenBackgroundMode,
+  type LyricAlign,
 } from "@/store/music-store";
 import { useAppStore } from "@/store/app-store";
 import { usePodcastStore } from "@/store/podcast-store";
@@ -15,10 +16,10 @@ import type {
 } from "@/types/music";
 import type { PodcastRssSource } from "@/types/podcast";
 import type { AlistServer } from "@/types/alist";
-import { Capacitor } from "@capacitor/core";
 import { Encoding, Filesystem } from "@capacitor/filesystem";
 import { STORAGE_CONFIG } from "@/lib/storage-manager";
 import { logger } from "@/lib/logger";
+import { IS_NATIVE } from "@/lib/api/config";
 
 /** 备份数据版本号 */
 const CURRENT_VERSION = 1;
@@ -32,7 +33,7 @@ export async function saveBackupFile(json: string): Promise<string> {
   const fileName = backupFileName();
 
   try {
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       const path = `${STORAGE_CONFIG.ROOT}/${fileName}`;
       await Filesystem.writeFile({
         path,
@@ -82,6 +83,7 @@ interface BackupPayload {
   lastMineTab: "recommend" | "created" | "subscribed" | "albums";
   lastFeaturedTab: string;
   lastBillboardGroup: "songs" | "albums" | "artists";
+  playlistCategoryOrder: string[] | null;
   enableAutoMatch: boolean;
   autoMatchFavorites: boolean;
   autoMatchPlaylists: boolean;
@@ -89,7 +91,12 @@ interface BackupPayload {
   bilibiliKeepOriginalMeta: boolean;
   bilibiliAutoMatchSuffix: string;
   fullScreenBackgroundMode: FullScreenBackgroundMode;
+  coverSize: number;
+  coverRadius: number;
   showSourceBadge: boolean;
+  lyricAlign: LyricAlign;
+  lyricFontSize: number;
+  lyricOffset: number;
   downloadQuality: string;
   embedCover: boolean;
   embedLyric: boolean;
@@ -97,6 +104,7 @@ interface BackupPayload {
   sleepTimerDuration: number;
   playbackSpeed: number;
   enableUpdateNotify: boolean;
+  allowSimultaneousPlayback: boolean;
   rssSources: PodcastRssSource[];
   servers: AlistServer[];
 }
@@ -147,6 +155,7 @@ export function serializeStoreData(): string {
     lastMineTab: state.lastMineTab,
     lastFeaturedTab: state.lastFeaturedTab,
     lastBillboardGroup: state.lastBillboardGroup,
+    playlistCategoryOrder: state.playlistCategoryOrder,
     enableAutoMatch: state.enableAutoMatch,
     autoMatchFavorites: state.autoMatchFavorites,
     autoMatchPlaylists: state.autoMatchPlaylists,
@@ -154,7 +163,12 @@ export function serializeStoreData(): string {
     bilibiliKeepOriginalMeta: state.bilibiliKeepOriginalMeta,
     bilibiliAutoMatchSuffix: state.bilibiliAutoMatchSuffix,
     fullScreenBackgroundMode: state.fullScreenBackgroundMode,
+    coverSize: state.coverSize,
+    coverRadius: state.coverRadius,
     showSourceBadge: state.showSourceBadge,
+    lyricAlign: state.lyricAlign,
+    lyricFontSize: state.lyricFontSize,
+    lyricOffset: state.lyricOffset,
     downloadQuality: state.downloadQuality,
     embedCover: state.embedCover,
     embedLyric: state.embedLyric,
@@ -162,6 +176,7 @@ export function serializeStoreData(): string {
     sleepTimerDuration: state.sleepTimerDuration,
     playbackSpeed: state.playbackSpeed,
     enableUpdateNotify: useAppStore.getState().enableUpdateNotify,
+    allowSimultaneousPlayback: useAppStore.getState().allowSimultaneousPlayback,
     rssSources: usePodcastStore.getState().rssSources,
     servers: useAlistStore.getState().servers,
   };
@@ -384,6 +399,7 @@ export function importStoreData(payload: BackupPayload): void {
     lastMineTab: payload.lastMineTab ?? "recommend",
     lastFeaturedTab: payload.lastFeaturedTab ?? "",
     lastBillboardGroup: payload.lastBillboardGroup ?? "songs",
+    playlistCategoryOrder: payload.playlistCategoryOrder ?? null,
     enableAutoMatch: payload.enableAutoMatch ?? true,
     autoMatchFavorites: payload.autoMatchFavorites ?? false,
     autoMatchPlaylists: payload.autoMatchPlaylists ?? true,
@@ -391,7 +407,12 @@ export function importStoreData(payload: BackupPayload): void {
     bilibiliKeepOriginalMeta: payload.bilibiliKeepOriginalMeta ?? false,
     bilibiliAutoMatchSuffix: payload.bilibiliAutoMatchSuffix ?? "高音质 原曲",
     fullScreenBackgroundMode: payload.fullScreenBackgroundMode ?? "theme",
+    coverSize: payload.coverSize ?? 328,
+    coverRadius: payload.coverRadius ?? 24,
     showSourceBadge: payload.showSourceBadge ?? true,
+    lyricAlign: payload.lyricAlign ?? "left",
+    lyricFontSize: payload.lyricFontSize ?? 18,
+    lyricOffset: payload.lyricOffset ?? -0.5,
     playbackSpeed: payload.playbackSpeed ?? 1.0,
     downloadQuality: payload.downloadQuality ?? "320",
     embedCover: payload.embedCover ?? true,
@@ -402,6 +423,7 @@ export function importStoreData(payload: BackupPayload): void {
 
   useAppStore.setState({
     enableUpdateNotify: payload.enableUpdateNotify ?? true,
+    allowSimultaneousPlayback: payload.allowSimultaneousPlayback ?? false,
   });
   if (payload.rssSources) {
     usePodcastStore.getState().setRssSources(payload.rssSources);

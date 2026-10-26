@@ -38,12 +38,15 @@ interface MarketSessionState {
   searchCache: SearchCache | null;
   /** Billboard 历史周榜日期（YYYY-MM-DD，undefined 表示最新一期），会话级缓存 */
   billboardDate: string | undefined;
+  /** 奖项页上次浏览的年份（key: awardId），会话级缓存 */
+  awardYears: Record<string, number>;
   setMineData: (
     data: Partial<MineDataState> | ((prev: MineDataState) => MineDataState)
   ) => void;
   saveListSnapshot: (key: string, snapshot: ListSnapshot) => void;
   saveSearchCache: (cache: SearchCache | null) => void;
   setBillboardDate: (date: string | undefined) => void;
+  setAwardYear: (awardId: string, year: number) => void;
   toggleAlbumInSession: (
     album: {
       id: string | number;
@@ -67,6 +70,7 @@ export const useMarketSession = create<MarketSessionState>()(
       listSnapshots: {},
       searchCache: null,
       billboardDate: undefined,
+      awardYears: {},
 
       setMineData: (data) =>
         set((state) => ({
@@ -84,6 +88,11 @@ export const useMarketSession = create<MarketSessionState>()(
       saveSearchCache: (cache) => set({ searchCache: cache }),
 
       setBillboardDate: (billboardDate) => set({ billboardDate }),
+
+      setAwardYear: (awardId, year) =>
+        set((state) => ({
+          awardYears: { ...state.awardYears, [awardId]: year },
+        })),
 
       toggleAlbumInSession: (album, shouldSub) =>
         set((state) => {
@@ -127,6 +136,7 @@ export const useMarketSession = create<MarketSessionState>()(
           listSnapshots: {},
           searchCache: null,
           billboardDate: undefined,
+          awardYears: {},
         }),
     }),
     {
@@ -137,6 +147,7 @@ export const useMarketSession = create<MarketSessionState>()(
         listSnapshots: state.listSnapshots,
         searchCache: state.searchCache,
         billboardDate: state.billboardDate,
+        awardYears: state.awardYears,
       }),
     }
   )

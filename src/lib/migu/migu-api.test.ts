@@ -12,6 +12,7 @@ import {
   convertMiguSongToMusicTrack,
   convertMiguV3SearchSongToMusicTrack,
   fetchMiguPlaylistDetail,
+  normalizeMiguImageUrl,
   parseMiguPlaylistInfoResponse,
   parseMiguPlaylistSongsResponse,
   parseMiguSongUrlResponse,
@@ -186,7 +187,6 @@ describe("getMiguLyric", () => {
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: true,
-      IS_WEB_PROD: false,
     }));
     vi.doMock("../music-provider", () => ({
       forceHttps: (url: string) => url.replace(/^http:\/\//i, "https://"),
@@ -208,6 +208,29 @@ describe("getMiguLyric", () => {
 
   it("returns null for invalid lyric URLs", async () => {
     await expect(getMiguLyric("")).resolves.toBeNull();
+  });
+});
+
+describe("normalizeMiguImageUrl", () => {
+  it("补全相对路径的 CDN 域名", () => {
+    expect(normalizeMiguImageUrl("/data/oss/resource/00/5u/7q/a.webp")).toBe(
+      "https://d.musicapp.migu.cn/data/oss/resource/00/5u/7q/a.webp"
+    );
+  });
+
+  it("协议相对路径补 https，http 强制 https", () => {
+    expect(normalizeMiguImageUrl("//d.musicapp.migu.cn/a.webp")).toBe(
+      "https://d.musicapp.migu.cn/a.webp"
+    );
+    expect(normalizeMiguImageUrl("http://d.musicapp.migu.cn/a.webp")).toBe(
+      "https://d.musicapp.migu.cn/a.webp"
+    );
+  });
+
+  it("空值返回空字符串", () => {
+    expect(normalizeMiguImageUrl("")).toBe("");
+    expect(normalizeMiguImageUrl(undefined)).toBe("");
+    expect(normalizeMiguImageUrl(null)).toBe("");
   });
 });
 
@@ -236,6 +259,19 @@ describe("convertMiguSongToMusicTrack", () => {
       artist_ids: ["112"],
       album_id: "1139846638",
     });
+  });
+
+  it("补全歌单歌曲封面的相对路径", () => {
+    const track = convertMiguSongToMusicTrack({
+      copyrightId: "1",
+      contentId: "2",
+      songName: "Song",
+      albumImgs: [{ img: "/data/oss/resource/00/41/zf/a.webp" }],
+    });
+
+    expect(track.pic_id).toBe(
+      "https://d.musicapp.migu.cn/data/oss/resource/00/41/zf/a.webp"
+    );
   });
 
   it("splits singer fallback", () => {
@@ -275,6 +311,18 @@ describe("convertMiguV3SearchSongToMusicTrack", () => {
       artist_ids: ["112"],
       album_id: "1142521343",
     });
+  });
+
+  it("补全 V3 接口返回的相对路径封面", () => {
+    const track = convertMiguV3SearchSongToMusicTrack({
+      copyrightId: "1",
+      contentId: "2",
+      img3: "/data/oss/resource/00/5u/7q/a.webp",
+    });
+
+    expect(track.pic_id).toBe(
+      "https://d.musicapp.migu.cn/data/oss/resource/00/5u/7q/a.webp"
+    );
   });
 
   it("handles missing fields gracefully", () => {
@@ -360,15 +408,16 @@ const sampleV3SearchSong = {
 
 describe("searchMiguSongs (dev)", () => {
   it("uses simple headers to app.u.nf.migu.cn", async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify([sampleV3SearchSong]), { status: 200 })
-    );
+    const fetchWithTimeout = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify([sampleV3SearchSong]), { status: 200 })
+      );
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout,
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: false,
-      IS_WEB_PROD: false,
     }));
 
     const { searchMiguSongs } = await import("./migu-api");
@@ -385,8 +434,9 @@ describe("searchMiguSongs (dev)", () => {
     const url = String(fetchWithTimeout.mock.calls[0][0]);
     expect(url).toContain("/api/migu-v3/pc/resource/song/item/search/v1.0");
     const opts = fetchWithTimeout.mock.calls[0][1];
-    expect(opts.headers).toHaveProperty("channel", "0146951");
-    expect(opts.headers).toHaveProperty("uid", "1234");
+    // V3 搜索接口不兼容 channel/uid 请求头，携带会返回 860002
+    expect(opts.headers?.channel).toBeUndefined();
+    expect(opts.headers?.uid).toBeUndefined();
   });
 
   it("returns empty on non-ok response", async () => {
@@ -397,7 +447,6 @@ describe("searchMiguSongs (dev)", () => {
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: false,
-      IS_WEB_PROD: false,
     }));
 
     const { searchMiguSongs } = await import("./migu-api");
@@ -413,7 +462,6 @@ describe("searchMiguSongs (dev)", () => {
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: false,
-      IS_WEB_PROD: false,
     }));
 
     const { searchMiguSongs } = await import("./migu-api");
@@ -426,13 +474,10 @@ describe("searchMiguSongs (dev)", () => {
     vi.doMock("@/lib/api/config", () => ({
       fetchWithTimeout: vi
         .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify([]), { status: 200 })
-        ),
+        .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })),
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: false,
-      IS_WEB_PROD: false,
     }));
 
     const { searchMiguSongs } = await import("./migu-api");
@@ -454,7 +499,6 @@ describe("searchMiguSongs (native)", () => {
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: true,
-      IS_WEB_PROD: false,
     }));
     vi.doMock("@capacitor/core", () => ({ CapacitorHttp: { request } }));
 
@@ -467,7 +511,8 @@ describe("searchMiguSongs (native)", () => {
     expect(call.url).toContain(
       "https://app.u.nf.migu.cn/pc/resource/song/item/search/v1.0"
     );
-    expect(call.headers).toHaveProperty("channel", "0146951");
+    // V3 搜索接口不兼容 channel/uid 请求头，携带会返回 860002
+    expect(call.headers?.channel).toBeUndefined();
   });
 
   it("returns empty on native HTTP error", async () => {
@@ -476,7 +521,6 @@ describe("searchMiguSongs (native)", () => {
       getApiUrl: vi.fn(),
       getProxyUrl: vi.fn(),
       IS_NATIVE: true,
-      IS_WEB_PROD: false,
     }));
     vi.doMock("@capacitor/core", () => ({
       CapacitorHttp: {
@@ -488,37 +532,5 @@ describe("searchMiguSongs (native)", () => {
     const result = await searchMiguSongs("test", 1);
 
     expect(result.items).toHaveLength(0);
-  });
-});
-
-describe("searchMiguSongs (web prod)", () => {
-  it("POSTs to the backend worker", async () => {
-    const fetchWithTimeout = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ items: [], hasMore: false }), {
-          status: 200,
-        })
-      );
-    vi.doMock("@/lib/api/config", () => ({
-      fetchWithTimeout,
-      getApiUrl: () => "https://api.example.com",
-      getProxyUrl: vi.fn(),
-      IS_NATIVE: false,
-      IS_WEB_PROD: true,
-    }));
-
-    const { searchMiguSongs } = await import("./migu-api");
-    const result = await searchMiguSongs("周杰伦", 1, 30);
-
-    expect(result.items).toHaveLength(0);
-    const [url, init] = fetchWithTimeout.mock.calls[0];
-    expect(url).toBe("https://api.example.com/music-api/migu/search");
-    expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body)).toEqual({
-      keyword: "周杰伦",
-      page: 1,
-      rows: 30,
-    });
   });
 });

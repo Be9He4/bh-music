@@ -8,6 +8,7 @@ import {
 import { Capacitor } from "@capacitor/core";
 import { LocalMusicPlugin } from "@/plugins/local-music";
 import { logger } from "@/lib/logger";
+import { IS_NATIVE } from "@/lib/api/config";
 
 export class LocalProvider implements IMusicProvider {
   source = "local" as const;
@@ -24,7 +25,7 @@ export class LocalProvider implements IMusicProvider {
   async getUrl(track: MusicTrack, _br?: number): Promise<string | null> {
     const path = track.url_id;
 
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       try {
         const result = await LocalMusicPlugin.getLocalFileUrl({
           localPath: path,
@@ -45,7 +46,7 @@ export class LocalProvider implements IMusicProvider {
   async getPic(track: MusicTrack, _size?: number): Promise<string | null> {
     if (!track.pic_id) return null;
 
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       try {
         const result = await LocalMusicPlugin.getEmbeddedCover({
           localPath: track.pic_id,
@@ -67,7 +68,7 @@ export class LocalProvider implements IMusicProvider {
   async getLyric(track: MusicTrack): Promise<SongLyric | null> {
     if (!track.lyric_id) return null;
 
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       try {
         const result = await LocalMusicPlugin.getEmbeddedLyrics({
           localPath: track.lyric_id,

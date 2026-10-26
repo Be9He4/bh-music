@@ -1,16 +1,19 @@
 import {
   type MusicTrack,
   type QqPlaylistDetail,
+  type QqSosoSearchResponse,
   type QqVkeyResponse,
   type SearchPageResult,
   QQ_API_URL,
   QQ_REFERER,
+  QQ_SEARCH_BASE_URL,
+  buildQqSearchApiPath,
   buildVkeyRequestBody,
-  convertQqSearchSongToMusicTrack,
   decodeQqHtmlEntities,
   extractVkeyUrl,
   orderQqQualityKeys,
   parseQqPlaylistResponse,
+  parseQqSosoSearchResponse,
 } from "@otter-music/shared";
 import forge from "node-forge";
 
@@ -73,35 +76,27 @@ export async function fetchQqMusicSearch(
   query: string,
   page: number
 ): Promise<SearchPageResult<MusicTrack>> {
-  const res = await fetch(QQ_API_URL, {
-    method: "POST",
-    headers: {
-      Referer: QQ_REFERER,
-      "User-Agent": USER_AGENT,
-      "Content-Type": "application/json",
-      Cookie: "uin=",
-    },
-    body: JSON.stringify({
-      req_1: {
-        method: "DoSearchForQQMusicDesktop",
-        module: "music.search.SearchCgiService",
-        param: {
-          num_per_page: 20,
-          page_num: page,
-          query,
-          search_type: 0,
-        },
+  const res = await fetch(
+    `${QQ_SEARCH_BASE_URL}${buildQqSearchApiPath(query, page, 20)}`,
+    {
+      headers: {
+        Referer: QQ_REFERER,
+        "User-Agent": USER_AGENT,
       },
-    }),
-  });
-  if (!res.ok) return { items: [], hasMore: false };
-  const data: any = await res.json();
-  const list = data?.req_1?.data?.body?.song?.list || [];
-  const total = data?.req_1?.data?.meta?.sum || 0;
-  return {
-    items: list.map(convertQqSearchSongToMusicTrack),
-    hasMore: page * 20 < total,
-  };
+    }
+  );
+  if (!res.ok) {
+    console.error(`QQ search failed: HTTP ${res.status} query=${query}`);
+    return { items: [], hasMore: false };
+  }
+  const data = (await res.json()) as QqSosoSearchResponse;
+  if (data.code !== 0) {
+    console.error(
+      `QQ search failed: code=${data.code} msg=${data.message ?? ""} query=${query}`
+    );
+    return { items: [], hasMore: false };
+  }
+  return parseQqSosoSearchResponse(data, page, 20);
 }
 
 // --- QQ 音乐歌词 (Worker 端) ---

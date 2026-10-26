@@ -15,6 +15,13 @@ vi.mock("@capacitor/core", () => ({
   },
 }));
 
+vi.mock("@/lib/api/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/config")>()),
+  get IS_NATIVE() {
+    return Capacitor.isNativePlatform();
+  },
+}));
+
 vi.mock("@capacitor/filesystem", () => ({
   Filesystem: { writeFile: vi.fn() },
   Directory: { ExternalStorage: "EXTERNAL_STORAGE" },
@@ -60,29 +67,31 @@ describe("MusicCover preview exit stack integration", () => {
       .forEach((el) => el.remove());
   });
 
-  const render = (props: { previewable?: boolean; src?: string | null }) => {
+  type CoverRenderProps = {
+    previewable?: boolean;
+    src?: string | null;
+    previewOpen?: boolean;
+    onPreviewOpenChange?: (open: boolean) => void;
+  };
+
+  const render = (props: CoverRenderProps) => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    const renderProps = (p: CoverRenderProps) => ({
+      src: p.src ?? SAMPLE_SRC,
+      alt: "cover",
+      previewable: p.previewable ?? true,
+      previewOpen: p.previewOpen,
+      onPreviewOpenChange: p.onPreviewOpenChange,
+    });
     act(() => {
-      root!.render(
-        <MusicCover
-          src={props.src ?? SAMPLE_SRC}
-          alt="cover"
-          previewable={props.previewable ?? true}
-        />
-      );
+      root!.render(<MusicCover {...renderProps(props)} />);
     });
     return {
-      rerender: (nextProps: { previewable?: boolean; src?: string | null }) => {
+      rerender: (nextProps: CoverRenderProps) => {
         act(() => {
-          root!.render(
-            <MusicCover
-              src={nextProps.src ?? SAMPLE_SRC}
-              alt="cover"
-              previewable={nextProps.previewable ?? true}
-            />
-          );
+          root!.render(<MusicCover {...renderProps(nextProps)} />);
         });
       },
     };
@@ -197,6 +206,93 @@ describe("MusicCover preview exit stack integration", () => {
     const secondImg = container?.querySelector("img");
     expect(secondImg).toBeTruthy();
     expect(secondImg?.getAttribute("src")).toBe(SAMPLE_SRC);
+  });
+
+  it("does not open preview on click when not previewable", () => {
+    render({ previewable: false });
+
+    clickCover();
+
+    expect(useExitLayerStore.getState().stack).toHaveLength(0);
+    expect(
+      document.body.querySelector('[data-testid="cover-preview-portal"]')
+    ).toBeFalsy();
+  });
+
+  it("opens preview via controlled previewOpen without previewable", () => {
+    const onChange = vi.fn();
+    const { rerender } = render({
+      previewable: false,
+      previewOpen: false,
+      onPreviewOpenChange: onChange,
+    });
+
+    rerender({
+      previewable: false,
+      previewOpen: true,
+      onPreviewOpenChange: onChange,
+    });
+
+    expect(useExitLayerStore.getState().stack).toHaveLength(1);
+    expect(
+      document.body.querySelector('[data-testid="cover-preview-portal"]')
+    ).toBeTruthy();
+
+    // 关闭时通知父组件，父组件同步状态后预览消失
+    act(() => {
+      useExitLayerStore.getState().handleExit();
+    });
+    expect(onChange).toHaveBeenCalledWith(false);
+
+    rerender({
+      previewable: false,
+      previewOpen: false,
+      onPreviewOpenChange: onChange,
+    });
+    expect(useExitLayerStore.getState().stack).toHaveLength(0);
+    expect(
+      document.body.querySelector('[data-testid="cover-preview-portal"]')
+    ).toBeFalsy();
+  });
+});
+
+describe("MusicCover 默认封面长按", () => {
+  let container: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  beforeEach(() => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+  });
+
+  afterEach(() => {
+    if (root) act(() => root?.unmount());
+    container?.remove();
+    root = undefined;
+    container = undefined;
+  });
+
+  it("无封面占位层拦截 contextmenu，避免 WebView 原生长按菜单接管手势", () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(<MusicCover src={null} alt="cover" />);
+    });
+
+    const placeholder = container.firstElementChild as HTMLElement;
+    expect(placeholder).toBeTruthy();
+
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      placeholder.dispatchEvent(event);
+    });
+
+    expect(event.defaultPrevented).toBe(true);
   });
 });
 

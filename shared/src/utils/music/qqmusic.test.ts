@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildQqSearchApiPath,
   buildVkeyRequestBody,
   extractVkeyUrl,
   orderQqQualityKeys,
+  parseQqSosoSearchResponse,
   qqBrToQualityKey,
 } from "./qqmusic";
-import type { QqVkeyResponse } from "../../types/music-platforms";
+import type {
+  QqSosoSearchResponse,
+  QqVkeyResponse,
+} from "../../types/music-platforms";
 
 function buildVkeyResponse(
   sip: string[],
@@ -13,6 +18,71 @@ function buildVkeyResponse(
 ): QqVkeyResponse {
   return { req_1: { code: 0, data: { sip, midurlinfo } } };
 }
+
+describe("buildQqSearchApiPath", () => {
+  it("builds soso search path with encoded query and page params", () => {
+    const path = buildQqSearchApiPath("周杰伦", 2, 20);
+
+    expect(path.startsWith("/soso/fcgi-bin/client_search_cp?")).toBe(true);
+    expect(path).toContain("w=%E5%91%A8%E6%9D%B0%E4%BC%A6");
+    expect(path).toContain("p=2");
+    expect(path).toContain("n=20");
+  });
+
+  it("does not include new_json param (upstream returns empty list with it)", () => {
+    expect(buildQqSearchApiPath("jay", 1, 20)).not.toContain("new_json");
+  });
+});
+
+describe("parseQqSosoSearchResponse", () => {
+  it("converts soso song list and computes hasMore", () => {
+    const data: QqSosoSearchResponse = {
+      code: 0,
+      data: {
+        song: {
+          totalnum: 45,
+          list: [
+            {
+              songmid: "m1",
+              songname: "song",
+              singer: [{ name: "a" }],
+              albummid: "al",
+              albumname: "album",
+            },
+          ],
+        },
+      },
+    };
+
+    const res = parseQqSosoSearchResponse(data, 1, 20);
+
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0]).toMatchObject({
+      id: "qq_m1",
+      name: "song",
+      artist: ["a"],
+      album: "album",
+      source: "qq",
+    });
+    expect(res.hasMore).toBe(true);
+  });
+
+  it("returns empty result when code is non-zero", () => {
+    expect(parseQqSosoSearchResponse({ code: 2001 }, 1, 20)).toEqual({
+      items: [],
+      hasMore: false,
+    });
+  });
+
+  it("sets hasMore false when no more pages", () => {
+    const data: QqSosoSearchResponse = {
+      code: 0,
+      data: { song: { totalnum: 20, list: [] } },
+    };
+
+    expect(parseQqSosoSearchResponse(data, 1, 20).hasMore).toBe(false);
+  });
+});
 
 describe("buildVkeyRequestBody", () => {
   it("uses anonymous credentials by default", () => {

@@ -1,4 +1,3 @@
-import { Capacitor } from "@capacitor/core";
 import { Filesystem, Encoding } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { MusicProviderFactory } from "@/lib/music-provider";
@@ -18,7 +17,7 @@ import { useDownloadStore } from "@/store/download-store";
 import { useMusicStore } from "@/store/music-store";
 
 import { toastUtils } from "./toast";
-import { getProxyUrl, isProxyUrl } from "@/lib/api/config";
+import { getProxyUrl, isProxyUrl, IS_NATIVE } from "@/lib/api/config";
 import { logger } from "@/lib/logger";
 import { processBatchIO } from "@/lib/utils";
 import { embedMetadata } from "./id3-embed";
@@ -83,7 +82,7 @@ async function performDownloadOne(
   toastId?: string,
   opts?: PerformDownloadOpts
 ): Promise<void> {
-  const isNative = Capacitor.isNativePlatform();
+  const isNative = IS_NATIVE;
   const br = parseInt(useMusicStore.getState().downloadQuality) || 320;
 
   if (isNative) {
@@ -242,7 +241,15 @@ async function downloadNative(
   const musicPath = store.downloadDirectory || AppPaths.Music;
   await ensureDir(musicPath);
 
-  const filePath = `${musicPath}/${fileName}`;
+  // 目标文件已存在（如下载记录丢失后的残留文件）时自动追加序号，
+  // 避免覆盖冲突导致 FileTransfer 写入失败 (OS-PLUG-FLTR-0007)
+  const filePath = await resolveAvailableFilePath(musicPath, fileName);
+  if (filePath !== `${musicPath}/${fileName}`) {
+    logger.info("download", "downloadNative: renamed to avoid overwrite", {
+      fileName,
+      filePath,
+    });
+  }
   const fileUri = await Filesystem.getUri({
     directory: STORAGE_CONFIG.BASE_DIR,
     path: filePath,
@@ -442,6 +449,34 @@ export async function ensurePermission() {
   }
 }
 
+/**
+ * 解析一个当前不存在的目标文件路径：若同名文件已存在，
+ * 自动追加序号重命名（如 "歌名 (1).mp3"）。
+ */
+async function resolveAvailableFilePath(
+  musicPath: string,
+  fileName: string
+): Promise<string> {
+  const dotIdx = fileName.lastIndexOf(".");
+  const stem = dotIdx > 0 ? fileName.slice(0, dotIdx) : fileName;
+  const ext = dotIdx > 0 ? fileName.slice(dotIdx) : "";
+
+  let candidate = fileName;
+  for (let i = 1; i < 1000; i++) {
+    try {
+      await Filesystem.stat({
+        directory: STORAGE_CONFIG.BASE_DIR,
+        path: `${musicPath}/${candidate}`,
+      });
+      candidate = `${stem} (${i})${ext}`;
+    } catch {
+      // stat 失败说明文件不存在，可用
+      return `${musicPath}/${candidate}`;
+    }
+  }
+  return `${musicPath}/${candidate}`;
+}
+
 async function ensureDir(path: string) {
   try {
     await Filesystem.stat({
@@ -494,7 +529,7 @@ export function triggerBlobDownload(
 export async function saveDownloadRecordsToDisk(
   records: Record<string, unknown>
 ) {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!IS_NATIVE) return;
 
   try {
     await ensureDir(AppPaths.Data);
@@ -515,7 +550,7 @@ export async function loadDownloadRecordsFromDisk(): Promise<Record<
   string,
   unknown
 > | null> {
-  if (!Capacitor.isNativePlatform()) return null;
+  if (!IS_NATIVE) return null;
 
   try {
     const result = await Filesystem.readFile({
@@ -531,7 +566,7 @@ export async function loadDownloadRecordsFromDisk(): Promise<Record<
 
     return JSON.parse(content);
   } catch (e) {
-    console.warn("读取下载记录失败:", e);
+    logger.warn("download", "读取下载记录失败:", e);
     return null;
   }
 }

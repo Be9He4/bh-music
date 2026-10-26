@@ -8,8 +8,9 @@ import { checkAndSync } from "@/lib/sync";
 import { cleanupCache } from "@/lib/utils/cache";
 import { revokeAll } from "@/lib/utils/blob-registry";
 import { stopBilibiliProxyServer } from "@/lib/bilibili/bilibili-native-player";
-import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
+import { IS_NATIVE } from "@/lib/api/config";
+import { preloadRouteChunks } from "@/routes/preload";
 export default function App() {
   // Sync Logic
   const { syncKey } = useSyncStore();
@@ -24,10 +25,13 @@ export default function App() {
   }, [syncKey]);
 
   useEffect(() => {
-    // 启动时静默检查更新（用户关闭更新提醒后跳过）
-    if (useAppStore.getState().enableUpdateNotify) {
-      useAppStore.getState().checkUpdate(true);
-    }
+    // 启动时静默检查更新（用户关闭更新提醒后跳过，延迟 2s 避免阻塞首屏）
+    const timer = setTimeout(() => {
+      if (useAppStore.getState().enableUpdateNotify) {
+        useAppStore.getState().checkUpdate(true);
+      }
+    }, 2000);
+
     // 初始化下载记录
     useDownloadStore.getState().init();
 
@@ -38,9 +42,14 @@ export default function App() {
       setTimeout(() => cleanupCache(), 5000);
     }
 
+    // 首屏空闲后预取高频 tab 的 chunk，减少首次切换时的白屏
+    const cancelPreload = preloadRouteChunks();
+
     const handleBeforeUnload = () => revokeAll();
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
+      clearTimeout(timer);
+      cancelPreload();
       window.removeEventListener("beforeunload", handleBeforeUnload);
       revokeAll();
     };
@@ -48,7 +57,7 @@ export default function App() {
 
   // Bilibili代理服务器生命周期管理
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!IS_NATIVE) return;
 
     // 应用状态变化监听
     const handleAppStateChange = ({ isActive }: { isActive: boolean }) => {

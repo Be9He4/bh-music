@@ -7,8 +7,8 @@ import { useMusicStore } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
 import { useExitLayer } from "@/hooks/useExitLayer";
 import { App as CapacitorApp } from "@capacitor/app";
-import { Capacitor } from "@capacitor/core";
 import { useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { IS_NATIVE } from "@/lib/api/config";
 
 const FullScreenPlayer = lazy(() =>
   import("@/components/FullScreenPlayer").then((m) => ({
@@ -57,7 +57,7 @@ export function RootLayout() {
     const path = locationRef.current.pathname;
 
     if (isRootTabPath(path)) {
-      if (Capacitor.isNativePlatform()) {
+      if (IS_NATIVE) {
         await CapacitorApp.minimizeApp();
       }
       return;
@@ -73,7 +73,7 @@ export function RootLayout() {
   }, [handleExitLayer, isRootTabPath, navigate]);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!IS_NATIVE) return;
 
     const listener = CapacitorApp.addListener("backButton", handleBackAction);
 
@@ -83,7 +83,7 @@ export function RootLayout() {
   }, [handleBackAction]);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) return;
+    if (IS_NATIVE) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;

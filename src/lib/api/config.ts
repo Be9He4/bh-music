@@ -76,11 +76,9 @@ const setStorage = (key: string, val: unknown) =>
 /**
  * 获取 GD 音乐台 API 默认访问顺序
  */
-function getDefaultMusicApiUrls(isNative = IS_NATIVE): string[] {
+function getDefaultMusicApiUrls(): string[] {
   const proxiedApiUrl = `${getApiUrl()}/music-api`;
-  return isNative
-    ? [DEFAULT_MUSIC_API_URL, proxiedApiUrl]
-    : [proxiedApiUrl, DEFAULT_MUSIC_API_URL];
+  return [DEFAULT_MUSIC_API_URL, proxiedApiUrl];
 }
 
 export const getMusicApiUrls = () => {

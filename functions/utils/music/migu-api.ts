@@ -65,8 +65,7 @@ export async function resolveMiguShortPlaylistId(
     method: "GET",
     redirect: "manual",
     headers: {
-      "User-Agent":
-        MIGU_USER_AGENT,
+      "User-Agent": MIGU_USER_AGENT,
     },
   });
   const redirectUrl = response.headers.get("Location") || response.url;
@@ -100,8 +99,7 @@ async function fetchMiguJson<T>(
 ): Promise<T> {
   const res = await fetch(`${MIGU_BASE_URL}${path}`, {
     headers: {
-      "User-Agent":
-        MIGU_USER_AGENT,
+      "User-Agent": MIGU_USER_AGENT,
       ...headers,
     },
   });
@@ -135,11 +133,10 @@ export async function fetchMiguSearch(
   rows = 20
 ): Promise<{ items: MusicTrack[]; hasMore: boolean }> {
   const path = buildMiguV3SearchPath(keyword, page, rows);
+  // V3 搜索接口不兼容 channel/uid 请求头，携带会返回 860002
   const res = await fetch(`${MIGU_SEARCH_BASE_URL}${path}`, {
     headers: {
-      "User-Agent":
-        MIGU_USER_AGENT,
-      ...buildMiguHeaders(),
+      "User-Agent": MIGU_USER_AGENT,
     },
   });
   if (!res.ok) return { items: [], hasMore: false };

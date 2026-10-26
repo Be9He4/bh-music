@@ -22,6 +22,8 @@ export interface UiSlice {
   lastMineTab: "recommend" | "created" | "subscribed" | "albums";
   lastFeaturedTab: string;
   lastBillboardGroup: "songs" | "albums" | "artists";
+  /** 歌单广场常驻分类的自定义顺序；null 表示未自定义（使用默认序列） */
+  playlistCategoryOrder: string[] | null;
   enableAutoMatch: boolean;
   autoMatchFavorites: boolean;
   autoMatchPlaylists: boolean;
@@ -30,10 +32,20 @@ export interface UiSlice {
   bilibiliKeepOriginalMeta: boolean;
   bilibiliAutoMatchSuffix: string;
   fullScreenBackgroundMode: FullScreenBackgroundMode;
+  coverSize: number;
+  coverRadius: number;
   showSourceBadge: boolean;
   lyricAlign: LyricAlign;
   lyricFontSize: number;
   lyricOffset: number;
+  /** 蓝牙车载歌词：把当前歌词行覆写到 AVRCP 的 TITLE 上供车机显示 */
+  carLyricEnabled: boolean;
+  /** 桌面歌词：悬浮在其他应用上方的歌词条（Android 悬浮窗） */
+  desktopLyricEnabled: boolean;
+  /** 桌面歌词字号（单位 sp），默认与原生初始字号一致 */
+  desktopLyricFontSize: number;
+  /** 桌面歌词字色（hex，如 "#FFFFFF"），默认与原生初始颜色一致 */
+  desktopLyricColor: string;
   playbackSpeed: number;
   isFullScreenPlayer: boolean;
   setQuality: (quality: string) => void;
@@ -45,6 +57,7 @@ export interface UiSlice {
   ) => void;
   setLastFeaturedTab: (tab: string) => void;
   setLastBillboardGroup: (group: "songs" | "albums" | "artists") => void;
+  setPlaylistCategoryOrder: (order: string[]) => void;
   setEnableAutoMatch: (enable: boolean) => void;
   setAutoMatchFavorites: (enable: boolean) => void;
   setAutoMatchPlaylists: (enable: boolean) => void;
@@ -53,10 +66,16 @@ export interface UiSlice {
   setBilibiliKeepOriginalMeta: (enable: boolean) => void;
   setBilibiliAutoMatchSuffix: (suffix: string) => void;
   setFullScreenBackgroundMode: (mode: FullScreenBackgroundMode) => void;
+  setCoverSize: (size: number) => void;
+  setCoverRadius: (radius: number) => void;
   setShowSourceBadge: (show: boolean) => void;
   setLyricAlign: (align: LyricAlign) => void;
   setLyricFontSize: (size: number) => void;
   setLyricOffset: (offset: number) => void;
+  setCarLyricEnabled: (enable: boolean) => void;
+  setDesktopLyricEnabled: (enable: boolean) => void;
+  setDesktopLyricFontSize: (size: number) => void;
+  setDesktopLyricColor: (color: string) => void;
   setPlaybackSpeed: (speed: number) => void;
   setIsFullScreenPlayer: (isFullScreen: boolean) => void;
 }
@@ -71,6 +90,7 @@ export const createUiSlice: StateCreator<MusicState, [], [], UiSlice> = (
   lastMineTab: "recommend",
   lastFeaturedTab: "",
   lastBillboardGroup: "songs",
+  playlistCategoryOrder: null,
   enableAutoMatch: true,
   autoMatchFavorites: false,
   autoMatchPlaylists: true,
@@ -79,10 +99,16 @@ export const createUiSlice: StateCreator<MusicState, [], [], UiSlice> = (
   bilibiliKeepOriginalMeta: false,
   bilibiliAutoMatchSuffix: "高音质 原曲",
   fullScreenBackgroundMode: "theme",
+  coverSize: 328,
+  coverRadius: 24,
   showSourceBadge: true,
-  lyricAlign: "center",
+  lyricAlign: "left",
   lyricFontSize: 18,
   lyricOffset: -0.5,
+  carLyricEnabled: false,
+  desktopLyricEnabled: false,
+  desktopLyricFontSize: 15,
+  desktopLyricColor: "#FFFFFF",
   playbackSpeed: 1.0,
   isFullScreenPlayer: false,
   setQuality: (quality) => set({ quality }),
@@ -93,6 +119,8 @@ export const createUiSlice: StateCreator<MusicState, [], [], UiSlice> = (
   setLastMineTab: (lastMineTab) => set({ lastMineTab }),
   setLastFeaturedTab: (lastFeaturedTab) => set({ lastFeaturedTab }),
   setLastBillboardGroup: (lastBillboardGroup) => set({ lastBillboardGroup }),
+  setPlaylistCategoryOrder: (playlistCategoryOrder) =>
+    set({ playlistCategoryOrder }),
   setEnableAutoMatch: (enableAutoMatch) => set({ enableAutoMatch }),
   setAutoMatchFavorites: (autoMatchFavorites) => set({ autoMatchFavorites }),
   setAutoMatchPlaylists: (autoMatchPlaylists) => set({ autoMatchPlaylists }),
@@ -104,10 +132,17 @@ export const createUiSlice: StateCreator<MusicState, [], [], UiSlice> = (
     set({ bilibiliAutoMatchSuffix }),
   setFullScreenBackgroundMode: (fullScreenBackgroundMode) =>
     set({ fullScreenBackgroundMode }),
+  setCoverSize: (coverSize) => set({ coverSize }),
+  setCoverRadius: (coverRadius) => set({ coverRadius }),
   setShowSourceBadge: (showSourceBadge) => set({ showSourceBadge }),
   setLyricAlign: (lyricAlign) => set({ lyricAlign }),
   setLyricFontSize: (lyricFontSize) => set({ lyricFontSize }),
   setLyricOffset: (lyricOffset) => set({ lyricOffset }),
+  setCarLyricEnabled: (carLyricEnabled) => set({ carLyricEnabled }),
+  setDesktopLyricEnabled: (desktopLyricEnabled) => set({ desktopLyricEnabled }),
+  setDesktopLyricFontSize: (desktopLyricFontSize) =>
+    set({ desktopLyricFontSize }),
+  setDesktopLyricColor: (desktopLyricColor) => set({ desktopLyricColor }),
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setIsFullScreenPlayer: (isFullScreenPlayer) => set({ isFullScreenPlayer }),
 });

@@ -1,85 +1,116 @@
-import { useState, useMemo } from "react";
+import { useRef, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Drawer,
   DrawerContent,
-  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MusicCover } from "@/components/MusicCover";
-import { searchPodcast } from "@/lib/api";
+import { searchPodcast, resolvePodcastUrl } from "@/lib/api";
 import { usePodcastStore } from "@/store/podcast-store";
-import type { SearchPodcastItem } from "@/types/podcast";
-import { Loader2, Search, Radio, Link2 } from "lucide-react";
+import type { PodcastRssSource, SearchPodcastItem } from "@/types/podcast";
+import { parseOpml, type OpmlFeed } from "@/lib/utils/opml";
+import { cn } from "@/lib/utils";
+import { Loader2, Radio, Upload } from "lucide-react";
 import toast from "react-hot-toast";
-
-type AddMode = "search" | "rss";
 
 interface PodcastAddProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** OPML 导入状态，feeds 非空时进入预览确认阶段 */
+interface OpmlImportState {
+  text: string;
+  showText: boolean;
+  feeds: OpmlFeed[];
+  skipped: number;
+}
+
+const EMPTY_OPML: OpmlImportState = {
+  text: "",
+  showText: false,
+  feeds: [],
+  skipped: 0,
+};
+
+/**
+ * 读取本地文件文本内容
+ * @param file 用户选择的文件
+ */
+const readFileText = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("读取文件失败"));
+    reader.readAsText(file);
+  });
+
 export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
-  const { rssSources, addRssSource } = usePodcastStore();
-  const [mode, setMode] = useState<AddMode>("search");
+  const { rssSources, addRssSource, addRssSources, removeRssSource } =
+    usePodcastStore();
+  const [mode, setMode] = useState<"search" | "rss">("search");
 
-  const [keyword, setKeyword] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchItems, setSearchItems] = useState<SearchPodcastItem[]>([]);
-  const [rssName, setRssName] = useState("");
-  const [rssUrl, setRssUrl] = useState("");
-  const [isSubmittingRss, setIsSubmittingRss] = useState(false);
+  // 状态分组
+  const [search, setSearch] = useState({
+    kw: "",
+    items: [] as SearchPodcastItem[],
+    loading: false,
+    searched: false,
+  });
+  const [rss, setRss] = useState({ url: "", name: "", loading: false });
+  const [opml, setOpml] = useState<OpmlImportState>(EMPTY_OPML);
+  const opmlInputRef = useRef<HTMLInputElement>(null);
 
-  const activeSources = useMemo(
-    () => rssSources.filter((item) => !item.is_deleted),
+  // 已订阅 RSS 映射：rssUrl -> 订阅源，用于搜索结果的订阅状态与取消订阅
+  const activeRssMap = useMemo(
+    () =>
+      new Map(
+        rssSources.filter((s) => !s.is_deleted).map((s) => [s.rssUrl, s])
+      ),
     [rssSources]
   );
+  const activeRssSet = useMemo(
+    () => new Set(activeRssMap.keys()),
+    [activeRssMap]
+  );
 
-  const normalizedKeyword = keyword.trim();
-  const normalizedRssUrl = rssUrl.trim();
-  const normalizedRssName = rssName.trim();
+  // OPML 中尚未订阅的条目
+  const opmlNewFeeds = useMemo(
+    () => opml.feeds.filter((f) => !activeRssSet.has(f.xmlUrl)),
+    [opml.feeds, activeRssSet]
+  );
 
-  const resetDialogState = () => {
+  const resetState = () => {
     setMode("search");
-    setKeyword("");
-    setSearchItems([]);
-    setRssName("");
-    setRssUrl("");
-    setIsSearching(false);
-    setIsSubmittingRss(false);
+    setSearch({ kw: "", items: [], loading: false, searched: false });
+    setRss({ url: "", name: "", loading: false });
+    setOpml(EMPTY_OPML);
   };
 
   const handleSearch = async () => {
-    if (!normalizedKeyword) {
-      toast("请输入搜索关键词");
-      return;
-    }
+    const kw = search.kw.trim();
+    if (!kw) return toast("请输入搜索关键词");
 
+    setSearch((s) => ({ ...s, loading: true }));
     try {
-      setIsSearching(true);
-      const result = await searchPodcast(normalizedKeyword);
-      setSearchItems(result);
-      if (result.length === 0) toast("未找到相关播客");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "搜索失败");
+      const items = await searchPodcast(kw);
+      setSearch((s) => ({ ...s, items, searched: true }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "搜索失败");
     } finally {
-      setIsSearching(false);
+      setSearch((s) => ({ ...s, loading: false }));
     }
   };
 
   const handleAddSearchItem = (item: SearchPodcastItem) => {
-    if (!item.rssUrl) {
-      toast.error("该播客缺少 RSS 地址");
-      return;
-    }
-    if (activeSources.some((source) => source.rssUrl === item.rssUrl)) {
-      toast("已在订阅列表");
-      return;
-    }
-    // Pass cover and description to store
+    if (!item.rssUrl) return toast.error("该播客缺少 RSS 地址");
+    if (activeRssSet.has(item.rssUrl)) return toast("已在订阅列表");
+
     addRssSource(
       item.title,
       item.rssUrl,
@@ -90,175 +121,352 @@ export function PodcastAdd({ open, onOpenChange }: PodcastAddProps) {
     toast.success("订阅成功");
   };
 
+  /**
+   * 取消订阅已添加的播客
+   * @param source 待移除的 RSS 订阅源
+   */
+  const handleRemoveSource = (source: PodcastRssSource) => {
+    removeRssSource(source.id);
+    toast.success("已取消订阅");
+  };
+
   const handleAddRss = async () => {
-    if (!normalizedRssUrl) {
-      toast("请输入 RSS 地址");
+    const urlStr = rss.url.trim();
+    if (!urlStr) return toast("请输入 RSS 地址");
+
+    // 小宇宙播客页链接：走详情页解析，自动补全标题/作者/封面
+    if (urlStr.includes("xiaoyuzhoufm.com")) {
+      if (activeRssSet.has(urlStr)) return toast("该播客已订阅");
+
+      setRss((r) => ({ ...r, loading: true }));
+      try {
+        const item = await resolvePodcastUrl(urlStr);
+        if (!item || !item.rssUrl) {
+          return toast.error("未能解析该小宇宙播客，请确认链接是否正确");
+        }
+        if (activeRssSet.has(item.rssUrl)) return toast("该播客已订阅");
+
+        addRssSource(
+          rss.name.trim() || item.title,
+          item.rssUrl,
+          item.author || undefined,
+          item.cover || undefined,
+          item.description || undefined
+        );
+        toast.success("订阅成功");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "解析小宇宙播客失败");
+      } finally {
+        setRss((r) => ({ ...r, loading: false }));
+      }
       return;
     }
-    let url: URL;
+
     try {
-      url = new URL(normalizedRssUrl);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        toast.error("RSS 地址需为 http/https");
+      const url = new URL(urlStr);
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+      if (activeRssSet.has(urlStr)) return toast("该 RSS 已订阅");
+
+      setRss((r) => ({ ...r, loading: true }));
+      addRssSource(rss.name.trim() || url.hostname, urlStr);
+      toast.success("订阅成功");
+    } catch {
+      toast.error("请输入有效的 HTTP/HTTPS RSS 地址");
+    } finally {
+      setRss((r) => ({ ...r, loading: false }));
+    }
+  };
+
+  /**
+   * 解析 OPML 文本并进入预览阶段
+   * @param text OPML 文本内容
+   */
+  const handleOpmlParse = (text: string) => {
+    try {
+      const { feeds, skipped } = parseOpml(text);
+      if (feeds.length === 0) {
+        toast.error("未在 OPML 中找到可用的 RSS 地址");
         return;
       }
-    } catch {
-      toast.error("RSS 地址格式不正确");
-      return;
+      setOpml((o) => ({ ...o, feeds, skipped }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "OPML 解析失败");
     }
-    const existed = activeSources.some(
-      (source) => source.rssUrl === normalizedRssUrl
-    );
-    if (existed) {
-      toast("该 RSS 已订阅");
-      return;
-    }
-    setIsSubmittingRss(true);
+  };
+
+  /**
+   * 读取并解析用户选择的 OPML 文件
+   * @param file 选择的文件
+   */
+  const handleOpmlFile = async (file: File) => {
     try {
-      const displayName = normalizedRssName || url.hostname;
-      // For manual RSS, we don't have cover/desc yet.
-      // Ideally we should fetch it, but for now passing undefined.
-      addRssSource(displayName, normalizedRssUrl);
-      toast.success("订阅成功");
-      // onOpenChange(false);
-      // resetDialogState();
-    } finally {
-      setIsSubmittingRss(false);
+      handleOpmlParse(await readFileText(file));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "读取文件失败");
     }
+  };
+
+  /** 确认导入预览中的新播客 */
+  const handleOpmlConfirm = () => {
+    if (opmlNewFeeds.length === 0) return;
+    addRssSources(
+      opmlNewFeeds.map((f) => ({ name: f.title, rssUrl: f.xmlUrl }))
+    );
+    toast.success(`已订阅 ${opmlNewFeeds.length} 个播客`);
+    setOpml(EMPTY_OPML);
   };
 
   return (
     <Drawer
       open={open}
-      onOpenChange={(val) => {
-        onOpenChange(val);
-        if (!val) resetDialogState();
-      }}
+      onOpenChange={(val) => (onOpenChange(val), !val && resetState())}
     >
-      <DrawerContent className="max-h-[90vh] overflow-hidden">
-        <DrawerHeader className="mb-1 px-4">
-          <DrawerTitle className="text-center text-lg">
+      <DrawerContent
+        className={cn(
+          "flex flex-col outline-none",
+          mode === "search" && "h-[80vh]"
+        )}
+      >
+        <DrawerHeader className="px-5 pb-3">
+          <DrawerTitle className="text-center text-base font-semibold">
             添加播客订阅
           </DrawerTitle>
-          <DrawerDescription className="text-center text-xs">
-            {mode === "search" ? "先搜索，再一键订阅" : "手动填写 RSS 地址订阅"}
-          </DrawerDescription>
         </DrawerHeader>
 
-        <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-4 pb-5">
-          {mode === "search" ? (
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    autoFocus
-                    className="pl-9"
-                    placeholder="搜索播客名称..."
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && void handleSearch()}
-                  />
+        <Tabs
+          value={mode}
+          onValueChange={(v) => setMode(v as typeof mode)}
+          className="flex-1 flex flex-col min-h-0 px-5 pb-5"
+        >
+          <TabsList className="grid h-9 w-full grid-cols-2 rounded-full">
+            <TabsTrigger value="search" className="rounded-full">
+              搜索播客
+            </TabsTrigger>
+            <TabsTrigger value="rss" className="rounded-full">
+              RSS 链接
+            </TabsTrigger>
+          </TabsList>
+
+          {/* 搜索 Tab */}
+          <TabsContent
+            value="search"
+            className="mt-3 flex-1 flex flex-col gap-3 min-h-0"
+          >
+            <div className="flex gap-2">
+              <Input
+                autoFocus
+                className="h-10 flex-1 rounded-xl border-none bg-muted/50"
+                placeholder="输入播客名称"
+                value={search.kw}
+                onChange={(e) =>
+                  setSearch((s) => ({ ...s, kw: e.target.value }))
+                }
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              />
+              <Button
+                onClick={handleSearch}
+                disabled={search.loading || !search.kw.trim()}
+                className="min-w-[72px]"
+              >
+                {search.loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "搜索"
+                )}
+              </Button>
+            </div>
+
+            <div className="flex-1 space-y-1 overflow-y-auto min-h-0">
+              {search.loading ? (
+                <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> 正在搜索
                 </div>
-                <Button
-                  onClick={() => void handleSearch()}
-                  disabled={isSearching}
-                  className="min-w-[72px]"
-                >
-                  {isSearching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "搜索"
-                  )}
-                </Button>
-              </div>
-              <div className="space-y-2 pr-1 custom-scrollbar">
-                {searchItems.map((item) => {
-                  const existed =
-                    !item.rssUrl ||
-                    activeSources.some((s) => s.rssUrl === item.rssUrl);
+              ) : search.items.length > 0 ? (
+                search.items.map((item) => {
+                  // Apple 部分条目无 feedUrl，不能订阅，需与「已订阅」区分
+                  const subscribed = item.rssUrl
+                    ? activeRssMap.get(item.rssUrl)
+                    : undefined;
+                  const noRss = !item.rssUrl;
                   return (
                     <div
                       key={`${item.source}-${item.id}-${item.rssUrl}`}
-                      className="flex items-center gap-3 rounded-lg border p-2.5"
+                      className="flex items-center gap-3 rounded-xl p-2 active:bg-muted/60"
                     >
-                      <div className="w-11 h-11 rounded-md border bg-muted/40 overflow-hidden shrink-0">
-                        <MusicCover
-                          src={item.cover}
-                          alt={item.title}
-                          className="bg-transparent"
-                          fallbackIcon={
-                            <Radio className="w-4 h-4 text-muted-foreground/60" />
-                          }
-                        />
-                      </div>
+                      <MusicCover
+                        src={item.cover}
+                        alt={item.title}
+                        className="h-11 w-11 shrink-0 rounded-lg bg-muted/50"
+                        fallbackIcon={
+                          <Radio className="h-4 w-4 text-muted-foreground/60" />
+                        }
+                      />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium line-clamp-1">
+                        <p className="text-sm font-medium truncate">
                           {item.title}
                         </p>
-                        <p className="text-[11px] text-muted-foreground line-clamp-1">
+                        <p className="text-[11px] text-muted-foreground truncate">
                           {item.author || "未知作者"}
                         </p>
                       </div>
                       <Button
                         size="sm"
-                        variant={existed ? "secondary" : "default"}
-                        disabled={existed}
-                        className="h-7 rounded-full px-3 text-xs"
-                        onClick={() => handleAddSearchItem(item)}
+                        variant={subscribed ? "secondary" : "default"}
+                        disabled={noRss}
+                        className={cn("h-7 shrink-0 rounded-full text-xs")}
+                        onClick={() =>
+                          subscribed
+                            ? handleRemoveSource(subscribed)
+                            : handleAddSearchItem(item)
+                        }
                       >
-                        {existed ? "已订阅" : "订阅"}
+                        {noRss ? "无 RSS" : subscribed ? "已订阅" : "订阅"}
                       </Button>
                     </div>
                   );
-                })}
-                {!isSearching && searchItems.length === 0 && (
-                  <div className="py-8 text-center text-xs text-muted-foreground/70">
-                    输入关键词搜索可订阅的播客
-                  </div>
-                )}
-              </div>
+                })
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-xs text-muted-foreground/70">
+                  <Radio className="h-7 w-7 opacity-50" />
+                  {search.searched
+                    ? "未找到相关播客"
+                    : "搜索并订阅你喜欢的播客"}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <Input
-                placeholder="播客名称（可选）"
-                value={rssName}
-                onChange={(e) => setRssName(e.target.value)}
-              />
-              <div className="relative">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="https://example.com/feed.xml"
-                  value={rssUrl}
-                  onChange={(e) => setRssUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void handleAddRss()}
-                />
-              </div>
-              <Button
-                className="w-full rounded-full"
-                onClick={() => void handleAddRss()}
-                disabled={isSubmittingRss}
-              >
-                {isSubmittingRss && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                验证并订阅
-              </Button>
-            </div>
-          )}
+          </TabsContent>
 
-          <Button
-            variant="link"
-            className="h-auto px-0 text-xs text-muted-foreground/70 hover:text-muted-foreground w-full"
-            onClick={() =>
-              setMode((prev) => (prev === "search" ? "rss" : "search"))
-            }
+          {/* RSS Tab */}
+          <TabsContent
+            value="rss"
+            className="mt-3 min-h-0 space-y-2.5 overflow-y-auto"
           >
-            {mode === "search" ? "改用手动 RSS 订阅" : "返回搜索订阅"}
-          </Button>
-        </div>
+            <Input
+              className="h-10 rounded-xl border-none bg-muted/50"
+              placeholder="小宇宙播客链接或 RSS 地址"
+              inputMode="url"
+              value={rss.url}
+              onChange={(e) => setRss((r) => ({ ...r, url: e.target.value }))}
+              onKeyDown={(e) => e.key === "Enter" && handleAddRss()}
+            />
+            <Input
+              className="h-10 rounded-xl border-none bg-muted/50"
+              placeholder="播客名称（可选，默认取标题）"
+              value={rss.name}
+              onChange={(e) => setRss((r) => ({ ...r, name: e.target.value }))}
+            />
+            <Button
+              className="w-full rounded-full"
+              onClick={handleAddRss}
+              disabled={rss.loading || !rss.url.trim()}
+            >
+              {rss.loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              订阅
+            </Button>
+
+            {/* OPML 批量导入 */}
+            <div className="flex items-center gap-3 pt-1">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[11px] text-muted-foreground">
+                批量导入
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full rounded-full"
+              onClick={() => opmlInputRef.current?.click()}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              选择 OPML 文件
+            </Button>
+            <input
+              ref={opmlInputRef}
+              type="file"
+              className="hidden"
+              accept=".opml,.xml,text/xml,application/xml,text/x-opml"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // 重置 value，保证同一个文件可重复选择
+                e.target.value = "";
+                if (file) void handleOpmlFile(file);
+              }}
+            />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              在小宇宙「设置 → 更多功能 → 导出订阅列表」下载 OPML，可拿到全量
+              RSS 地址（免登录订阅不受 15 集限制）
+            </p>
+
+            {opml.showText ? (
+              <>
+                <Textarea
+                  className="min-h-24 max-h-40 rounded-xl border-none bg-muted/50 font-mono text-xs"
+                  placeholder="粘贴 OPML 文本内容"
+                  value={opml.text}
+                  onChange={(e) =>
+                    // 文本变化后旧预览失效，清空待重新解析
+                    setOpml((o) => ({
+                      ...o,
+                      text: e.target.value,
+                      feeds: [],
+                      skipped: 0,
+                    }))
+                  }
+                />
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 rounded-full"
+                    disabled={!opml.text.trim()}
+                    onClick={() => handleOpmlParse(opml.text)}
+                  >
+                    解析
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="rounded-full"
+                    onClick={() => setOpml(EMPTY_OPML)}
+                  >
+                    取消
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                className="w-full rounded-full text-xs text-muted-foreground"
+                onClick={() => setOpml((o) => ({ ...o, showText: true }))}
+              >
+                或粘贴 OPML 文本
+              </Button>
+            )}
+
+            {opml.feeds.length > 0 && (
+              <div className="space-y-2 rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">
+                  共 {opml.feeds.length} 个播客，可新增 {opmlNewFeeds.length} 个
+                  {opml.feeds.length > opmlNewFeeds.length &&
+                    `，${opml.feeds.length - opmlNewFeeds.length} 个已订阅`}
+                  {opml.skipped > 0 && `，${opml.skipped} 条无 RSS 地址已跳过`}
+                </p>
+                <ul className="max-h-32 list-disc space-y-1 overflow-y-auto pl-4">
+                  {opmlNewFeeds.map((feed) => (
+                    <li key={feed.xmlUrl} className="truncate text-xs">
+                      {feed.title}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full rounded-full"
+                  disabled={opmlNewFeeds.length === 0}
+                  onClick={handleOpmlConfirm}
+                >
+                  订阅 {opmlNewFeeds.length} 个播客
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </DrawerContent>
     </Drawer>
   );

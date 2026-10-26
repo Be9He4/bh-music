@@ -1,6 +1,6 @@
 import { BilibiliProxy } from "@/plugins/bilibili-proxy";
-import { Capacitor } from "@capacitor/core";
 import { logger } from "@/lib/logger";
+import { IS_NATIVE } from "@/lib/api/config";
 
 let serverStarted = false;
 let serverStartPromise: Promise<void> | null = null;
@@ -22,20 +22,29 @@ async function ensureServerRunning(): Promise<void> {
       const status = await BilibiliProxy.isRunning();
       if (status.running) {
         serverStarted = true;
-        logger.info("[bilibili-native] Proxy server already running on port", status.port);
+        logger.info(
+          "[bilibili-native] Proxy server already running on port",
+          status.port
+        );
         return;
       }
 
       const result = await Promise.race([
         BilibiliProxy.startServer(),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Server start timeout")), SERVER_START_TIMEOUT)
+          setTimeout(
+            () => reject(new Error("Server start timeout")),
+            SERVER_START_TIMEOUT
+          )
         ),
       ]);
 
       if (result.success) {
         serverStarted = true;
-        logger.info("[bilibili-native] Proxy server started on port", result.port);
+        logger.info(
+          "[bilibili-native] Proxy server started on port",
+          result.port
+        );
       } else {
         throw new Error("Failed to start proxy server");
       }
@@ -55,7 +64,7 @@ export async function getNativeBilibiliStreamUrl(
   audioUrl: string,
   bvid: string
 ): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!IS_NATIVE) {
     throw new Error("This function is only for native platforms");
   }
 
@@ -82,7 +91,7 @@ export async function getNativeBilibiliStreamUrl(
  * 停止代理服务器（应用退出时调用）
  */
 export async function stopBilibiliProxyServer(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!IS_NATIVE) return;
 
   try {
     await BilibiliProxy.stopServer();

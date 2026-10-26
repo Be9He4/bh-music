@@ -6,10 +6,10 @@ import {
   type UpdateInfo,
   checkUpdate as apiCheckUpdate,
 } from "@/lib/api/update";
-import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { toast } from "react-hot-toast";
 import { logger } from "@/lib/logger";
+import { IS_NATIVE } from "@/lib/api/config";
 
 interface AppState {
   currentVersion: string;
@@ -19,12 +19,15 @@ interface AppState {
   isChecking: boolean;
   /** 启动时是否自动检查更新并提醒 */
   enableUpdateNotify: boolean;
+  /** 是否与其他应用同时播放(被其他应用抢占音频焦点时不暂停) */
+  allowSimultaneousPlayback: boolean;
 }
 
 interface AppActions {
   checkUpdate: (silent?: boolean) => Promise<void>;
   resetCheckTime: () => void;
   setEnableUpdateNotify: (enableUpdateNotify: boolean) => void;
+  setAllowSimultaneousPlayback: (allowSimultaneousPlayback: boolean) => void;
 }
 
 const initialState: AppState = {
@@ -34,6 +37,7 @@ const initialState: AppState = {
   hasUpdate: false,
   isChecking: false,
   enableUpdateNotify: true,
+  allowSimultaneousPlayback: false,
 };
 
 /* =========================
@@ -42,12 +46,12 @@ const initialState: AppState = {
 
 const getCurrentVersion = async (): Promise<string> => {
   try {
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       const info = await App.getInfo();
       return info.version;
     }
   } catch (e) {
-    console.error("Failed to get app version", e);
+    logger.error("app-store", "Failed to get app version", e);
   }
   return __APP_VERSION__;
 };
@@ -143,6 +147,9 @@ export const useAppStore = create<AppState & AppActions>()(
 
       setEnableUpdateNotify: (enableUpdateNotify) =>
         set({ enableUpdateNotify }),
+
+      setAllowSimultaneousPlayback: (allowSimultaneousPlayback) =>
+        set({ allowSimultaneousPlayback }),
     }),
     {
       name: storeKey.AppStore,
@@ -153,6 +160,7 @@ export const useAppStore = create<AppState & AppActions>()(
         latestVersionInfo: state.latestVersionInfo,
         hasUpdate: state.hasUpdate,
         enableUpdateNotify: state.enableUpdateNotify,
+        allowSimultaneousPlayback: state.allowSimultaneousPlayback,
       }),
     }
   )

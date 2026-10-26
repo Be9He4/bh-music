@@ -595,12 +595,14 @@ export interface QqSearchSongRaw {
   };
 }
 
-export interface QqSearchResponse {
-  req_1: {
-    code: number;
-    data: {
-      meta: { sum: number };
-      body: { song: { list: QqSearchSongRaw[] } };
+/** QQ 音乐 soso 搜索接口 (client_search_cp) 响应 */
+export interface QqSosoSearchResponse {
+  code: number;
+  message?: string;
+  data?: {
+    song: {
+      totalnum: number;
+      list: QqSearchSongRaw[];
     };
   };
 }

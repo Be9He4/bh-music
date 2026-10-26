@@ -9,20 +9,13 @@ import { MusicTrack } from "@/types/music";
 import { Play } from "lucide-react";
 import { useMusicStore, type LyricAlign } from "@/store/music-store";
 import { useShallow } from "zustand/react/shallow";
+import { findActiveLyricIndex, parseLrc, type LyricLine } from "@/lib/lyrics";
 
 interface LyricsPanelProps {
   track: MusicTrack | null;
   active?: boolean;
 }
 
-interface LyricLine {
-  time: number;
-  text: string;
-  ttext?: string;
-}
-
-const TIME_EXP = /\[(\d{2}):(\d{2})\.(\d{2,3})]/g;
-const MATCH_TOLERANCE = 0.5;
 const AUTO_SCROLL_DELAY = 2000;
 const PADDING_LINES = 2;
 
@@ -32,86 +25,16 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-function parseSimpleLrc(lrc: string): { time: number; text: string }[] {
-  const lines: { time: number; text: string }[] = [];
-
-  for (const line of lrc.split("\n")) {
-    const timeMatches = [...line.matchAll(TIME_EXP)];
-
-    if (timeMatches.length > 0) {
-      const text = line.replace(TIME_EXP, "").trim();
-
-      if (text) {
-        for (const m of timeMatches) {
-          const time =
-            Number(m[1]) * 60 +
-            Number(m[2]) +
-            Number(m[3].padEnd(3, "0")) / 1000;
-
-          lines.push({ time, text });
-        }
-      }
-    }
-  }
-
-  return lines.sort((a, b) => a.time - b.time);
-}
-
-function parseLrc(lrc: string, tLrc?: string): LyricLine[] {
-  const lLines = parseSimpleLrc(lrc);
-
-  if (!tLrc) {
-    return lLines;
-  }
-
-  const tLines = parseSimpleLrc(tLrc);
-  const result: LyricLine[] = [];
-  let tIdx = 0;
-
-  for (const line of lLines) {
-    let ttext: string | undefined;
-
-    while (
-      tIdx < tLines.length &&
-      tLines[tIdx].time < line.time - MATCH_TOLERANCE
-    ) {
-      tIdx++;
-    }
-
-    let bestMatchIdx = -1;
-    let minDiff = MATCH_TOLERANCE;
-
-    for (let i = tIdx; i < tLines.length; i++) {
-      const diff = Math.abs(tLines[i].time - line.time);
-
-      if (tLines[i].time > line.time + MATCH_TOLERANCE) {
-        break;
-      }
-
-      if (diff <= MATCH_TOLERANCE && diff < minDiff) {
-        minDiff = diff;
-        bestMatchIdx = i;
-      }
-    }
-
-    if (bestMatchIdx !== -1) {
-      ttext = tLines[bestMatchIdx].text;
-    }
-
-    result.push({ ...line, ttext });
-  }
-
-  return result;
-}
-
 const LyricLineView = memo(function LyricLineView({
   line,
   isActive,
+  isBaseLine,
   align,
   fontSize,
 }: {
   line: LyricLine;
   isActive: boolean;
+  isBaseLine: boolean;
   align: LyricAlign;
   fontSize: number;
 }) {
@@ -128,8 +51,11 @@ const LyricLineView = memo(function LyricLineView({
         align === "left" && "text-left",
         align === "right" && "text-right",
         isActive
-          ? "text-white opacity-100"
-          : "text-white/40 opacity-100 hover:text-white/60"
+          ? "text-white opacity-100 hover:text-white/40"
+          : "text-white/40 opacity-100 hover:text-white/60",
+        // 基准线行加浅色背景框；py 与 -my 等额抵消，保证行间距不变
+        // self-start 阻止 flex 拉伸，避免抵消后的内边距被压缩
+        isBaseLine && "-my-2.5 self-start rounded-xl bg-white/10 py-2.5"
       )}
     >
       <p
@@ -190,10 +116,7 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
   const activeIndex =
     lyrics.length > 0
-      ? Math.max(
-          0,
-          lyrics.findLastIndex((line) => currentTime >= line.time + lyricOffset)
-        )
+      ? Math.max(0, findActiveLyricIndex(lyrics, currentTime, lyricOffset))
       : 0;
 
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -396,6 +319,14 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     );
   }
 
+  if (lyrics.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center text-sm text-white/40">
+        暂无歌词
+      </div>
+    );
+  }
+
   const LyricsList = (
     <div
       className={cn(
@@ -407,53 +338,45 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
         lyricAlign === "right" && "items-end"
       )}
     >
-      {lyrics.length === 0 ? (
-        <div className="h-full flex items-center justify-center">
-          <p className="text-white/40 text-center">暂无歌词</p>
+      {Array.from({ length: PADDING_LINES }).map((_, i) => (
+        <div key={`pad-top-${i}`} className="h-6 shrink-0" />
+      ))}
+
+      {lyrics.map((line, i) => (
+        <div
+          key={`${line.time}-${i}`}
+          ref={(el) => {
+            lineRefs.current[i] = el;
+          }}
+          className={cn(
+            "w-full flex",
+            lyricAlign === "center" && "justify-center",
+            lyricAlign === "left" && "justify-start",
+            lyricAlign === "right" && "justify-end"
+          )}
+        >
+          <LyricLineView
+            line={line}
+            isActive={i === activeIndex}
+            isBaseLine={i === centerLineIndex}
+            align={lyricAlign}
+            fontSize={lyricFontSize}
+          />
         </div>
-      ) : (
-        <>
-          {Array.from({ length: PADDING_LINES }).map((_, i) => (
-            <div key={`pad-top-${i}`} className="h-6 shrink-0" />
-          ))}
+      ))}
 
-          {lyrics.map((line, i) => (
-            <div
-              key={`${line.time}-${i}`}
-              ref={(el) => {
-                lineRefs.current[i] = el;
-              }}
-              className={cn(
-                "w-full flex",
-                lyricAlign === "center" && "justify-center",
-                lyricAlign === "left" && "justify-start",
-                lyricAlign === "right" && "justify-end"
-              )}
-            >
-              <LyricLineView
-                line={line}
-                isActive={i === activeIndex}
-                align={lyricAlign}
-                fontSize={lyricFontSize}
-              />
-            </div>
-          ))}
-
-          {Array.from({ length: PADDING_LINES }).map((_, i) => (
-            <div key={`pad-bottom-${i}`} className="h-6 shrink-0" />
-          ))}
-        </>
-      )}
+      {Array.from({ length: PADDING_LINES }).map((_, i) => (
+        <div key={`pad-bottom-${i}`} className="h-6 shrink-0" />
+      ))}
     </div>
   );
 
   const centerLine = centerLineIndex >= 0 ? lyrics[centerLineIndex] : null;
 
-  // 基准线时间标签：居左模式下右对齐，使数字紧贴播放按钮形成控件组
   const baselineTime = centerLine ? (
     <span
       className={cn(
-        "min-w-9 text-xs tabular-nums text-white/60",
+        "min-w-9 shrink-0 text-xs tabular-nums text-white/60",
         lyricAlign === "left" && "text-right"
       )}
     >
@@ -461,27 +384,20 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
     </span>
   ) : null;
 
-  const baselinePlay = centerLine ? (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        handleSeek(centerLine.time);
-      }}
+  // 图标仅为视觉提示，点击由外层整条基准线接管，扩大触控范围
+  const baselineIcon = centerLine ? (
+    <span
       className={cn(
-        "pointer-events-auto",
-        "flex h-8 w-8 items-center justify-center",
+        "flex h-8 w-8 shrink-0 items-center justify-center",
         "rounded-full",
         "bg-white/10 backdrop-blur-sm",
         "text-white",
-        "transition-all",
-        "hover:bg-white/20",
-        "active:scale-95"
+        "transition-colors",
+        "group-hover:bg-white/20 group-active:bg-white/30"
       )}
-      aria-label="播放此处歌词"
     >
       <Play size={14} className="ml-0.5 fill-current" />
-    </button>
+    </span>
   ) : null;
 
   return (
@@ -505,11 +421,20 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
       </ScrollArea>
 
       {isUserScrolling && centerLine && (
-        <div className="absolute inset-x-0 top-1/2 z-10 -translate-y-1/2 px-4 pointer-events-none">
-          <div className="flex items-center gap-3">
+        <div className="absolute inset-x-0 top-1/2 z-10 -translate-y-1/2 px-4">
+          <button
+            type="button"
+            onClick={(e) => {
+              // 阻止冒泡到全屏播放器的歌词区域，否则会同时切换到封面模式
+              e.stopPropagation();
+              handleSeek(centerLine.time);
+            }}
+            className="group flex w-full items-center gap-3 py-2 outline-none"
+            aria-label="从此句开始播放"
+          >
             {lyricAlign === "right" && (
               <>
-                {baselinePlay}
+                {baselineIcon}
                 {baselineTime}
               </>
             )}
@@ -518,15 +443,15 @@ export function LyricsPanel({ track, active = true }: LyricsPanelProps) {
 
             <div className="h-px flex-1 bg-white/20" />
 
-            {lyricAlign === "center" && baselinePlay}
+            {lyricAlign === "center" && baselineIcon}
 
             {lyricAlign === "left" && (
               <>
                 {baselineTime}
-                {baselinePlay}
+                {baselineIcon}
               </>
             )}
-          </div>
+          </button>
         </div>
       )}
     </div>

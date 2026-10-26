@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { useAudioEventHandlers } from "./useAudioEventHandlers";
 import { useMusicStore } from "@/store/music-store";
+import { useAppStore } from "@/store/app-store";
 import { useOfflineStore } from "@/store/offline-store";
 import type { MusicTrack } from "@/types/music";
 
@@ -180,6 +181,116 @@ describe("useAudioEventHandlers pause confirm", () => {
     expect(state.currentIndex).toBe(0);
     expect(state.sleepTimerIsActive).toBe(false);
     expect(state.sleepTimerStopAfterCurrentTrack).toBe(false);
+    cleanup();
+  });
+});
+
+describe("useAudioEventHandlers simultaneous playback", () => {
+  beforeEach(() => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+
+    useMusicStore.setState({
+      queue: [],
+      currentIndex: 0,
+      isPlaying: true,
+      isLoading: false,
+    });
+    useAppStore.setState({ allowSimultaneousPlayback: false });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const setup = () => {
+    const audio = document.createElement("audio");
+
+    let paused = false;
+    Object.defineProperty(audio, "paused", {
+      configurable: true,
+      get: () => paused,
+    });
+
+    const audioRef = {
+      current: audio,
+    } as React.RefObject<HTMLAudioElement | null>;
+    const isSwitchingTrackRef = { current: false };
+    const hasRecordedRef = { current: true };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    function TestHarness() {
+      useAudioEventHandlers(audioRef, isSwitchingTrackRef, hasRecordedRef);
+      return null;
+    }
+
+    act(() => {
+      root.render(<TestHarness />);
+    });
+
+    const cleanup = () => {
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    };
+
+    return {
+      audio,
+      setPaused: (value: boolean) => {
+        paused = value;
+      },
+      cleanup,
+    };
+  };
+
+  it("resumes playback on external pause while the setting is enabled", () => {
+    useAppStore.setState({ allowSimultaneousPlayback: true });
+    const { audio, setPaused, cleanup } = setup();
+    const playSpy = vi.spyOn(audio, "play").mockResolvedValue(undefined);
+
+    setPaused(true);
+    audio.dispatchEvent(new Event("pause"));
+
+    expect(playSpy).toHaveBeenCalledTimes(1);
+    expect(useMusicStore.getState().isPlaying).toBe(true);
+
+    vi.advanceTimersByTime(250);
+    expect(useMusicStore.getState().isPlaying).toBe(true);
+    cleanup();
+  });
+
+  it("does not resume when isPlaying is already false (user pause or route loss)", () => {
+    useAppStore.setState({ allowSimultaneousPlayback: true });
+    useMusicStore.setState({ isPlaying: false });
+    const { audio, setPaused, cleanup } = setup();
+    const playSpy = vi.spyOn(audio, "play");
+
+    setPaused(true);
+    audio.dispatchEvent(new Event("pause"));
+
+    vi.advanceTimersByTime(250);
+    expect(playSpy).not.toHaveBeenCalled();
+    expect(useMusicStore.getState().isPlaying).toBe(false);
+    cleanup();
+  });
+
+  it("falls back to paused state when resume play() rejects", async () => {
+    useAppStore.setState({ allowSimultaneousPlayback: true });
+    const { audio, setPaused, cleanup } = setup();
+    vi.spyOn(audio, "play").mockRejectedValue(new Error("focus denied"));
+
+    setPaused(true);
+    audio.dispatchEvent(new Event("pause"));
+    await act(async () => {});
+
+    expect(useMusicStore.getState().isPlaying).toBe(false);
     cleanup();
   });
 });

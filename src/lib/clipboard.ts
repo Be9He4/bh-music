@@ -1,6 +1,6 @@
 import { Clipboard } from "@capacitor/clipboard";
-import { Capacitor } from "@capacitor/core";
 import { logger } from "./logger";
+import { IS_NATIVE } from "@/lib/api/config";
 
 /**
  * 跨平台读取剪贴板文本
@@ -11,7 +11,7 @@ import { logger } from "./logger";
  */
 export async function readClipboardText(): Promise<string> {
   try {
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       const { value } = await Clipboard.read();
       return value || "";
     } else {
@@ -33,7 +33,7 @@ export async function readClipboardText(): Promise<string> {
  */
 export async function writeClipboardText(text: string): Promise<boolean> {
   try {
-    if (Capacitor.isNativePlatform()) {
+    if (IS_NATIVE) {
       await Clipboard.write({ string: text });
       return true;
     } else {

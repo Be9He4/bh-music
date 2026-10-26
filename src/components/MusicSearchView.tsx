@@ -39,6 +39,7 @@ import {
   type SearchSuggestionItem,
   searchOptions,
 } from "@/types/music";
+import { logger } from "@/lib/logger";
 
 interface MusicSearchViewProps {
   onPlay: (track: MusicTrack, list: MusicTrack[], contextId?: string) => void;
@@ -135,7 +136,7 @@ export function MusicSearchView({
           setActiveSuggestionIndex(-1);
         }
       } catch (e) {
-        console.error("Failed to fetch suggestions", e);
+        logger.error("MusicSearchView", "Failed to fetch suggestions", e);
       }
     };
     fetchSuggestions();

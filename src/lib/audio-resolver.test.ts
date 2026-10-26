@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveTrackUrl } from "./audio-resolver";
+import type { OfflineTrackRecord } from "@/store/offline-store";
 import type { MusicTrack } from "@/types/music";
 
 vi.mock("@capacitor/core", () => ({
@@ -28,11 +29,24 @@ vi.mock("@/lib/logger", () => ({
 vi.mock("@/store/download-store", () => ({
   useDownloadStore: { getState: () => ({ getUri: () => null }) },
 }));
+
+const { urlCacheMock, offlineMock } = vi.hoisted(() => ({
+  urlCacheMock: {
+    get: vi.fn<() => string | null>(() => null),
+    set: vi.fn(),
+    delete: vi.fn(),
+  },
+  offlineMock: {
+    records: {} as Record<string, unknown>,
+    addRecord: vi.fn(),
+  },
+}));
+
 vi.mock("@/store/offline-store", () => ({
-  useOfflineStore: { getState: () => ({ records: {} }) },
+  useOfflineStore: { getState: () => offlineMock },
 }));
 vi.mock("@/store/url-cache-store", () => ({
-  useUrlCacheStore: { getState: () => ({ get: () => null, set: vi.fn() }) },
+  useUrlCacheStore: { getState: () => urlCacheMock },
   buildUrlCacheKey: () => "key",
 }));
 vi.mock("@/lib/music-api", () => ({
@@ -102,6 +116,126 @@ describe("resolveTrackUrl offline", () => {
     const result = await resolveTrackUrl(remoteTrack, 192);
 
     expect(result.url).toBe("");
+    expect(musicApi.getUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveTrackUrl forceRefresh", () => {
+  const originalOnLine = navigator.onLine;
+  const remoteTrack: MusicTrack = {
+    ...localTrack,
+    id: "netease-1",
+    source: "netease",
+  };
+
+  const streamCacheRecord: OfflineTrackRecord = {
+    trackId: "netease-1",
+    source: "stream-cache",
+    url: "https://cdn.example.com/stream-cached.mp3",
+    cachedAt: Date.now(),
+    name: "Song",
+    artist: ["Artist"],
+    album: "Album",
+    trackSource: "netease",
+    url_id: "netease-1",
+    pic_id: "",
+    lyric_id: "",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    urlCacheMock.get.mockReset();
+    urlCacheMock.get.mockReturnValue(null);
+    offlineMock.records = {};
+    Object.defineProperty(navigator, "onLine", {
+      value: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(navigator, "onLine", {
+      value: originalOnLine,
+      configurable: true,
+    });
+  });
+
+  it("uses cached URL by default without re-requesting", async () => {
+    urlCacheMock.get.mockReturnValue("https://cdn.example.com/stale.mp3");
+    vi.mocked(musicApi.getUrl).mockResolvedValue(
+      "https://cdn.example.com/new.mp3"
+    );
+
+    const result = await resolveTrackUrl(remoteTrack, 192);
+
+    expect(result.url).toBe("https://cdn.example.com/stale.mp3");
+    expect(musicApi.getUrl).not.toHaveBeenCalled();
+  });
+
+  it("forceRefresh bypasses cache, deletes stale entry and re-requests", async () => {
+    urlCacheMock.get.mockReturnValue("https://cdn.example.com/stale.mp3");
+    vi.mocked(musicApi.getUrl).mockResolvedValue(
+      "https://cdn.example.com/new.mp3"
+    );
+
+    const result = await resolveTrackUrl(remoteTrack, 192, {
+      forceRefresh: true,
+    });
+
+    expect(result.url).toBe("https://cdn.example.com/new.mp3");
+    expect(urlCacheMock.delete).toHaveBeenCalledWith("key");
+    expect(urlCacheMock.set).toHaveBeenCalledWith(
+      "key",
+      "https://cdn.example.com/new.mp3"
+    );
+    expect(musicApi.getUrl).toHaveBeenCalledWith("netease-1", "netease", 192, {
+      forceRefresh: true,
+    });
+  });
+
+  it("forceRefresh skips stale stream-cache offline record", async () => {
+    offlineMock.records = { "netease-1": streamCacheRecord };
+    vi.mocked(musicApi.getUrl).mockResolvedValue(
+      "https://cdn.example.com/new.mp3"
+    );
+
+    const result = await resolveTrackUrl(remoteTrack, 192, {
+      forceRefresh: true,
+    });
+
+    expect(result.url).toBe("https://cdn.example.com/new.mp3");
+    expect(musicApi.getUrl).toHaveBeenCalled();
+  });
+
+  it("forceRefresh rewrites stream-cache offline record with fresh url", async () => {
+    offlineMock.records = { "netease-1": streamCacheRecord };
+    vi.mocked(musicApi.getUrl).mockResolvedValue(
+      "https://cdn.example.com/new.mp3"
+    );
+
+    await resolveTrackUrl(remoteTrack, 192, { forceRefresh: true });
+
+    expect(offlineMock.addRecord).toHaveBeenCalledWith({
+      ...streamCacheRecord,
+      url: "https://cdn.example.com/new.mp3",
+      cachedAt: expect.any(Number),
+    });
+  });
+
+  it("does not rewrite stream-cache record without forceRefresh", async () => {
+    offlineMock.records = { "netease-1": streamCacheRecord };
+
+    await resolveTrackUrl(remoteTrack, 192);
+
+    expect(offlineMock.addRecord).not.toHaveBeenCalled();
+  });
+
+  it("reuses stream-cache offline record without forceRefresh", async () => {
+    offlineMock.records = { "netease-1": streamCacheRecord };
+
+    const result = await resolveTrackUrl(remoteTrack, 192);
+
+    expect(result.url).toBe("https://cdn.example.com/stream-cached.mp3");
     expect(musicApi.getUrl).not.toHaveBeenCalled();
   });
 });

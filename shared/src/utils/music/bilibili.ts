@@ -750,9 +750,7 @@ export function selectBilibiliSubtitleItems(
 
   // 主歌词：人工字幕优先，其次 AI 兜底
   const primary: BilibiliSubtitleItem | null =
-    pickInPool(humanPool, "zh") ??
     pickInPool(humanPool, firstLangOf(humanPool)) ??
-    pickInPool(aiPool, "zh") ??
     pickInPool(aiPool, firstLangOf(aiPool));
 
   if (!primary) return { primary: null, translation: null };
